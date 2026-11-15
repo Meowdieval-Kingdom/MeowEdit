@@ -1,0 +1,2403 @@
+import "./styles.css";
+import type Drawflow from "drawflow";
+import {
+  createKey,
+  dialogueActionsForNode,
+  dialogueMomentName,
+  DEFAULT_QUEST,
+  emptyQuestExtension,
+  emptyTimerLogic,
+  slugify,
+  type ArmyCatalog,
+  type ArmyRecord,
+  type CampaignRecord,
+  type CampaignFloor,
+  type AdventureNodeKind as CampaignNodeKind,
+  type CampaignFloorMode,
+  type AdventureQuestDefinition,
+  type CompletionEffect,
+  type DialogueNode,
+  type DialogueRecord,
+  type FaceMood,
+  type KillCountTargetKind,
+  type QuestRecord,
+  type UnitRoster,
+  type Workspace
+} from "./model";
+import { createSeedWorkspace } from "./seed";
+import { validateWorkspace } from "./validation";
+import {
+  activeDialogueJson,
+  activeArmyJson,
+  activeCampaignJson,
+  activeQuestJson,
+  decodeZipText,
+  parseImportedJson,
+  suggestedFilename,
+  workspacePackage
+} from "./export";
+import { readStoredZip } from "./zip";
+import { compactDialogueGraph, mountDialogueGraph } from "./dialogue-graph";
+import { addArmyUnit as addArmyUnitToArmy, addArmyUnitSpell, moveArmyUnit, replaceArmyUnit, removeArmyUnitSpell, type ArmyPlacementMove } from "./army-domain";
+import { armyFootprint, armyFootprintsOverlap, armyGridSize, canPlaceArmyLevel, firstAvailableArmyCell, resolveArmyLevel, type ArmyCatalogKind } from "./army-catalog";
+import { addCampaignNode, connectCampaignNodes, createCampaignFloor, moveCampaignNode, removeCampaignFloor, removeCampaignNode } from "./campaign-domain";
+import { normalizeArmy, normalizeCampaign } from "./import-normalizers";
+import { EditorNavigationHistory, type RelatedEditorReturnContext } from "./editor-navigation";
+import { defaultEditorSession, loadEditorSession, saveEditorSession } from "./editor-session";
+import { includeArmyUnitsInRoster } from "./roster";
+import { escapeHtml, renderApp, renderLivePreview, renderValidationSummary, renderArmyEntityPreview, renderArmyAbilityPreview, type EditorMode } from "./view";
+
+const STORAGE_KEY = "meowedit.workspace.v1";
+const initialEditorSession = (() => {
+  try { return loadEditorSession(localStorage); }
+  catch { return defaultEditorSession(); }
+})();
+const ROSTER_FALLBACK: UnitRoster = {
+  schemaVersion: 1,
+  rosterVersion: "fallback",
+  source: "Roster file could not be loaded.",
+  units: []
+};
+
+const root = document.querySelector<HTMLDivElement>("#app");
+if (!root) throw new Error("MeowEdit app root is missing.");
+
+let workspace = loadWorkspace();
+let roster = ROSTER_FALLBACK;
+let armyCatalog: ArmyCatalog = {
+  schemaVersion: 1,
+  gridSizes: [{ minFloor: 1, width: 3, height: 3 }, { minFloor: 3, width: 4, height: 4 }, { minFloor: 5, width: 5, height: 5 }],
+  units: [], buildings: [], factions: [], spells: [], blessings: []
+};
+let activeEditorStep = initialEditorSession.activeEditorStep;
+let editorMode: EditorMode = initialEditorSession.editorMode;
+let helpVisible = initialEditorSession.helpVisible;
+let sidebarCollapsed = initialEditorSession.sidebarCollapsed;
+let guidedFocusAfterPath: string | null = null;
+let guidedFocusExactPath: string | null = null;
+let renderVersion = 0;
+let activeDialogueGraph: Drawflow | null = null;
+let deleteCandidate: { type: "dialogue" | "quest" | "army" | "campaign"; key: string } | null = null;
+let removeGameExamplesPending = false;
+let selectedArmyPlacementId: string | null = initialEditorSession.selectedArmyPlacementId;
+let armyCatalogKind: ArmyCatalogKind = initialEditorSession.armyCatalogKind;
+let armyDragDraft: { placementId: string; startX: number; startY: number; pointerId: number; dragging: boolean } | null = null;
+let suppressArmyClick = false;
+let selectedCampaignFloorId: string | null = initialEditorSession.selectedCampaignFloorId;
+let selectedCampaignNodeId: string | null = initialEditorSession.selectedCampaignNodeId;
+let campaignInteractionMode: "select" | "add" = "select";
+let campaignNodeKindDraft: CampaignNodeKind = "Battle";
+let campaignAddMenuOpen = false;
+let pendingCampaignPlugFromId: string | null = null;
+let selectedCampaignRouteId: string | null = null;
+const relatedReturnContexts = new EditorNavigationHistory();
+relatedReturnContexts.restore(initialEditorSession.relatedReturnContexts);
+let toastTimer: number | undefined;
+
+void Promise.all([loadRoster(), loadArmyCatalog()]).then(([loadedRoster, loadedCatalog]) => {
+  armyCatalog = loadedCatalog;
+  roster = includeArmyUnitsInRoster(loadedRoster, loadedCatalog);
+  render();
+});
+
+function loadWorkspace(): Workspace {
+  try {
+    const value = localStorage.getItem(STORAGE_KEY);
+    if (!value) return createSeedWorkspace();
+    const parsed = JSON.parse(value) as Workspace;
+    if (parsed.schemaVersion !== 1 || !Array.isArray(parsed.dialogues) || !Array.isArray(parsed.quests)) {
+      return createSeedWorkspace();
+    }
+    let migrated = false;
+    if (!Array.isArray(parsed.armies)) {
+      parsed.armies = [];
+      migrated = true;
+    }
+    if (!Array.isArray(parsed.campaigns)) { parsed.campaigns = []; migrated = true; }
+    for (const army of parsed.armies) {
+      for (const unit of army.units ?? []) {
+        if (!Array.isArray(unit.spellIds)) { unit.spellIds = []; migrated = true; }
+      }
+    }
+    if (parsed.selectedType !== "dialogue" && parsed.selectedType !== "quest" && parsed.selectedType !== "army" && parsed.selectedType !== "campaign") {
+      parsed.selectedType = null;
+      parsed.selectedKey = null;
+      migrated = true;
+    }
+    const bridgeIds = new Set(["bridge-repair-conversation", "bridge-repair-in-progress", "bridge-repair-completed"]);
+    const originalDialogueCount = parsed.dialogues.length;
+    const originalQuestCount = parsed.quests.length;
+    parsed.dialogues = parsed.dialogues.filter(record => !bridgeIds.has(record.sequence?.sequenceId ?? ""));
+    parsed.quests = parsed.quests.filter(record => record.definition?.id !== "repair-the-bridge");
+    if (parsed.dialogues.length !== originalDialogueCount || parsed.quests.length !== originalQuestCount) {
+      migrated = true;
+    }
+    for (const quest of parsed.quests) {
+      quest.extension ??= emptyQuestExtension();
+      const extension = quest.extension as typeof quest.extension & Record<string, any>;
+      if (!extension.dialogueLinks) { extension.dialogueLinks = { offer: "", active: "", completion: "", failure: "" }; migrated = true; }
+      for (const event of Object.keys(extension.dialogueLinks) as Array<keyof QuestRecord["extension"]["dialogueLinks"]>) {
+        if (bridgeIds.has(extension.dialogueLinks[event])) {
+          extension.dialogueLinks[event] = "";
+          migrated = true;
+        }
+      }
+      if (!Array.isArray(extension.fetchItems) || (!extension.fetchItems.length && quest.definition.objectiveKind === "Fetch" && quest.definition.itemId)) {
+        extension.fetchItems = quest.definition.objectiveKind === "Fetch" && quest.definition.itemId
+          ? [{ id: quest.definition.itemId, displayName: quest.itemDisplayName || quest.definition.itemId.replace(/[-_]+/g, " "), count: 1 }]
+          : [];
+        migrated = true;
+      }
+      if (!extension.battleTargets) { extension.battleTargets = []; migrated = true; }
+      if (extension.killCount === undefined) { extension.killCount = null; migrated = true; }
+      if (!extension.minimumNodeDistances) { extension.minimumNodeDistances = []; migrated = true; }
+      if (!extension.timer) { extension.timer = emptyTimerLogic(); migrated = true; }
+      if (!extension.completionEffects) { extension.completionEffects = []; migrated = true; }
+    }
+    for (const campaign of parsed.campaigns) {
+      campaign.questIds ??= [];
+      campaign.floors ??= [];
+      if (!campaign.designMode) {
+        const isSettingsOnly = campaign.floors.length > 0 && campaign.questIds.length === 0 &&
+          campaign.floors.every(floor => floor.mode === "random" && !(floor.nodes?.length) && !(floor.routes?.length) && (floor.randomSettings?.questNodeCount ?? 2) === 0) &&
+          (campaign.settings?.questNodeCountPerRandomFloor ?? 2) === 0;
+        campaign.designMode = isSettingsOnly ? "settings-only" : "custom";
+        migrated = true;
+      }
+      const oldCampaignSettings = campaign.settings as Partial<CampaignRecord["settings"]> | undefined;
+      campaign.settings = {
+        startingLives: 3, startingSardines: 10, startingNodeCount: 12, playerFactionId: "", battleShopEnabled: true,
+        questNodeCountPerRandomFloor: 2, shopNodeCountPerRandomFloor: 3, nodeGrowthPerFloor: 2, continueWithGeneratedFloors: false,
+        ...oldCampaignSettings
+      };
+      for (const floor of campaign.floors) {
+        if (!floor.questPoolMode) { floor.questPoolMode = "campaign"; migrated = true; }
+        if (!Array.isArray(floor.questPoolIds)) { floor.questPoolIds = []; migrated = true; }
+        floor.randomSettings ??= { nodeCount: 12, questNodeCount: 2, shopNodeCount: 3 };
+        floor.nodes ??= [];
+        floor.routes ??= [];
+      }
+    }
+    for (const dialogue of parsed.dialogues) {
+      const sequence = dialogue.sequence;
+      if (dialogue.sequenceIdAuto) {
+        if (/^new-dialogue(?:-\d+)?$/.test(sequence.sequenceId)) {
+          const start = sequence.nodes.find(node => node.id === sequence.startNodeId);
+          if (start?.id === "opening" && start.headline === "Opening") start.headline = "";
+        }
+        for (const node of sequence.nodes) {
+          if (node.headline === "New node" && /^node-\d+$/.test(node.id)) node.headline = "";
+        }
+      }
+    }
+    const selectionExists = parsed.selectedType === "dialogue"
+      ? parsed.dialogues.some(record => record.key === parsed.selectedKey)
+      : parsed.selectedType === "quest"
+        ? parsed.quests.some(record => record.key === parsed.selectedKey)
+        : parsed.selectedType === "army"
+          ? parsed.armies.some(record => record.key === parsed.selectedKey)
+          : parsed.selectedType === "campaign"
+            ? parsed.campaigns.some(record => record.key === parsed.selectedKey)
+          : false;
+    if (parsed.selectedType && !selectionExists) {
+      parsed.selectedType = null;
+      parsed.selectedKey = null;
+      parsed.activeNodeId = null;
+      migrated = true;
+    }
+    if (migrated) localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
+    return parsed;
+  } catch {
+    return createSeedWorkspace();
+  }
+}
+
+async function loadRoster(): Promise<UnitRoster> {
+  try {
+    const response = await fetch("./unit-roster.json", { cache: "no-cache" });
+    if (!response.ok) return ROSTER_FALLBACK;
+    const parsed = await response.json() as UnitRoster;
+    if (parsed.schemaVersion !== 1 || !Array.isArray(parsed.units)) return ROSTER_FALLBACK;
+    return parsed;
+  } catch {
+    return ROSTER_FALLBACK;
+  }
+}
+
+async function loadArmyCatalog(): Promise<ArmyCatalog> {
+  try {
+    const response = await fetch("./army-catalog.json", { cache: "no-cache" });
+    if (!response.ok) return armyCatalog;
+    const parsed = await response.json() as ArmyCatalog;
+    if (parsed.schemaVersion !== 1 || !Array.isArray(parsed.units) || !Array.isArray(parsed.spells) || !Array.isArray(parsed.blessings)) return armyCatalog;
+    return parsed;
+  } catch {
+    return armyCatalog;
+  }
+}
+
+function saveWorkspace(): void {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(workspace));
+    persistEditorSession();
+    const status = document.querySelector<HTMLElement>("#save-status");
+    if (status) status.textContent = "All changes saved";
+  } catch {
+    showToast("Browser storage is full. Export a ZIP to keep a copy of your work.", "warning");
+  }
+}
+
+function persistEditorSession(): void {
+  try {
+    saveEditorSession(localStorage, {
+      activeEditorStep,
+      editorMode,
+      helpVisible,
+      sidebarCollapsed,
+      selectedArmyPlacementId,
+      armyCatalogKind,
+      selectedCampaignFloorId,
+      selectedCampaignNodeId,
+      relatedReturnContexts: relatedReturnContexts.snapshot()
+    });
+  } catch {
+    // Workspace persistence already reports storage failures; losing only navigation state is safe.
+  }
+}
+
+function render(): void {
+  const campaign = currentCampaign();
+  if (campaign) {
+    if (!campaign.floors.some(item => item.id === selectedCampaignFloorId)) selectedCampaignFloorId = campaign.floors[0]?.id ?? null;
+    const floor = currentCampaignFloor(campaign);
+    if (selectedCampaignNodeId && !floor?.nodes.some(node => node.id === selectedCampaignNodeId)) selectedCampaignNodeId = null;
+    if (selectedCampaignNodeId === null && floor?.nodes.length) selectedCampaignNodeId = floor.nodes[0].id;
+  }
+  if (selectedArmyPlacementId && !currentArmy()?.units.some(unit => unit.id === selectedArmyPlacementId)) selectedArmyPlacementId = null;
+  persistEditorSession();
+  const focusAfterPath = guidedFocusAfterPath;
+  const focusExactPath = guidedFocusExactPath;
+  guidedFocusAfterPath = null;
+  guidedFocusExactPath = null;
+  const currentRenderVersion = ++renderVersion;
+  const issues = validateWorkspace(workspace, armyCatalog);
+  const returnContext = relatedReturnContexts.current();
+  root!.innerHTML = renderApp(workspace, roster, armyCatalog, issues, activeEditorStep, editorMode, selectedArmyPlacementId, {
+    selectedFloorId: selectedCampaignFloorId,
+    selectedNodeId: selectedCampaignNodeId,
+    interactionMode: campaignInteractionMode,
+    nodeKind: campaignNodeKindDraft,
+    addMenuOpen: campaignAddMenuOpen,
+    pendingPlugFromId: pendingCampaignPlugFromId,
+    selectedRouteId: selectedCampaignRouteId
+  }, returnContext ? {
+    parent: returnContext.parentType === "campaign" ? "Campaign" : "Quest",
+    label: returnContext.returnLabel
+  } : undefined, armyCatalogKind, helpVisible);
+  const appLayout = root!.querySelector<HTMLElement>(".app-layout");
+  appLayout?.classList.toggle("is-sidebar-collapsed", sidebarCollapsed);
+  const sidebarToggle = root!.querySelector<HTMLButtonElement>(".sidebar-collapse-button");
+  if (sidebarToggle) {
+    sidebarToggle.setAttribute("aria-expanded", String(!sidebarCollapsed));
+    sidebarToggle.setAttribute("aria-label", sidebarCollapsed ? "Show sidebar" : "Collapse sidebar");
+    sidebarToggle.title = sidebarCollapsed ? "Show sidebar" : "Collapse sidebar";
+    sidebarToggle.textContent = sidebarCollapsed ? "›" : "‹";
+  }
+  const graphHost = root!.querySelector<HTMLElement>("[data-dialogue-node-graph]");
+  const dialogue = currentDialogue();
+  activeDialogueGraph = graphHost && dialogue
+    ? mountDialogueGraph(graphHost, dialogue, workspace.activeNodeId ?? dialogue.sequence.startNodeId, {
+      onRouteChange: (_nodeId, _routeIndex, _targetNodeId, redraw) => {
+        saveWorkspace();
+        if (redraw) window.setTimeout(render, 0);
+        else refreshDerivedView();
+      },
+      onNodeMoved: () => saveWorkspace()
+    })
+    : null;
+  document.querySelector<HTMLDialogElement>("#confirm-dialog")?.addEventListener("close", handleDeleteDialogClose);
+  document.querySelector<HTMLDialogElement>("#remove-examples-dialog")?.addEventListener("close", handleRemoveExamplesDialogClose);
+  if (editorMode === "guided") {
+    window.requestAnimationFrame(() => {
+      if (currentRenderVersion !== renderVersion || editorMode !== "guided") return;
+      focusGuidedEditor(focusAfterPath, focusExactPath);
+    });
+  }
+}
+
+function guidedFields(): HTMLElement[] {
+  return Array.from(root!.querySelectorAll<HTMLElement>(
+    ".guided-editor input:not([type=hidden]), .guided-editor select, .guided-editor textarea"
+  )).filter(field => field.getClientRects().length > 0 && !field.closest("details:not([open])"));
+}
+
+function focusGuidedEditor(afterPath: string | null = null, exactPath: string | null = null): void {
+  const fields = guidedFields();
+  let target: HTMLElement | undefined;
+  if (exactPath) target = fields.find(field => field.dataset.bind === exactPath);
+  if (!target && afterPath) {
+    const currentIndex = fields.findIndex(field => field.dataset.bind === afterPath);
+    if (currentIndex >= 0) target = fields[currentIndex + 1];
+    if (!target) target = root!.querySelector<HTMLElement>('[data-action="editor-next"]') ?? undefined;
+  }
+  if (!target) target = root!.querySelector<HTMLElement>("[data-guided-autofocus]") ?? fields[0];
+  if (!target) target = root!.querySelector<HTMLElement>(
+    '[data-action="editor-next"], .guided-step-screen [data-action], .guided-title-footer [data-action], .guided-end-actions [data-action]'
+  ) ?? undefined;
+  target?.focus({ preventScroll: true });
+}
+
+function focusNextGuidedField(current: HTMLElement): void {
+  const fields = guidedFields();
+  const currentIndex = fields.indexOf(current);
+  const next = currentIndex >= 0 ? fields[currentIndex + 1] : undefined;
+  if (next) {
+    next.focus({ preventScroll: true });
+    return;
+  }
+  root!.querySelector<HTMLButtonElement>('[data-action="editor-next"]')?.click();
+}
+
+function prepareGuidedFocusAfterChange(element: HTMLSelectElement): void {
+  const path = element.dataset.bind ?? null;
+  if (!path) return;
+  const dialogueSpeakerPath = path.match(/^nodes\.(\d+)\.speakers\.(\d+)\.unitId$/);
+  if (dialogueSpeakerPath) {
+    guidedFocusExactPath = "nodes." + dialogueSpeakerPath[1] + ".speakers." + dialogueSpeakerPath[2] + ".displayName";
+    return;
+  }
+  if (path === "definition.speakerUnitId") {
+    guidedFocusExactPath = "definition.speakerName";
+    return;
+  }
+  guidedFocusAfterPath = path;
+}
+
+function slugBase(value: string, fallback: string): string {
+  return slugify(value) || fallback;
+}
+
+function uniqueId(value: string, existing: string[], fallback: string): string {
+  const base = slugBase(value, fallback);
+  let candidate = base;
+  let suffix = 2;
+  while (existing.includes(candidate)) {
+    candidate = base + "-" + suffix;
+    suffix += 1;
+  }
+  return candidate;
+}
+
+function currentDialogue(): DialogueRecord | null {
+  return workspace.selectedType === "dialogue"
+    ? workspace.dialogues.find(item => item.key === workspace.selectedKey) ?? null
+    : null;
+}
+
+function currentQuest(): QuestRecord | null {
+  return workspace.selectedType === "quest"
+    ? workspace.quests.find(item => item.key === workspace.selectedKey) ?? null
+    : null;
+}
+
+function currentArmy(): ArmyRecord | null {
+  return workspace.selectedType === "army"
+    ? workspace.armies.find(item => item.key === workspace.selectedKey) ?? null
+    : null;
+}
+
+function currentCampaign(): CampaignRecord | null {
+  return workspace.selectedType === "campaign"
+    ? workspace.campaigns.find(item => item.key === workspace.selectedKey) ?? null
+    : null;
+}
+
+function currentCampaignFloor(campaign = currentCampaign()): CampaignFloor | null {
+  if (!campaign) return null;
+  return campaign.floors.find(floor => floor.id === selectedCampaignFloorId) ?? campaign.floors[0] ?? null;
+}
+
+function setValue(target: unknown, path: string, value: unknown): void {
+  const parts = path.split(".");
+  let cursor = target as Record<string, unknown>;
+  for (let i = 0; i < parts.length - 1; i++) {
+    const key = parts[i];
+    const next = cursor[key];
+    if (next === null || typeof next !== "object") return;
+    cursor = next as Record<string, unknown>;
+  }
+  const finalKey = parts[parts.length - 1];
+  if (finalKey === "speakerIds" && typeof value === "string") {
+    cursor[finalKey] = value ? value.split(",").filter(Boolean) : [];
+    return;
+  }
+  cursor[finalKey] = value;
+}
+
+function selectedDocument(): object | null {
+  return currentDialogue()?.sequence ?? currentQuest() ?? currentArmy() ?? currentCampaign() ?? null;
+}
+
+function fieldValue(element: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement): unknown {
+  if (element instanceof HTMLInputElement && element.type === "checkbox") return element.checked;
+  if (element instanceof HTMLInputElement && element.type === "number") return element.value === "" ? 0 : Number(element.value);
+  if (element instanceof HTMLSelectElement && element.dataset.number === "true") return Number(element.value);
+  return element.value;
+}
+
+function bindField(element: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement): void {
+  const path = element.dataset.bind;
+  const documentValue = selectedDocument();
+  if (!path || !documentValue) return;
+  const value = fieldValue(element);
+  const dialogue = currentDialogue();
+  const previousSequenceId = dialogue?.sequence.sequenceId;
+  const automaticSequenceId = dialogue?.sequenceIdAuto && path === "nodes.0.editorLabel" && typeof value === "string"
+    ? uniqueId(value, workspace.dialogues.filter(item => item.key !== dialogue.key).map(item => item.sequence.sequenceId), "new-dialogue")
+    : undefined;
+  const nodeIdMatch = path.match(/^nodes\.(\d+)\.id$/);
+  const previousNodeId = nodeIdMatch && dialogue
+    ? dialogue.sequence.nodes[Number(nodeIdMatch[1])]?.id
+    : undefined;
+  const unitPathMatch = path.match(/^nodes\.(\d+)\.speakers\.(\d+)\.unitId$/);
+  const speakerBeforeUnitChange = dialogue && unitPathMatch
+    ? dialogue.sequence.nodes[Number(unitPathMatch[1])]?.speakers[Number(unitPathMatch[2])]
+    : undefined;
+  const previousSpeakerUnitId = speakerBeforeUnitChange?.unitId;
+  const previousSpeakerDisplayName = speakerBeforeUnitChange?.displayName ?? "";
+  const previousRosterName = roster.units.find(unit => unit.id === previousSpeakerUnitId)?.displayName;
+  const shouldFollowRosterName = !previousSpeakerDisplayName || previousSpeakerDisplayName === previousRosterName;
+  setValue(documentValue, path, value);
+  if (dialogue && path === "sequenceId") dialogue.sequenceIdAuto = false;
+  if (dialogue && automaticSequenceId) dialogue.sequence.sequenceId = automaticSequenceId;
+  if (dialogue && ((path === "sequenceId" && typeof value === "string") || automaticSequenceId)) {
+    const nextSequenceId = automaticSequenceId || String(value);
+    for (const quest of workspace.quests) {
+      for (const link of Object.keys(quest.extension.dialogueLinks) as Array<keyof QuestRecord["extension"]["dialogueLinks"]>) {
+        if (quest.extension.dialogueLinks[link] === previousSequenceId) {
+          quest.extension.dialogueLinks[link] = nextSequenceId;
+        }
+      }
+    }
+  }
+  if (dialogue && unitPathMatch) {
+    const speaker = dialogue.sequence.nodes[Number(unitPathMatch[1])]?.speakers[Number(unitPathMatch[2])];
+    if (speaker) {
+      const selectedUnit = roster.units.find(unit => unit.id === String(value));
+      if (selectedUnit && shouldFollowRosterName) speaker.displayName = selectedUnit.displayName;
+      else if (!value && shouldFollowRosterName) speaker.displayName = "";
+    }
+  }
+  if (dialogue && nodeIdMatch && previousNodeId && typeof value === "string" && value !== previousNodeId) {
+    if (dialogue.sequence.startNodeId === previousNodeId) dialogue.sequence.startNodeId = value;
+    if (workspace.activeNodeId === previousNodeId) workspace.activeNodeId = value;
+    for (const node of dialogue.sequence.nodes) {
+      if (node.continueTargetNodeId === previousNodeId) node.continueTargetNodeId = value;
+      for (const action of node.actions) {
+        if (action.targetNodeId === previousNodeId) action.targetNodeId = value;
+      }
+    }
+  }
+  const army = currentArmy();
+  if (army && path === "name") {
+    if (army.idAuto && typeof value === "string") {
+      army.id = uniqueId(value, workspace.armies.filter(item => item.key !== army.key).map(item => item.id), "army");
+    }
+  }
+  if (army && path === "id") army.idAuto = false;
+  const campaign = currentCampaign();
+  if (campaign && path === "name" && campaign.idAuto && typeof value === "string") {
+    campaign.id = uniqueId(value, workspace.campaigns.filter(item => item.key !== campaign.key).map(item => item.id), "campaign");
+  }
+  if (campaign && path === "id") campaign.idAuto = false;
+  const quest = currentQuest();
+  if (quest && path === "definition.id") quest.idAuto = false;
+  if (quest && quest.idAuto && path === "definition.title" && typeof value === "string") {
+    quest.definition.id = uniqueId(value, workspace.quests.filter(item => item.key !== quest.key).map(item => item.definition.id), "new-adventure-quest");
+  }
+  if (quest && path === "definition.speakerUnitId") {
+    const selectedUnit = roster.units.find(unit => unit.id === String(value));
+    quest.definition.speakerName = selectedUnit?.displayName ?? (value ? quest.definition.speakerName : "");
+  }
+  if (quest && path === "itemDisplayName" && typeof value === "string") {
+    quest.itemDisplayName = value;
+    quest.definition.itemId = slugify(value);
+  }
+  const fetchItemPath = path.match(/^extension\.fetchItems\.(\d+)\.displayName$/);
+  if (quest && fetchItemPath && typeof value === "string") {
+    const fetchItem = quest.extension.fetchItems[Number(fetchItemPath[1])];
+    if (fetchItem) {
+      fetchItem.id = slugify(value);
+      if (Number(fetchItemPath[1]) === 0) quest.definition.itemId = fetchItem.id;
+    }
+  }
+  const battleTargetPath = path.match(/^extension\.battleTargets\.(\d+)\.(nodeKind|floorOffset)$/);
+  if (quest && battleTargetPath && Number(battleTargetPath[1]) === 0) {
+    if (battleTargetPath[2] === "nodeKind") quest.definition.targetNodeKind = String(value);
+    else quest.definition.targetFloorOffset = Number(value);
+  }
+  if (quest && path === "definition.objectiveKind") {
+    quest.extension.logicKind = value === "Timer" ? "timer-project" : "standard";
+    if (value === "Battle" && quest.extension.battleTargets.length === 0) {
+      quest.extension.battleTargets.push({ id: "battle-1", label: "Battle 1", nodeKind: quest.definition.targetNodeKind || "Battle", floorOffset: quest.definition.targetFloorOffset || 0, armyId: "" });
+    }
+    if (value === "KillCount" && !quest.extension.killCount) {
+      quest.extension.killCount = { targetKind: "unit", targetId: "", count: 1 };
+    }
+  }
+  if (quest && path === "extension.logicKind") {
+    if (value === "timer-project") quest.definition.objectiveKind = "Timer";
+    else if (quest.definition.objectiveKind === "Timer") quest.definition.objectiveKind = "Battle";
+  }
+  if (quest && path === "extension.killCount.targetKind" && quest.extension.killCount) quest.extension.killCount.targetId = "";
+  saveWorkspace();
+  refreshDerivedView();
+}
+
+function addDialogue(returnContext: RelatedEditorReturnContext | null = null): void {
+  relatedReturnContexts.enter(returnContext);
+  const id = uniqueId("new-dialogue", workspace.dialogues.map(item => item.sequence.sequenceId), "new-dialogue");
+  const key = createKey("dialogue");
+  const record: DialogueRecord = {
+    key,
+    sequenceIdAuto: true,
+    sequence: {
+      schemaVersion: 1,
+      sequenceId: id,
+      startNodeId: "opening",
+      pauseMode: "pause",
+      defaultCharactersPerSecond: 34,
+      nodes: [{
+        id: "opening",
+        headline: "",
+        textSpeed: "default",
+        speakers: [],
+        segments: [{ speakerIds: [], text: "" }],
+        actions: []
+      }]
+    }
+  };
+  workspace.dialogues.push(record);
+  workspace.selectedType = "dialogue";
+  workspace.selectedKey = key;
+  workspace.activeNodeId = "opening";
+  activeEditorStep = 0;
+  saveWorkspace();
+  render();
+}
+
+function addQuest(returnContext: RelatedEditorReturnContext | null = null): void {
+  relatedReturnContexts.enter(returnContext);
+  const existing = workspace.quests.map(item => item.definition.id);
+  const id = uniqueId("new-adventure-quest", existing, "new-adventure-quest");
+  const key = createKey("quest");
+  const record: QuestRecord = {
+    key,
+    idAuto: true,
+    itemDisplayName: "",
+    definition: { ...DEFAULT_QUEST, id, title: "New Adventure Quest" },
+    extension: emptyQuestExtension()
+  };
+  record.extension.battleTargets.push({ id: "battle-1", label: "Battle 1", nodeKind: "Battle", floorOffset: 0, armyId: "" });
+  workspace.quests.push(record);
+  workspace.selectedType = "quest";
+  workspace.selectedKey = key;
+  workspace.activeNodeId = null;
+  activeEditorStep = 0;
+  saveWorkspace();
+  render();
+}
+
+function addArmy(returnContext: RelatedEditorReturnContext | null = null): void {
+  relatedReturnContexts.enter(returnContext);
+  const key = createKey("army");
+  const name = "Army " + (workspace.armies.length + 1);
+  const id = uniqueId(name, workspace.armies.map(item => item.id), "army");
+  workspace.armies.push({ key, id, idAuto: true, name, previewFloor: 1, units: [], spellIds: [], blessingIds: [] });
+  workspace.selectedType = "army";
+  workspace.selectedKey = key;
+  workspace.activeNodeId = null;
+  selectedArmyPlacementId = null;
+  armyCatalogKind = "units";
+  activeEditorStep = 0;
+  saveWorkspace();
+  render();
+}
+
+function newCampaignFloor(number: number, mode: CampaignFloorMode = "authored"): CampaignFloor {
+  return createCampaignFloor(number, mode);
+}
+
+function addCampaign(): void {
+  relatedReturnContexts.clear();
+  const name = "New Campaign";
+  const id = uniqueId(name, workspace.campaigns.map(item => item.id), "campaign");
+  const key = createKey("campaign");
+  const campaign: CampaignRecord = {
+    key, id, idAuto: true, name, description: "", designMode: "choose", questIds: [],
+    floors: [newCampaignFloor(1)],
+    settings: {
+      startingLives: 3, startingSardines: 10, startingNodeCount: 12, playerFactionId: "", battleShopEnabled: true,
+      questNodeCountPerRandomFloor: 2, shopNodeCountPerRandomFloor: 3, nodeGrowthPerFloor: 2,
+      continueWithGeneratedFloors: false
+    }
+  };
+  workspace.campaigns.push(campaign);
+  workspace.selectedType = "campaign";
+  workspace.selectedKey = key;
+  workspace.activeNodeId = null;
+  selectedCampaignFloorId = campaign.floors[0].id;
+  selectedCampaignNodeId = campaign.floors[0].nodes[0]?.id ?? null;
+  campaignInteractionMode = "select";
+  campaignAddMenuOpen = false;
+  pendingCampaignPlugFromId = null;
+  selectedCampaignRouteId = null;
+  activeEditorStep = 0;
+  saveWorkspace();
+  render();
+}
+
+function addCampaignFloor(): void {
+  const campaign = currentCampaign();
+  if (!campaign) return;
+  const number = campaign.floors.reduce((max, floor) => Math.max(max, floor.number), 0) + 1;
+  const floor = newCampaignFloor(number, campaign.designMode === "settings-only" ? "random" : "authored");
+  if (campaign.designMode === "settings-only") floor.randomSettings.questNodeCount = 0;
+  campaign.floors.push(floor);
+  selectedCampaignFloorId = floor.id;
+  selectedCampaignNodeId = floor.nodes[0]?.id ?? null;
+  campaignAddMenuOpen = false;
+  campaignInteractionMode = "select";
+  pendingCampaignPlugFromId = null;
+  selectedCampaignRouteId = null;
+  activeEditorStep = 1;
+  saveWorkspace();
+  render();
+}
+
+function campaignRelatedContext(target: "army" | "quest-node" | "quest-pool", includeQuestInPool = false): RelatedEditorReturnContext | null {
+  const campaign = currentCampaign();
+  const floor = currentCampaignFloor(campaign);
+  if (!campaign || !floor) return null;
+  return {
+    parentType: "campaign", parentKey: campaign.key, floorId: floor.id,
+    nodeId: selectedCampaignNodeId, target, includeQuestInPool, parentStep: activeEditorStep,
+    returnLabel: campaign.name || "Campaign"
+  };
+}
+
+function questRelatedContext(target: "army", battleTargetId: string): RelatedEditorReturnContext | null {
+  const quest = currentQuest();
+  return quest ? { parentType: "quest", parentKey: quest.key, target, battleTargetId, parentStep: activeEditorStep, returnLabel: quest.definition.title || "Quest" } : null;
+}
+
+function questDialogueContext(dialogueSlot: keyof QuestRecord["extension"]["dialogueLinks"]): RelatedEditorReturnContext | null {
+  const quest = currentQuest();
+  return quest ? { parentType: "quest", parentKey: quest.key, target: "dialogue", dialogueSlot, parentStep: activeEditorStep, returnLabel: quest.definition.title || "Quest" } : null;
+}
+
+function openRelatedRecord(type: "army" | "quest" | "dialogue", key: string, context: RelatedEditorReturnContext | null): void {
+  const record = type === "army" ? workspace.armies.find(item => item.key === key)
+    : type === "quest" ? workspace.quests.find(item => item.key === key)
+      : workspace.dialogues.find(item => item.key === key);
+  if (!record) return;
+  relatedReturnContexts.enter(context);
+  workspace.selectedType = type;
+  workspace.selectedKey = record.key;
+  workspace.activeNodeId = type === "dialogue" ? (record as DialogueRecord).sequence.startNodeId : null;
+  selectedArmyPlacementId = null;
+  activeEditorStep = 0;
+  saveWorkspace();
+  render();
+}
+
+function returnToRelatedParent(): void {
+  const context = relatedReturnContexts.current();
+  if (!context) return;
+  if (context.parentType === "campaign") {
+    const campaign = workspace.campaigns.find(item => item.key === context.parentKey);
+    if (!campaign) return;
+    const floor = campaign.floors.find(item => item.id === context.floorId) ?? campaign.floors[0];
+    const node = floor?.nodes.find(item => item.id === context.nodeId);
+    if (context.target === "army") {
+      const army = currentArmy();
+      if (node && army) node.armyId = army.id;
+    } else {
+      const quest = currentQuest();
+      const shouldIncludeQuest = context.target === "quest-node" || context.includeQuestInPool;
+      if (quest && shouldIncludeQuest && !campaign.questIds.includes(quest.definition.id)) campaign.questIds.push(quest.definition.id);
+      if (context.target === "quest-node" && node && quest) node.questId = quest.definition.id;
+    }
+    workspace.selectedType = "campaign";
+    workspace.selectedKey = campaign.key;
+    workspace.activeNodeId = null;
+    selectedCampaignFloorId = floor?.id ?? null;
+    selectedCampaignNodeId = node?.id ?? context.nodeId;
+  } else {
+    const quest = workspace.quests.find(item => item.key === context.parentKey);
+    if (!quest) return;
+    if (context.target === "army") {
+      const army = currentArmy();
+      const battle = quest.extension.battleTargets.find(item => item.id === context.battleTargetId);
+      if (army && battle) battle.armyId = army.id;
+    } else {
+      const dialogue = currentDialogue();
+      if (dialogue) quest.extension.dialogueLinks[context.dialogueSlot] = dialogue.sequence.sequenceId;
+    }
+    workspace.selectedType = "quest";
+    workspace.selectedKey = quest.key;
+    workspace.activeNodeId = null;
+  }
+  activeEditorStep = context.parentStep;
+  selectedArmyPlacementId = null;
+  relatedReturnContexts.returnToParent();
+  saveWorkspace();
+  render();
+}
+
+function addCampaignNodeAt(x: number, y: number): void {
+  const campaign = currentCampaign();
+  const floor = currentCampaignFloor(campaign);
+  if (!campaign || !floor || floor.mode === "random" || floor.nodes.some(node => node.x === x && node.y === y)) return;
+  if (Math.abs(x) > 30 || Math.abs(y) > 30) { showToast("Place nodes within 30 map steps of the Start.", "warning"); return; }
+  const result = addCampaignNode(floor, campaignNodeKindDraft, x, y);
+  if (!result.ok) { showToast(result.message, "warning"); return; }
+  selectedCampaignNodeId = result.node.id;
+  campaignInteractionMode = "select";
+  campaignAddMenuOpen = false;
+  selectedCampaignRouteId = null;
+  if (editorMode === "guided") activeEditorStep = 3;
+  saveWorkspace();
+  render();
+}
+
+function handleCampaignCell(x: number, y: number): void {
+  if (campaignInteractionMode === "add") { addCampaignNodeAt(x, y); return; }
+}
+
+function moveCampaignNodeTo(nodeId: string, x: number, y: number): void {
+  const floor = currentCampaignFloor();
+  if (!floor) return;
+  const error = moveCampaignNode(floor, nodeId, x, y);
+  if (error) { showToast(error, "warning"); return; }
+  selectedCampaignNodeId = nodeId;
+  campaignInteractionMode = "select";
+  selectedCampaignRouteId = null;
+  saveWorkspace(); render();
+}
+
+function selectCampaignNode(nodeId: string): void {
+  const floor = currentCampaignFloor();
+  const node = floor?.nodes.find(item => item.id === nodeId);
+  if (!floor || !node) return;
+  selectedCampaignNodeId = nodeId;
+  selectedCampaignRouteId = null;
+  campaignInteractionMode = "select";
+  if (editorMode === "guided" && activeEditorStep === 2) activeEditorStep = 3;
+  render();
+}
+
+function connectCampaignPlugs(fromNodeId: string, toNodeId: string): void {
+  const floor = currentCampaignFloor();
+  if (!floor || fromNodeId === toNodeId) return;
+  const result = connectCampaignNodes(floor, fromNodeId, toNodeId, false);
+  if (result === "not-neighbors") {
+    showToast("Drop on a neighboring node. Diagonal connections are allowed.", "warning");
+    return;
+  }
+  if (result === "exists") {
+    showToast("These nodes are already connected.", "warning");
+    return;
+  }
+  selectedCampaignNodeId = toNodeId;
+  selectedCampaignRouteId = null;
+  saveWorkspace();
+  render();
+  showToast("Nodes connected. Select the line to disconnect it or open a node for route options.");
+}
+
+function updateCampaignPlugDraft(clientX: number, clientY: number): void {
+  if (!pendingCampaignPlugFromId) return;
+  const canvas = root?.querySelector<HTMLElement>("[data-campaign-canvas]");
+  const line = root?.querySelector<SVGLineElement>(".campaign-route-draft");
+  const source = Array.from(root?.querySelectorAll<HTMLElement>('[data-campaign-port="output"]') ?? [])
+    .find(port => port.dataset.nodeId === pendingCampaignPlugFromId);
+  if (!canvas || !line || !source) return;
+  const canvasRect = canvas.getBoundingClientRect();
+  const sourceRect = source.getBoundingClientRect();
+  line.removeAttribute("hidden");
+  line.setAttribute("x1", String(sourceRect.left + sourceRect.width / 2 - canvasRect.left));
+  line.setAttribute("y1", String(sourceRect.top + sourceRect.height / 2 - canvasRect.top));
+  line.setAttribute("x2", String(clientX - canvasRect.left));
+  line.setAttribute("y2", String(clientY - canvasRect.top));
+}
+
+function clearCampaignPlugDraft(): void {
+  root?.querySelector<SVGLineElement>(".campaign-route-draft")?.setAttribute("hidden", "");
+  root?.querySelector<HTMLElement>(".campaign-node.is-route-source")?.classList.remove("is-route-source");
+}
+
+function armyCellAtPoint(clientX: number, clientY: number): { x: number; y: number } | undefined {
+  const cells = root?.querySelectorAll<HTMLButtonElement>("[data-army-cell]");
+  if (!cells) return undefined;
+  for (const cell of cells) {
+    const rect = cell.getBoundingClientRect();
+    if (clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom) {
+      return { x: Number(cell.dataset.x), y: Number(cell.dataset.y) };
+    }
+  }
+  return undefined;
+}
+
+function canApplyArmyMoves(army: ArmyRecord, moves: readonly ArmyPlacementMove[], grid: { width: number; height: number }): boolean {
+  const movingIds = new Set(moves.map(move => move.placement.id));
+  const stationary = army.units.filter(unit => !movingIds.has(unit.id));
+  const proposed = moves.map(move => ({ id: move.placement.id, unitId: move.placement.unitId, x: move.x, y: move.y }));
+  for (const move of proposed) {
+    if (!canPlaceArmyLevel(stationary, armyCatalog, move.unitId, move.x, move.y, grid)) return false;
+  }
+  for (let index = 0; index < proposed.length; index++) {
+    for (let other = index + 1; other < proposed.length; other++) {
+      if (armyFootprintsOverlap(armyCatalog, proposed[index], proposed[other])) return false;
+    }
+  }
+  return true;
+}
+
+function armyPlacementAtCell(x: number, y: number, exceptId?: string): ArmyRecord["units"][number] | undefined {
+  const army = currentArmy();
+  return army?.units.find(unit => {
+    if (unit.id === exceptId) return false;
+    const footprint = armyFootprint(armyCatalog, unit.unitId);
+    return x >= unit.x && x < unit.x + footprint.width && y >= unit.y && y < unit.y + footprint.height;
+  });
+}
+
+function moveArmyPlacementTo(placementId: string, x: number, y: number): boolean {
+  const army = currentArmy();
+  const selected = army?.units.find(unit => unit.id === placementId);
+  if (!army || !selected) return false;
+  const grid = armyGridSize(armyCatalog, army.previewFloor);
+  const occupant = armyPlacementAtCell(x, y, selected.id);
+  const destination = occupant ? { x: occupant.x, y: occupant.y } : { x, y };
+  const moved = moveArmyUnit(army, selected.id, destination.x, destination.y, moves => canApplyArmyMoves(army, moves, grid));
+  if (!moved) {
+    showToast("That space is occupied or too small for this footprint.", "warning");
+    return false;
+  }
+  selectedArmyPlacementId = selected.id;
+  saveWorkspace();
+  render();
+  return true;
+}
+
+function addArmyUnitAt(x: number, y: number, unitId: string): void {
+  const army = currentArmy();
+  if (!army || !unitId) return;
+  const grid = armyGridSize(armyCatalog, army.previewFloor);
+  if (selectedArmyPlacementId) {
+    const selected = army.units.find(unit => unit.id === selectedArmyPlacementId);
+    if (selected) {
+      const moved = moveArmyUnit(army, selected.id, x, y, moves => canApplyArmyMoves(army, moves, grid));
+      if (!moved) {
+        showToast("That space is occupied or too small for this footprint.", "warning");
+        return;
+      }
+      saveWorkspace();
+      render();
+      return;
+    }
+  }
+  if (!canPlaceArmyLevel(army.units, armyCatalog, unitId, x, y, grid)) {
+    showToast("That space is occupied or too small for this footprint.", "warning");
+    return;
+  }
+  const id = createKey("army-unit");
+  if (!addArmyUnitToArmy(army, { id, unitId, x, y, spellIds: [] }, () => true)) return;
+  selectedArmyPlacementId = id;
+  const resolved = resolveArmyLevel(armyCatalog, unitId);
+  if (resolved) armyCatalogKind = resolved.kind;
+  saveWorkspace();
+  render();
+}
+
+function selectedArmyPickerLevelId(): string | null {
+  const unitPicker = root!.querySelector<HTMLSelectElement>("#army-unit-picker");
+  const levelPicker = root!.querySelector<HTMLSelectElement>("#army-level-picker");
+  const entity = armyCatalog[armyCatalogKind].find(item => item.id === unitPicker?.value);
+  return entity?.levels.find(level => level.level === Number(levelPicker?.value))?.id ?? null;
+}
+
+function addSelectedArmyUnit(): void {
+  const army = currentArmy();
+  const unitId = selectedArmyPickerLevelId();
+  if (!army || !unitId) return;
+  const grid = armyGridSize(armyCatalog, army.previewFloor);
+  const cell = firstAvailableArmyCell(army.units, armyCatalog, unitId, grid);
+  if (!cell) {
+    showToast("There is no open space large enough for this entry on the current grid.", "warning");
+    return;
+  }
+  const id = createKey("army-unit");
+  if (!addArmyUnitToArmy(army, { id, unitId, ...cell, spellIds: [] }, () => true)) return;
+  selectedArmyPlacementId = id;
+  saveWorkspace();
+  render();
+}
+
+function replaceSelectedArmyUnit(): void {
+  const army = currentArmy();
+  const selected = army?.units.find(unit => unit.id === selectedArmyPlacementId);
+  const unitPicker = root!.querySelector<HTMLSelectElement>("#army-unit-picker");
+  const levelPicker = root!.querySelector<HTMLSelectElement>("#army-level-picker");
+  const variant = armyCatalog[armyCatalogKind].find(item => item.id === unitPicker?.value)?.levels.find(level => level.level === Number(levelPicker?.value));
+  if (!army || !selected || !variant) return;
+  const grid = armyGridSize(armyCatalog, army.previewFloor);
+  const replaced = replaceArmyUnit(army, selected.id, variant.id, (placement, candidateId) =>
+    canPlaceArmyLevel(army.units, armyCatalog, candidateId, placement.x, placement.y, grid, placement.id));
+  if (!replaced) {
+    showToast("That entry will not fit in this position. Move it or choose a smaller entry first.", "warning");
+    return;
+  }
+  const resolved = resolveArmyLevel(armyCatalog, variant.id);
+  if (resolved) armyCatalogKind = resolved.kind;
+  saveWorkspace();
+  render();
+}
+
+function addSelectedArmyUnitSpell(): void {
+  const army = currentArmy();
+  const picker = root!.querySelector<HTMLSelectElement>("#army-unit-spell-picker");
+  if (!army || !selectedArmyPlacementId || !picker?.value) return;
+  if (!addArmyUnitSpell(army, selectedArmyPlacementId, picker.value, armyCatalog.spells.map(spell => spell.id))) return;
+  saveWorkspace();
+  render();
+}
+
+function addArmyAbility(kind: "spell" | "blessing"): void {
+  const army = currentArmy();
+  const pickerId = kind === "spell" ? "army-spell-picker" : "army-blessing-picker";
+  const picker = root!.querySelector<HTMLSelectElement>("#" + pickerId);
+  const id = picker?.value ?? "";
+  const catalog = kind === "spell" ? armyCatalog.spells : armyCatalog.blessings;
+  const list = kind === "spell" ? army?.spellIds : army?.blessingIds;
+  if (!army || !id || !catalog.some(item => item.id === id) || !list || list.includes(id)) return;
+  list.push(id);
+  saveWorkspace();
+  render();
+}
+
+function syncArmyLevelPicker(unitBaseId: string): void {
+  const picker = root!.querySelector<HTMLSelectElement>("#army-level-picker");
+  const unit = armyCatalog[armyCatalogKind].find(item => item.id === unitBaseId);
+  if (!picker || !unit) return;
+  const previous = picker.value;
+  picker.replaceChildren(...unit.levels.map(level => {
+    const option = document.createElement("option");
+    option.value = String(level.level);
+    option.textContent = "Level " + level.level + (level.name !== unit.name ? " · " + level.name : "");
+    return option;
+  }));
+  picker.value = unit.levels.some(level => String(level.level) === previous) ? previous : String(unit.levels[0]?.level ?? 1);
+  updateArmyEntityPreview();
+}
+
+function updateArmyEntityPreview(): void {
+  const preview = root!.querySelector<HTMLElement>("#army-entity-preview");
+  const unitPicker = root!.querySelector<HTMLSelectElement>("#army-unit-picker");
+  const levelPicker = root!.querySelector<HTMLSelectElement>("#army-level-picker");
+  if (!preview || !unitPicker || !levelPicker) return;
+  preview.innerHTML = renderArmyEntityPreview(armyCatalog, unitPicker.value, Number(levelPicker.value), armyCatalogKind, roster);
+}
+
+function updateArmyAbilityPreview(pickerId: string, kind: "spells" | "blessings", previewId = "army-ability-preview"): void {
+  const picker = root!.querySelector<HTMLSelectElement>("#" + pickerId);
+  const preview = root!.querySelector<HTMLElement>("#" + previewId);
+  if (picker && preview) preview.innerHTML = renderArmyAbilityPreview(armyCatalog, picker.value, kind);
+}
+
+function addNode(): void {
+  const record = currentDialogue();
+  if (!record) return;
+  const ids = record.sequence.nodes.map(node => node.id);
+  const id = uniqueId("node-" + (ids.length + 1), ids, "node");
+  const node: DialogueNode = {
+    id,
+    headline: "",
+    textSpeed: "default",
+    speakers: [],
+    segments: [{ speakerIds: [], text: "" }],
+    actions: []
+  };
+  record.sequence.nodes.push(node);
+  if (record.sequence.nodes.length === 1) record.sequence.startNodeId = id;
+  workspace.activeNodeId = id;
+  saveWorkspace();
+  render();
+}
+
+function addSpeaker(nodeIndex: number): void {
+  const record = currentDialogue();
+  const node = record?.sequence.nodes[nodeIndex];
+  if (!node || node.speakers.length >= 2) return;
+  const side = node.speakers.some(speaker => speaker.side === "left") ? "right" : "left";
+  const speakerId = uniqueId("speaker-" + (node.speakers.length + 1), node.speakers.map(speaker => speaker.id), "speaker");
+  node.speakers.push({
+    id: speakerId,
+    unitId: "",
+    displayName: "",
+    side,
+    mood: "Normal" as FaceMood
+  });
+  saveWorkspace();
+  render();
+}
+
+function addSegment(nodeIndex: number): void {
+  const node = currentDialogue()?.sequence.nodes[nodeIndex];
+  if (!node) return;
+  node.segments.push({ speakerIds: node.speakers[0] ? [node.speakers[0].id] : [], text: "" });
+  saveWorkspace();
+  render();
+}
+
+function addAction(nodeIndex: number): void {
+  const record = currentDialogue();
+  const node = record?.sequence.nodes[nodeIndex];
+  if (!record || !node) return;
+  const nextNode = record.sequence.nodes[nodeIndex + 1];
+  node.actions.push({
+    label: "Choose…",
+    targetNodeId: nextNode?.id ?? ""
+  });
+  saveWorkspace();
+  render();
+}
+
+function toggleDecision(nodeIndex: number, actionIndex: number): void {
+  const node = currentDialogue()?.sequence.nodes[nodeIndex];
+  const action = node?.actions[actionIndex];
+  if (!action) return;
+  if (action.decision) {
+    delete action.decision;
+  } else {
+    action.decision = {
+      id: slugBase("decision-" + (node?.id ?? "choice"), "decision"),
+      label: "Named decision",
+      outcomeId: slugBase("option-" + (actionIndex + 1), "option"),
+      outcomeLabel: action.label || "Choice " + (actionIndex + 1)
+    };
+  }
+  saveWorkspace();
+  render();
+}
+
+function addEffect(scope: string): void {
+  const quest = currentQuest();
+  if (!quest) return;
+  const effect: CompletionEffect = {
+    kind: scope === "standard" ? "unlock-path" : "play-event",
+    targetId: "",
+    label: ""
+  };
+  if (scope === "timer") quest.extension.timer.completionEffects.push(effect);
+  else quest.extension.completionEffects.push(effect);
+  saveWorkspace();
+  render();
+}
+
+function handleDeleteDialogClose(event: Event): void {
+  const dialog = event.currentTarget as HTMLDialogElement;
+  if (dialog.returnValue === "confirm" && deleteCandidate) {
+    const itemType = deleteCandidate.type;
+    const key = deleteCandidate.key;
+    const selectionWasRemoved = workspace.selectedType === itemType && workspace.selectedKey === key;
+    if (itemType === "dialogue") {
+      const removedDialogue = workspace.dialogues.find(item => item.key === key);
+      workspace.dialogues = workspace.dialogues.filter(item => item.key !== key);
+      if (removedDialogue) {
+        for (const quest of workspace.quests) {
+          for (const link of Object.keys(quest.extension.dialogueLinks) as Array<keyof QuestRecord["extension"]["dialogueLinks"]>) {
+            if (quest.extension.dialogueLinks[link] === removedDialogue.sequence.sequenceId) {
+              quest.extension.dialogueLinks[link] = "";
+            }
+          }
+        }
+      }
+    } else if (itemType === "quest") {
+      const removedQuest = workspace.quests.find(item => item.key === key);
+      workspace.quests = workspace.quests.filter(item => item.key !== key);
+      if (removedQuest) {
+        for (const campaign of workspace.campaigns) {
+          campaign.questIds = campaign.questIds.filter(id => id !== removedQuest.definition.id);
+          for (const floor of campaign.floors) {
+            floor.questPoolIds = floor.questPoolIds.filter(id => id !== removedQuest.definition.id);
+            for (const node of floor.nodes) if (node.questId === removedQuest.definition.id) node.questId = "";
+          }
+        }
+      }
+    } else if (itemType === "army") {
+      const removedArmy = workspace.armies.find(item => item.key === key);
+      workspace.armies = workspace.armies.filter(item => item.key !== key);
+      if (removedArmy) {
+        for (const quest of workspace.quests) {
+          for (const battle of quest.extension.battleTargets) {
+            if (battle.armyId === removedArmy.id) battle.armyId = "";
+          }
+        }
+        for (const campaign of workspace.campaigns) for (const floor of campaign.floors) for (const node of floor.nodes) {
+          if (node.armyId === removedArmy.id) node.armyId = "";
+        }
+      }
+    } else {
+      workspace.campaigns = workspace.campaigns.filter(item => item.key !== key);
+    }
+    if (selectionWasRemoved) {
+      const sameTypeItems = itemType === "dialogue" ? workspace.dialogues : itemType === "quest" ? workspace.quests : itemType === "army" ? workspace.armies : workspace.campaigns;
+      const candidates = [
+        { type: "dialogue" as const, item: workspace.dialogues[0] },
+        { type: "quest" as const, item: workspace.quests[0] },
+        { type: "army" as const, item: workspace.armies[0] },
+        { type: "campaign" as const, item: workspace.campaigns[0] }
+      ].filter(candidate => candidate.type !== itemType && candidate.item);
+      const nextSameType = sameTypeItems[0];
+      if (nextSameType) {
+        workspace.selectedType = itemType;
+        workspace.selectedKey = nextSameType.key;
+        workspace.activeNodeId = itemType === "dialogue" ? (nextSameType as DialogueRecord).sequence.startNodeId : null;
+        if (itemType === "campaign") {
+          const campaign = nextSameType as CampaignRecord;
+          selectedCampaignFloorId = campaign.floors[0]?.id ?? null;
+          selectedCampaignNodeId = campaign.floors[0]?.nodes[0]?.id ?? null;
+        }
+      } else if (candidates[0]?.item) {
+        const next = candidates[0];
+        workspace.selectedType = next.type;
+        workspace.selectedKey = next.item.key;
+        workspace.activeNodeId = next.type === "dialogue" ? (next.item as DialogueRecord).sequence.startNodeId : null;
+        if (next.type === "campaign") {
+          const campaign = next.item as CampaignRecord;
+          selectedCampaignFloorId = campaign.floors[0]?.id ?? null;
+          selectedCampaignNodeId = campaign.floors[0]?.nodes[0]?.id ?? null;
+        }
+      } else {
+        workspace.selectedType = null;
+        workspace.selectedKey = null;
+        workspace.activeNodeId = null;
+      }
+      activeEditorStep = 0;
+    }
+    saveWorkspace();
+    render();
+    showToast("Local draft removed.");
+  }
+  deleteCandidate = null;
+}
+
+function refreshDerivedView(): void {
+  const item = currentDialogue() ?? currentQuest() ?? currentArmy() ?? currentCampaign();
+  if (!item) return;
+  const dialogue = currentDialogue();
+  if (dialogue) {
+    for (const element of document.querySelectorAll<HTMLElement>("[data-node-title]")) {
+      const index = dialogue.sequence.nodes.findIndex(candidate => candidate.id === element.dataset.nodeTitle);
+      const node = dialogue.sequence.nodes[index];
+      if (node) element.textContent = dialogueMomentName(dialogue.sequence, node);
+    }
+    for (const element of document.querySelectorAll<HTMLElement>("[data-route-target]")) {
+      const index = dialogue.sequence.nodes.findIndex(candidate => candidate.id === element.dataset.routeTarget);
+      const target = dialogue.sequence.nodes[index];
+      if (target) element.textContent = (target.id === dialogue.sequence.startNodeId ? "Start · " : "") + dialogueMomentName(dialogue.sequence, target);
+    }
+    for (const element of document.querySelectorAll<HTMLElement>("[data-route-label-node][data-route-label-index]")) {
+      const node = dialogue.sequence.nodes.find(candidate => candidate.id === element.dataset.routeLabelNode);
+      const routeIndex = Number(element.dataset.routeLabelIndex);
+      const route = node ? dialogueActionsForNode(dialogue.sequence, node)[routeIndex] : undefined;
+      if (route) element.textContent = route.label || "Continue";
+    }
+    const activeIndex = dialogue.sequence.nodes.findIndex(candidate => candidate.id === workspace.activeNodeId);
+    const activeNode = dialogue.sequence.nodes[activeIndex];
+    const titleHeading = document.querySelector<HTMLElement>("#guided-title-heading");
+    if (titleHeading && activeNode) titleHeading.textContent = dialogueMomentName(dialogue.sequence, activeNode);
+  }
+  const dialogueStart = "sequence" in item
+    ? item.sequence.nodes.find(node => node.id === item.sequence.startNodeId) ?? item.sequence.nodes[0]
+    : undefined;
+  const title = "sequence" in item
+    ? (item.exampleTitle || (dialogueStart ? dialogueMomentName(item.sequence, dialogueStart) : "Dialogue"))
+    : "definition" in item ? item.definition.title || item.definition.id || "Untitled quest" : item.name || item.id || "Untitled army";
+  const heading = document.querySelector<HTMLElement>(".workspace-heading h1");
+  if (heading) heading.textContent = title;
+  const compactHeaderTitle = document.querySelector<HTMLElement>(".guided-header-title");
+  if (compactHeaderTitle) compactHeaderTitle.textContent = title;
+  const activeLabel = document.querySelector<HTMLElement>(".doc-item.is-active .doc-item-text strong");
+  if (activeLabel) activeLabel.textContent = title;
+  const preview = document.querySelector<HTMLElement>(".preview-panel");
+  if (preview) preview.outerHTML = renderLivePreview(workspace, roster);
+
+  const issues = validateWorkspace(workspace, armyCatalog);
+  const validation = document.querySelector<HTMLElement>(".validation-card");
+  if (validation) validation.outerHTML = renderValidationSummary(issues);
+  const hasErrors = issues.some(issue => issue.level === "error");
+  const status = document.querySelector<HTMLElement>(".heading-status");
+  if (status) {
+    status.className = "heading-status " + (hasErrors ? "has-errors" : "is-ready");
+    status.innerHTML = hasErrors ? '<span></span>Needs attention' : "";
+  }
+  const errorDot = document.querySelector<HTMLElement>(".global-error-dot");
+  if (hasErrors && !errorDot) {
+    const dot = document.createElement("div");
+    dot.className = "global-error-dot";
+    dot.title = "Fix validation errors before treating this content as ready";
+    root!.append(dot);
+  } else if (!hasErrors && errorDot) {
+    errorDot.remove();
+  }
+}
+
+function showToast(message: string, tone: "success" | "warning" | "error" = "success"): void {
+  const region = document.querySelector<HTMLElement>("#toast-region");
+  if (!region) return;
+  region.innerHTML = '<div class="toast toast-' + tone + '"><span class="toast-mark">' + (tone === "success" ? "✓" : "!") + '</span><span>' + escapeHtml(message) + '</span></div>';
+  window.clearTimeout(toastTimer);
+  toastTimer = window.setTimeout(() => {
+    const toast = region.querySelector(".toast");
+    toast?.classList.add("is-leaving");
+    window.setTimeout(() => { region.innerHTML = ""; }, 250);
+  }, 3200);
+}
+
+function download(filename: string, content: Blob | string, mime = "application/json"): void {
+  const blob = content instanceof Blob ? content : new Blob([content], { type: mime + ";charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
+function exportActive(): void {
+  const dialogue = currentDialogue();
+  if (dialogue) {
+    download(suggestedFilename("dialogue", dialogue.sequence.sequenceId), activeDialogueJson(dialogue));
+    showToast("Dialogue JSON downloaded.");
+    return;
+  }
+  const quest = currentQuest();
+  if (quest) {
+    download(suggestedFilename("quest", quest.definition.id), activeQuestJson(quest));
+    showToast("Quest JSON downloaded.");
+    return;
+  }
+  const army = currentArmy();
+  if (army) {
+    download(suggestedFilename("army", army.id), activeArmyJson(army));
+    showToast("Army JSON downloaded.");
+    return;
+  }
+  const campaign = currentCampaign();
+  if (campaign) {
+    download(suggestedFilename("campaign", campaign.id), activeCampaignJson(campaign));
+    showToast("Campaign JSON downloaded.");
+  }
+}
+
+function exportPackage(): void {
+  const filename = "meowdieval-content-" + new Date().toISOString().slice(0, 10) + ".zip";
+  download(filename, workspacePackage(workspace, roster), "application/zip");
+  showToast("Campaign content package downloaded.");
+}
+
+function importedDefaultContinue(rawNode: Record<string, any>, index: number, nodes: Array<Record<string, any>>): Record<string, any> | undefined {
+  const actions = Array.isArray(rawNode.actions) ? rawNode.actions as Array<Record<string, any>> : [];
+  const marked = actions.find(action => action.meowEdit?.defaultContinue === true);
+  if (marked) return marked;
+  if (actions.length !== 1) return undefined;
+  const action = actions[0];
+  const label = String(action.label ?? "Continue").trim() || "Continue";
+  if (label !== "Continue" || action.decision || action.meowEdit?.decision) return undefined;
+  const nextId = String(nodes[index + 1]?.id ?? "");
+  return String(action.targetNodeId ?? "") === nextId ? action : undefined;
+}
+
+function normalizeDialogue(value: unknown): DialogueRecord {
+  const source = value as Record<string, any>;
+  const workspaceMeta = source._meowEditWorkspace ?? {};
+  const nodes = Array.isArray(source.nodes) ? source.nodes : [];
+  const sequence = {
+    schemaVersion: 1 as const,
+    sequenceId: String(source.sequenceId ?? "imported-dialogue"),
+    startNodeId: String(source.startNodeId ?? nodes[0]?.id ?? ""),
+    pauseMode: source.pauseMode === "continue" ? "continue" as const : "pause" as const,
+    defaultCharactersPerSecond: Number(source.defaultCharactersPerSecond ?? 34),
+    nodes: nodes.map((rawNode: Record<string, any>, nodeIndex: number) => {
+      const defaultContinue = importedDefaultContinue(rawNode, nodeIndex, nodes);
+      return {
+      id: String(rawNode.id ?? "node"),
+      headline: String(rawNode.headline ?? ""),
+      ...(workspaceMeta.nodeNames?.[String(rawNode.id)] ? { editorLabel: String(workspaceMeta.nodeNames[String(rawNode.id)]) } : {}),
+      ...(workspaceMeta.nodePositions?.[String(rawNode.id)] && typeof workspaceMeta.nodePositions[String(rawNode.id)] === "object"
+        ? { editorPosition: {
+          x: Number(workspaceMeta.nodePositions[String(rawNode.id)].x ?? 0),
+          y: Number(workspaceMeta.nodePositions[String(rawNode.id)].y ?? 0),
+          reverse: workspaceMeta.nodePositions[String(rawNode.id)].reverse === true
+        } }
+        : {}),
+      textSpeed: String(rawNode.textSpeed ?? "default"),
+      speakers: Array.isArray(rawNode.speakers) ? rawNode.speakers.map((speaker: Record<string, any>, index: number) => ({
+        id: String(speaker.id ?? "speaker-" + (index + 1)),
+        unitId: String(speaker.unitId ?? ""),
+        displayName: String(speaker.displayName ?? ""),
+        side: speaker.side === "right" ? "right" as const : "left" as const,
+        mood: String(speaker.mood ?? "Normal")
+      })) : [],
+      segments: Array.isArray(rawNode.segments) ? rawNode.segments.map((segment: Record<string, any>) => ({
+        speakerIds: Array.isArray(segment.speakerIds) ? segment.speakerIds.map(String) : [],
+        text: String(segment.text ?? "")
+      })) : [],
+      ...(defaultContinue
+        ? {
+          continueLabel: String(defaultContinue.label ?? "Continue"),
+          continueTargetNodeId: String(defaultContinue.targetNodeId ?? "")
+        }
+        : rawNode.continueLabel ? { continueLabel: String(rawNode.continueLabel) } : {}),
+      actions: Array.isArray(rawNode.actions) ? rawNode.actions.filter((action: Record<string, any>) => action !== defaultContinue).map((action: Record<string, any>, index: number) => {
+        const decision = action.meowEdit?.decision ?? action.decision;
+        return {
+          label: String(action.label ?? "Continue"),
+          targetNodeId: String(action.targetNodeId ?? ""),
+          ...(decision ? { decision: {
+            id: String(decision.id ?? ""),
+            label: String(decision.label ?? ""),
+            outcomeId: String(decision.outcomeId ?? ""),
+            outcomeLabel: String(decision.outcomeLabel ?? action.label ?? "Choice " + (index + 1))
+          } } : {})
+        };
+      }) : []
+      };
+    })
+  };
+  return {
+    key: createKey("dialogue-import"),
+    isGameExample: workspaceMeta.isGameExample === true,
+    exampleTitle: String(source.exampleTitle ?? workspaceMeta.exampleTitle ?? "") || undefined,
+    sequenceIdAuto: workspaceMeta.sequenceIdAuto === true,
+    sequence
+  };
+}
+
+function normalizeQuest(value: unknown): QuestRecord {
+  const source = value as Record<string, any>;
+  const workspaceMeta = source._meowEditWorkspace ?? {};
+  const definitionSource = source.definition ?? source;
+  const extensionSource = source.meowEdit ?? source.extension ?? {};
+  const timerSource = extensionSource.timer ?? {};
+  const definition: AdventureQuestDefinition = {
+    ...DEFAULT_QUEST,
+    ...definitionSource,
+    id: String(definitionSource.id ?? "imported-quest"),
+    title: String(definitionSource.title ?? ""),
+    sourceSlot: Number(definitionSource.sourceSlot ?? -1),
+    firstFloor: Number(definitionSource.firstFloor ?? 1),
+    repeatEveryFloors: Number(definitionSource.repeatEveryFloors ?? 1),
+    priority: Number(definitionSource.priority ?? 0),
+    targetFloorOffset: Number(definitionSource.targetFloorOffset ?? 0),
+    rewardAmount: Number(definitionSource.rewardAmount ?? 0)
+  };
+  const fetchItems = Array.isArray(extensionSource.fetchItems)
+    ? extensionSource.fetchItems.map((item: Record<string, any>) => ({
+      id: String(item.id ?? ""), displayName: String(item.displayName ?? ""), count: Number(item.count ?? 1)
+    }))
+    : definition.objectiveKind === "Fetch" && definition.itemId
+      ? [{ id: String(definition.itemId), displayName: String(workspaceMeta.itemDisplayName ?? definition.itemId).replace(/[-_]+/g, " "), count: 1 }]
+      : [];
+  const battleTargets = Array.isArray(extensionSource.battleTargets)
+    ? extensionSource.battleTargets.map((target: Record<string, any>, index: number) => ({
+      id: String(target.id ?? "battle-" + (index + 1)), label: String(target.label ?? "Battle " + (index + 1)),
+      nodeKind: String(target.nodeKind ?? definition.targetNodeKind), floorOffset: Number(target.floorOffset ?? definition.targetFloorOffset), armyId: String(target.armyId ?? "")
+    }))
+    : definition.objectiveKind === "Battle"
+      ? [{ id: "battle-1", label: "Battle 1", nodeKind: definition.targetNodeKind || "Battle", floorOffset: definition.targetFloorOffset, armyId: "" }]
+      : [];
+  const timer = {
+    ...emptyTimerLogic(),
+    ...timerSource,
+    counterTarget: Number(timerSource.counterTarget ?? 3),
+    paymentAmount: Number(timerSource.paymentAmount ?? 15),
+    completionEffects: Array.isArray(timerSource.completionEffects) ? timerSource.completionEffects : emptyTimerLogic().completionEffects
+  };
+  return {
+    key: createKey("quest-import"),
+    isGameExample: workspaceMeta.isGameExample === true,
+    idAuto: workspaceMeta.idAuto === true,
+    itemDisplayName: String(workspaceMeta.itemDisplayName ?? definition.itemId.replace(/[-_]+/g, " ")),
+    definition,
+    extension: {
+      schemaVersion: 1,
+      dialogueLinks: {
+        offer: String(extensionSource.dialogueLinks?.offer ?? ""),
+        active: String(extensionSource.dialogueLinks?.active ?? ""),
+        completion: String(extensionSource.dialogueLinks?.completion ?? ""),
+        failure: String(extensionSource.dialogueLinks?.failure ?? "")
+      },
+      logicKind: extensionSource.logicKind === "timer-project" ? "timer-project" : "standard",
+      timer,
+      completionEffects: Array.isArray(extensionSource.completionEffects) ? extensionSource.completionEffects : [],
+      fetchItems,
+      battleTargets,
+      killCount: extensionSource.killCount ? {
+        targetKind: String(extensionSource.killCount.targetKind ?? "unit") as KillCountTargetKind,
+        targetId: String(extensionSource.killCount.targetId ?? ""),
+        count: Number(extensionSource.killCount.count ?? 1)
+      } : null,
+      minimumNodeDistances: Array.isArray(extensionSource.minimumNodeDistances) ? extensionSource.minimumNodeDistances.map((rule: Record<string, any>, index: number) => ({
+        id: String(rule.id ?? "distance-" + (index + 1)), fromNodeKind: String(rule.fromNodeKind ?? "QuestStart"), toNodeKind: String(rule.toNodeKind ?? "Battle"), minimumHops: Number(rule.minimumHops ?? 1)
+      })) : []
+    }
+  };
+}
+
+function mergeDialogue(record: DialogueRecord): void {
+  const index = workspace.dialogues.findIndex(item => item.sequence.sequenceId === record.sequence.sequenceId);
+  if (index >= 0) workspace.dialogues[index] = { ...record, key: workspace.dialogues[index].key };
+  else workspace.dialogues.push(record);
+  workspace.selectedType = "dialogue";
+  workspace.selectedKey = index >= 0 ? workspace.dialogues[index].key : record.key;
+  workspace.activeNodeId = record.sequence.startNodeId;
+  activeEditorStep = 0;
+}
+
+function mergeQuest(record: QuestRecord): void {
+  const index = workspace.quests.findIndex(item => item.definition.id === record.definition.id);
+  if (index >= 0) workspace.quests[index] = { ...record, key: workspace.quests[index].key };
+  else workspace.quests.push(record);
+  workspace.selectedType = "quest";
+  workspace.selectedKey = index >= 0 ? workspace.quests[index].key : record.key;
+  workspace.activeNodeId = null;
+  activeEditorStep = 0;
+}
+
+function mergeArmy(record: ArmyRecord): void {
+  const index = workspace.armies.findIndex(item => item.id === record.id);
+  if (index >= 0) workspace.armies[index] = { ...record, key: workspace.armies[index].key };
+  else workspace.armies.push(record);
+  workspace.selectedType = "army";
+  workspace.selectedKey = index >= 0 ? workspace.armies[index].key : record.key;
+  workspace.activeNodeId = null;
+  activeEditorStep = 0;
+}
+
+function mergeCampaign(record: CampaignRecord): void {
+  const index = workspace.campaigns.findIndex(item => item.id === record.id);
+  if (index >= 0) workspace.campaigns[index] = { ...record, key: workspace.campaigns[index].key };
+  else workspace.campaigns.push(record);
+  workspace.selectedType = "campaign";
+  workspace.selectedKey = index >= 0 ? workspace.campaigns[index].key : record.key;
+  workspace.activeNodeId = null;
+  selectedCampaignFloorId = (index >= 0 ? workspace.campaigns[index] : record).floors[0]?.id ?? null;
+  selectedCampaignNodeId = (index >= 0 ? workspace.campaigns[index] : record).floors[0]?.nodes[0]?.id ?? null;
+  activeEditorStep = 0;
+}
+
+function importJsonObject(value: unknown): number {
+  if (!value || typeof value !== "object") throw new Error("This file does not contain a MeowEdit content document.");
+  const source = value as Record<string, any>;
+  let imported = 0;
+  if (source.format === "meowedit-workspace") {
+    for (const raw of source.dialogues ?? []) {
+      const record = normalizeDialogue(raw);
+      mergeDialogue(record);
+      imported += 1;
+    }
+    for (const raw of source.quests ?? []) {
+      const record = normalizeQuest(raw);
+      mergeQuest(record);
+      imported += 1;
+    }
+    for (const raw of source.armies ?? []) {
+      mergeArmy(normalizeArmy(raw));
+      imported += 1;
+    }
+    for (const raw of source.campaigns ?? []) {
+      mergeCampaign(normalizeCampaign(raw));
+      imported += 1;
+    }
+    return imported;
+  }
+  if ((source.format === "meowedit-campaign" || source.format === "meowdieval-campaign") && source.campaign) {
+    mergeCampaign(normalizeCampaign(source));
+    return 1;
+  }
+  if (source.format === "meowedit-army" && source.army) {
+    mergeArmy(normalizeArmy(source.army));
+    return 1;
+  }
+  if (Array.isArray(source.quests)) {
+    for (const raw of source.quests) {
+      mergeQuest(normalizeQuest(raw));
+      imported += 1;
+    }
+    return imported;
+  }
+  if (Array.isArray(source.nodes) && source.sequenceId) {
+    mergeDialogue(normalizeDialogue(source));
+    return 1;
+  }
+  throw new Error("Choose a MeowEdit workspace, an Adventure quest JSON, or a dialogue sequence JSON.");
+}
+
+function importZip(bytes: Uint8Array): number {
+  const files = readStoredZip(bytes);
+  let imported = 0;
+  for (const [path, data] of files) {
+    if (/\/armies\/ArmyConfigurations\.json$/i.test(path)) {
+      const source = parseImportedJson(decodeZipText(data)) as Record<string, any>;
+      for (const raw of source.armies ?? []) {
+        mergeArmy(normalizeArmy(raw));
+        imported += 1;
+      }
+    }
+  }
+  for (const [path, data] of files) {
+    if (/\/campaigns\/Campaigns\.json$/i.test(path)) {
+      const source = parseImportedJson(decodeZipText(data)) as Record<string, any>;
+      for (const raw of source.campaigns ?? []) { mergeCampaign(normalizeCampaign(raw)); imported += 1; }
+    }
+  }
+  for (const [path, data] of files) {
+    if (/\/quests\/Definitions\.json$/i.test(path)) {
+      imported += importJsonObject(parseImportedJson(decodeZipText(data)));
+    }
+  }
+  for (const [path, data] of files) {
+    if (/\/dialogues\/[^/]+\.json$/i.test(path)) {
+      imported += importJsonObject(parseImportedJson(decodeZipText(data)));
+    }
+  }
+  if (imported === 0) throw new Error("No quest or dialogue JSON files were found in this package.");
+  return imported;
+}
+
+async function importFile(file: File): Promise<void> {
+  try {
+    let imported: number;
+    if (file.name.toLowerCase().endsWith(".zip")) {
+      imported = importZip(new Uint8Array(await file.arrayBuffer()));
+    } else {
+      imported = importJsonObject(parseImportedJson(await file.text()));
+    }
+    saveWorkspace();
+    render();
+    showToast("Imported " + imported + " content item" + (imported === 1 ? "" : "s") + ".");
+  } catch (error) {
+    showToast(error instanceof Error ? error.message : "Could not import this file.", "error");
+  } finally {
+    const picker = document.querySelector<HTMLInputElement>("#import-file");
+    if (picker) picker.value = "";
+  }
+}
+
+async function importGameExamples(): Promise<void> {
+  try {
+    const response = await fetch("./game-examples.json", { cache: "no-cache" });
+    if (!response.ok) throw new Error("The game examples could not be loaded.");
+    const source = await response.json() as Record<string, any>;
+    if (source.format !== "meowedit-game-examples" || !Array.isArray(source.dialogues) || !Array.isArray(source.quests)) {
+      throw new Error("The game examples file has an unsupported format.");
+    }
+
+    let dialoguesAdded = 0;
+    let questsAdded = 0;
+    let skipped = 0;
+    const existingDialogueIds = new Set(workspace.dialogues.map(record => record.sequence.sequenceId));
+    const existingQuestIds = new Set(workspace.quests.map(record => record.definition.id));
+    for (const raw of source.dialogues) {
+      const record = normalizeDialogue(raw);
+      if (existingDialogueIds.has(record.sequence.sequenceId)) {
+        skipped += 1;
+        continue;
+      }
+      record.isGameExample = true;
+      existingDialogueIds.add(record.sequence.sequenceId);
+      workspace.dialogues.push(record);
+      dialoguesAdded += 1;
+    }
+    for (const raw of source.quests) {
+      const record = normalizeQuest(raw);
+      if (existingQuestIds.has(record.definition.id)) {
+        skipped += 1;
+        continue;
+      }
+      record.isGameExample = true;
+      existingQuestIds.add(record.definition.id);
+      workspace.quests.push(record);
+      questsAdded += 1;
+    }
+
+    if (dialoguesAdded + questsAdded === 0) {
+      showToast(skipped ? "All game examples already exist here or have conflicting IDs." : "There are no game examples to import.");
+      return;
+    }
+    saveWorkspace();
+    render();
+    const added = [
+      dialoguesAdded ? dialoguesAdded + " dialogue example" + (dialoguesAdded === 1 ? "" : "s") : "",
+      questsAdded ? questsAdded + " quest example" + (questsAdded === 1 ? "" : "s") : ""
+    ].filter(Boolean).join(" and ");
+    showToast("Added " + added + (skipped ? ". Skipped " + skipped + " item" + (skipped === 1 ? "" : "s") + " with IDs already in use." : "."));
+  } catch (error) {
+    showToast(error instanceof Error ? error.message : "Could not import game examples.", "error");
+  }
+}
+
+function removeGameExamples(): void {
+  const selectedDialogue = currentDialogue();
+  const selectedQuest = currentQuest();
+  const selectedArmy = currentArmy();
+  const selectionWasRemoved = selectedDialogue?.isGameExample === true || selectedQuest?.isGameExample === true || selectedArmy?.isGameExample === true;
+  const dialogueCount = workspace.dialogues.filter(record => record.isGameExample).length;
+  const questCount = workspace.quests.filter(record => record.isGameExample).length;
+  const armyCount = workspace.armies.filter(record => record.isGameExample).length;
+  workspace.dialogues = workspace.dialogues.filter(record => !record.isGameExample);
+  workspace.quests = workspace.quests.filter(record => !record.isGameExample);
+  workspace.armies = workspace.armies.filter(record => !record.isGameExample);
+  if (selectionWasRemoved) {
+    const nextDialogue = workspace.dialogues[0];
+    const nextQuest = workspace.quests[0];
+    if (nextDialogue) {
+      workspace.selectedType = "dialogue";
+      workspace.selectedKey = nextDialogue.key;
+      workspace.activeNodeId = nextDialogue.sequence.startNodeId;
+    } else if (nextQuest) {
+      workspace.selectedType = "quest";
+      workspace.selectedKey = nextQuest.key;
+      workspace.activeNodeId = null;
+    } else if (workspace.armies[0]) {
+      workspace.selectedType = "army";
+      workspace.selectedKey = workspace.armies[0].key;
+      workspace.activeNodeId = null;
+    } else {
+      workspace.selectedType = null;
+      workspace.selectedKey = null;
+      workspace.activeNodeId = null;
+    }
+    activeEditorStep = 0;
+  }
+  saveWorkspace();
+  render();
+  const removedCount = dialogueCount + questCount + armyCount;
+  showToast("Removed " + removedCount + " imported game example" + (removedCount === 1 ? "" : "s") + ".");
+}
+
+function handleRemoveExamplesDialogClose(event: Event): void {
+  const dialog = event.currentTarget as HTMLDialogElement;
+  if (dialog.returnValue === "confirm" && removeGameExamplesPending) removeGameExamples();
+  removeGameExamplesPending = false;
+}
+
+function onAction(button: HTMLButtonElement): void {
+  const action = button.dataset.action;
+  switch (action) {
+    case "toggle-help":
+      helpVisible = !helpVisible;
+      persistEditorSession();
+      render();
+      return;
+    case "new-dialogue": addDialogue(); return;
+    case "new-quest": addQuest(); return;
+    case "new-army": addArmy(); return;
+    case "new-campaign": addCampaign(); return;
+    case "return-to-parent": returnToRelatedParent(); return;
+    case "create-campaign-army": {
+      const context = campaignRelatedContext("army");
+      if (context) addArmy(context);
+      return;
+    }
+    case "open-campaign-army": {
+      const army = workspace.armies.find(item => item.id === button.dataset.armyId);
+      const context = campaignRelatedContext("army");
+      if (army && context) openRelatedRecord("army", army.key, context);
+      return;
+    }
+    case "create-campaign-node-quest": {
+      const context = campaignRelatedContext("quest-node");
+      if (context) addQuest(context);
+      return;
+    }
+    case "open-campaign-node-quest": {
+      const quest = workspace.quests.find(item => item.definition.id === button.dataset.questId);
+      const context = campaignRelatedContext("quest-node");
+      if (quest && context) openRelatedRecord("quest", quest.key, context);
+      return;
+    }
+    case "open-campaign-pool-quest": {
+      const quest = workspace.quests.find(item => item.definition.id === button.dataset.questId);
+      const context = campaignRelatedContext("quest-pool");
+      if (quest && context) openRelatedRecord("quest", quest.key, context);
+      return;
+    }
+    case "create-campaign-pool-quest": {
+      const context = campaignRelatedContext("quest-pool", true);
+      if (context) addQuest(context);
+      return;
+    }
+    case "create-quest-battle-army": {
+      const context = questRelatedContext("army", button.dataset.targetId ?? "");
+      if (context) addArmy(context);
+      return;
+    }
+    case "open-quest-battle-army": {
+      const army = workspace.armies.find(item => item.id === button.dataset.armyId);
+      const context = questRelatedContext("army", button.dataset.targetId ?? "");
+      if (army && context) openRelatedRecord("army", army.key, context);
+      return;
+    }
+    case "create-quest-dialogue": {
+      const slot = button.dataset.slot as keyof QuestRecord["extension"]["dialogueLinks"];
+      if (["offer", "active", "completion", "failure"].includes(slot)) {
+        const context = questDialogueContext(slot);
+        if (context) addDialogue(context);
+      }
+      return;
+    }
+    case "open-quest-dialogue": {
+      const dialogue = workspace.dialogues.find(item => item.sequence.sequenceId === button.dataset.dialogueId);
+      const slot = button.dataset.slot as keyof QuestRecord["extension"]["dialogueLinks"];
+      if (dialogue && ["offer", "active", "completion", "failure"].includes(slot)) {
+        const context = questDialogueContext(slot);
+        if (context) openRelatedRecord("dialogue", dialogue.key, context);
+      }
+      return;
+    }
+    case "import-game-examples": void importGameExamples(); return;
+    case "remove-game-examples": {
+      removeGameExamplesPending = true;
+      document.querySelector<HTMLDialogElement>("#remove-examples-dialog")?.showModal();
+      return;
+    }
+    case "select-item": {
+      const picker = document.querySelector<HTMLDialogElement>("#content-picker-dialog");
+      if (picker?.open) {
+        if (typeof picker.close === "function") picker.close();
+        else picker.removeAttribute("open");
+      }
+      const type = button.dataset.type === "dialogue" ? "dialogue" : button.dataset.type === "army" ? "army" : button.dataset.type === "campaign" ? "campaign" : "quest";
+      const key = button.dataset.key ?? null;
+      if (type !== workspace.selectedType || key !== workspace.selectedKey) activeEditorStep = 0;
+      relatedReturnContexts.clear();
+      workspace.selectedType = type;
+      workspace.selectedKey = key;
+      workspace.activeNodeId = type === "dialogue"
+        ? workspace.dialogues.find(item => item.key === key)?.sequence.startNodeId ?? null
+        : null;
+      if (type === "campaign") {
+        const campaign = workspace.campaigns.find(item => item.key === key);
+        selectedCampaignFloorId = campaign?.floors[0]?.id ?? null;
+        selectedCampaignNodeId = campaign?.floors[0]?.nodes[0]?.id ?? null;
+        campaignInteractionMode = "select";
+        campaignAddMenuOpen = false;
+        pendingCampaignPlugFromId = null;
+        selectedCampaignRouteId = null;
+      }
+      selectedArmyPlacementId = null;
+      armyCatalogKind = "units";
+      saveWorkspace();
+      render();
+      return;
+    }
+    case "delete-item": {
+      const type = button.dataset.type === "dialogue" ? "dialogue" : button.dataset.type === "army" ? "army" : button.dataset.type === "campaign" ? "campaign" : "quest";
+      const key = button.dataset.key ?? "";
+      const exists = type === "dialogue"
+        ? workspace.dialogues.some(item => item.key === key)
+        : type === "quest" ? workspace.quests.some(item => item.key === key) : type === "army" ? workspace.armies.some(item => item.key === key) : workspace.campaigns.some(item => item.key === key);
+      if (!exists) return;
+      deleteCandidate = { type, key };
+      document.querySelector<HTMLDialogElement>("#confirm-dialog")?.showModal();
+      return;
+    }
+    case "select-node":
+      workspace.activeNodeId = button.dataset.nodeId ?? null;
+      render();
+      return;
+    case "select-editor-step":
+      activeEditorStep = Math.max(0, Number(button.dataset.step ?? 0));
+      render();
+      return;
+    case "campaign-add-floor": addCampaignFloor(); return;
+    case "campaign-design-choice": {
+      const campaign = currentCampaign();
+      const choice = button.dataset.mode;
+      if (!campaign || campaign.designMode !== "choose" || (choice !== "settings-only" && choice !== "custom")) return;
+      campaign.designMode = choice;
+      if (choice === "settings-only") {
+        campaign.questIds = [];
+        campaign.settings.questNodeCountPerRandomFloor = 0;
+        campaign.settings.continueWithGeneratedFloors = true;
+        for (const floor of campaign.floors) {
+          floor.mode = "random";
+          floor.nodes = [];
+          floor.routes = [];
+          floor.randomSettings.questNodeCount = 0;
+          floor.questPoolMode = "campaign";
+          floor.questPoolIds = [];
+        }
+        selectedCampaignNodeId = null;
+        campaignInteractionMode = "select";
+        campaignAddMenuOpen = false;
+        pendingCampaignPlugFromId = null;
+        selectedCampaignRouteId = null;
+      }
+      activeEditorStep = 0;
+      saveWorkspace();
+      render();
+      return;
+    }
+    case "campaign-remove-floor": {
+      const campaign = currentCampaign();
+      const floor = currentCampaignFloor(campaign);
+      if (!campaign || !floor || campaign.floors.length <= 1) return;
+      if (!window.confirm("Remove Floor " + floor.number + " and all its nodes and routes?")) return;
+      removeCampaignFloor(campaign, floor.id);
+      selectedCampaignFloorId = campaign.floors[0]?.id ?? null;
+      selectedCampaignNodeId = campaign.floors[0]?.nodes[0]?.id ?? null;
+      campaignInteractionMode = "select"; campaignAddMenuOpen = false; pendingCampaignPlugFromId = null; selectedCampaignRouteId = null;
+      saveWorkspace(); render(); showToast("Floor removed."); return;
+    }
+    case "campaign-select-floor": {
+      const floor = currentCampaign()?.floors.find(item => item.id === button.dataset.floorId);
+      if (!floor) return;
+      selectedCampaignFloorId = floor.id;
+      selectedCampaignNodeId = floor.nodes[0]?.id ?? null;
+      campaignInteractionMode = "select"; campaignAddMenuOpen = false; pendingCampaignPlugFromId = null; selectedCampaignRouteId = null;
+      saveWorkspace(); render(); return;
+    }
+    case "campaign-set-floor-mode": {
+      const floor = currentCampaignFloor();
+      const campaign = currentCampaign();
+      const mode = button.dataset.mode as CampaignFloorMode;
+      if (!floor || !["authored", "random", "mixed"].includes(mode)) return;
+      if (mode !== "random" && campaign?.designMode === "settings-only") campaign.designMode = "custom";
+      if (mode !== "random" && floor.mode === "random" && floor.nodes.length === 0) {
+        const replacement = newCampaignFloor(floor.number, mode);
+        floor.nodes = replacement.nodes; floor.routes = replacement.routes;
+      }
+      floor.mode = mode; campaignInteractionMode = "select"; campaignAddMenuOpen = false; pendingCampaignPlugFromId = null; selectedCampaignRouteId = null;
+      saveWorkspace(); render(); return;
+    }
+    case "campaign-toggle-floor-pool-mode": {
+      const campaign = currentCampaign();
+      const floor = currentCampaignFloor(campaign);
+      if (!campaign || !floor) return;
+      if (floor.questPoolMode === "custom") {
+        floor.questPoolMode = "campaign";
+        floor.questPoolIds = [];
+      } else {
+        floor.questPoolMode = "custom";
+        floor.questPoolIds = [...campaign.questIds];
+      }
+      saveWorkspace(); render(); return;
+    }
+    case "campaign-toggle-floor-quest": {
+      const campaign = currentCampaign();
+      const floor = currentCampaignFloor(campaign);
+      const questId = button.dataset.questId ?? "";
+      if (!campaign || !floor || !questId || !campaign.questIds.includes(questId)) return;
+      floor.questPoolIds = floor.questPoolIds.includes(questId)
+        ? floor.questPoolIds.filter(id => id !== questId)
+        : [...floor.questPoolIds, questId];
+      saveWorkspace(); render(); return;
+    }
+    case "campaign-node-tool": {
+      const kind = button.dataset.kind as CampaignNodeKind;
+      if (!["Start", "Battle", "Reward", "Boss", "Quest", "Shop"].includes(kind)) return;
+      if (campaignInteractionMode === "add" && campaignNodeKindDraft === kind) {
+        campaignInteractionMode = "select";
+      } else {
+        campaignNodeKindDraft = kind;
+        campaignInteractionMode = "add";
+      }
+      campaignAddMenuOpen = false;
+      pendingCampaignPlugFromId = null;
+      selectedCampaignRouteId = null;
+      render(); return;
+    }
+    case "campaign-toggle-add-menu":
+      campaignAddMenuOpen = !campaignAddMenuOpen;
+      campaignInteractionMode = "select";
+      render(); return;
+    case "campaign-select-mode":
+      campaignInteractionMode = "select";
+      campaignAddMenuOpen = false;
+      pendingCampaignPlugFromId = null;
+      render(); return;
+    case "campaign-toggle-route-direction": {
+      const floor = currentCampaignFloor();
+      const route = floor?.routes.find(item => item.id === button.dataset.routeId);
+      if (!route) return;
+      route.oneWay = !route.oneWay;
+      selectedCampaignRouteId = route.id;
+      saveWorkspace(); render(); return;
+    }
+    case "campaign-cell": handleCampaignCell(Number(button.dataset.x), Number(button.dataset.y)); return;
+    case "campaign-node": selectCampaignNode(button.dataset.nodeId ?? ""); return;
+    case "campaign-remove-node": {
+      const floor = currentCampaignFloor();
+      if (!floor || !selectedCampaignNodeId) return;
+      removeCampaignNode(floor, selectedCampaignNodeId);
+      selectedCampaignNodeId = floor.nodes[0]?.id ?? null; campaignInteractionMode = "select";
+      if (editorMode === "guided") activeEditorStep = 2;
+      saveWorkspace(); render(); return;
+    }
+    case "campaign-back-to-map":
+      activeEditorStep = 2;
+      campaignInteractionMode = "select";
+      campaignAddMenuOpen = false;
+      pendingCampaignPlugFromId = null;
+      render();
+      return;
+    case "campaign-remove-route": {
+      const floor = currentCampaignFloor();
+      if (!floor) return;
+      floor.routes = floor.routes.filter(route => route.id !== button.dataset.routeId);
+      selectedCampaignRouteId = null;
+      saveWorkspace(); render(); return;
+    }
+    case "campaign-toggle-quest": {
+      const campaign = currentCampaign();
+      const questId = button.dataset.questId ?? "";
+      if (!campaign || !questId) return;
+      if (campaign.questIds.includes(questId)) {
+        campaign.questIds = campaign.questIds.filter(id => id !== questId);
+        for (const floor of campaign.floors) {
+          floor.questPoolIds = floor.questPoolIds.filter(id => id !== questId);
+          for (const node of floor.nodes) if (node.questId === questId) node.questId = "";
+        }
+      } else campaign.questIds.push(questId);
+      saveWorkspace(); render(); return;
+    }
+    case "editor-back":
+      activeEditorStep = Math.max(0, activeEditorStep - 1);
+      render();
+      return;
+    case "editor-next":
+      activeEditorStep = currentArmy() ? Math.min(activeEditorStep + 1, 5) : activeEditorStep + 1;
+      render();
+      return;
+    case "open-full-editor":
+      editorMode = "full";
+      if (currentQuest()) activeEditorStep = activeEditorStep >= 4 ? 7 : Math.min(activeEditorStep, 3);
+      else if (currentCampaign()) activeEditorStep = Math.min(activeEditorStep, 8);
+      else if (currentArmy()) activeEditorStep = Math.min(activeEditorStep, 5);
+      else activeEditorStep = Math.min(activeEditorStep, 4);
+      render();
+      return;
+    case "open-guided-editor":
+      editorMode = "guided";
+      activeEditorStep = currentQuest() ? (activeEditorStep >= 4 ? 4 : Math.min(activeEditorStep, 3)) : Math.min(activeEditorStep, 4);
+      if (currentCampaign()) activeEditorStep = Math.min(activeEditorStep, 8);
+      if (currentArmy()) activeEditorStep = Math.min(activeEditorStep, 5);
+      render();
+      return;
+    case "guided-add-node":
+      activeEditorStep = 0;
+      addNode();
+      return;
+    case "dialogue-graph-zoom-in": activeDialogueGraph?.zoom_in(); return;
+    case "dialogue-graph-zoom-out": activeDialogueGraph?.zoom_out(); return;
+    case "dialogue-graph-zoom-reset": activeDialogueGraph?.zoom_reset(); return;
+    case "dialogue-graph-arrange": {
+      const dialogue = currentDialogue();
+      if (!dialogue) return;
+      compactDialogueGraph(dialogue, root!.querySelector<HTMLElement>("[data-dialogue-node-graph]")?.clientWidth ?? 0);
+      saveWorkspace();
+      render();
+      return;
+    }
+    case "add-node": addNode(); return;
+    case "add-speaker": addSpeaker(Number(button.dataset.nodeIndex)); return;
+    case "add-segment": addSegment(Number(button.dataset.nodeIndex)); return;
+    case "add-action": addAction(Number(button.dataset.nodeIndex)); return;
+    case "toggle-decision": toggleDecision(Number(button.dataset.nodeIndex), Number(button.dataset.index)); return;
+    case "remove-speaker": {
+      const nodeIndex = Number(button.dataset.nodeIndex);
+      const speakerIndex = Number(button.dataset.index);
+      const node = currentDialogue()?.sequence.nodes[nodeIndex];
+      if (!node) return;
+      const [removed] = node.speakers.splice(speakerIndex, 1);
+      for (const segment of node.segments) segment.speakerIds = segment.speakerIds.filter(id => id !== removed?.id);
+      saveWorkspace();
+      render();
+      return;
+    }
+    case "remove-segment": {
+      const node = currentDialogue()?.sequence.nodes[Number(button.dataset.nodeIndex)];
+      node?.segments.splice(Number(button.dataset.index), 1);
+      saveWorkspace();
+      render();
+      return;
+    }
+    case "remove-action": {
+      const node = currentDialogue()?.sequence.nodes[Number(button.dataset.nodeIndex)];
+      node?.actions.splice(Number(button.dataset.index), 1);
+      saveWorkspace();
+      render();
+      return;
+    }
+    case "remove-effect": {
+      const quest = currentQuest();
+      if (!quest) return;
+      if (button.dataset.scope === "timer") quest.extension.timer.completionEffects.splice(Number(button.dataset.index), 1);
+      else quest.extension.completionEffects.splice(Number(button.dataset.index), 1);
+      saveWorkspace();
+      render();
+      return;
+    }
+    case "add-effect": addEffect(button.dataset.scope ?? "standard"); return;
+    case "add-fetch-item": {
+      const quest = currentQuest();
+      if (!quest) return;
+      const index = quest.extension.fetchItems.length + 1;
+      quest.extension.fetchItems.push({ id: "item-" + index, displayName: "", count: 1 });
+      saveWorkspace(); render(); return;
+    }
+    case "remove-fetch-item": {
+      const quest = currentQuest();
+      if (!quest) return;
+      quest.extension.fetchItems.splice(Number(button.dataset.index), 1);
+      quest.definition.itemId = quest.extension.fetchItems[0]?.id ?? "";
+      saveWorkspace(); render(); return;
+    }
+    case "add-battle-target": {
+      const quest = currentQuest();
+      if (!quest) return;
+      const index = quest.extension.battleTargets.length + 1;
+      quest.extension.battleTargets.push({ id: uniqueId("battle-" + index, quest.extension.battleTargets.map(item => item.id), "battle"), label: "Battle " + index, nodeKind: "Battle", floorOffset: 0, armyId: "" });
+      saveWorkspace(); render(); return;
+    }
+    case "remove-battle-target": {
+      const quest = currentQuest();
+      if (!quest) return;
+      quest.extension.battleTargets.splice(Number(button.dataset.index), 1);
+      if (Number(button.dataset.index) === 0 && quest.extension.battleTargets[0]) {
+        quest.definition.targetNodeKind = quest.extension.battleTargets[0].nodeKind;
+        quest.definition.targetFloorOffset = quest.extension.battleTargets[0].floorOffset;
+      }
+      saveWorkspace(); render(); return;
+    }
+    case "add-minimum-distance": {
+      const quest = currentQuest();
+      if (!quest) return;
+      quest.extension.minimumNodeDistances.push({ id: createKey("distance-rule"), fromNodeKind: "QuestStart", toNodeKind: "Battle", minimumHops: 1 });
+      saveWorkspace(); render(); return;
+    }
+    case "remove-minimum-distance": {
+      const quest = currentQuest();
+      if (!quest) return;
+      quest.extension.minimumNodeDistances.splice(Number(button.dataset.index), 1);
+      saveWorkspace(); render(); return;
+    }
+    case "place-army-unit": {
+      const army = currentArmy();
+      if (!army) return;
+      const x = Number(button.dataset.x); const y = Number(button.dataset.y);
+      addArmyUnitAt(x, y, selectedArmyPickerLevelId() ?? ""); return;
+    }
+    case "select-army-placement": {
+      selectedArmyPlacementId = button.dataset.placementId ?? null;
+      const selected = currentArmy()?.units.find(unit => unit.id === selectedArmyPlacementId);
+      const resolved = selected ? resolveArmyLevel(armyCatalog, selected.unitId) : undefined;
+      if (resolved) armyCatalogKind = resolved.kind;
+      render(); return;
+    }
+    case "army-catalog-kind": {
+      const kind = button.dataset.kind;
+      if (kind === "units" || kind === "buildings") { armyCatalogKind = kind; render(); }
+      return;
+    }
+    case "add-selected-army-unit": addSelectedArmyUnit(); return;
+    case "replace-army-placement": replaceSelectedArmyUnit(); return;
+    case "remove-army-placement": {
+      const army = currentArmy();
+      if (!army) return;
+      const id = button.dataset.placementId ?? "";
+      army.units = army.units.filter(unit => unit.id !== id);
+      if (selectedArmyPlacementId === id) selectedArmyPlacementId = null;
+      saveWorkspace(); render(); return;
+    }
+    case "add-army-spell": addArmyAbility("spell"); return;
+    case "add-army-blessing": addArmyAbility("blessing"); return;
+    case "add-army-unit-spell": addSelectedArmyUnitSpell(); return;
+    case "remove-army-unit-spell": {
+      const army = currentArmy();
+      if (!army || !selectedArmyPlacementId || !removeArmyUnitSpell(army, selectedArmyPlacementId, Number(button.dataset.index))) return;
+      saveWorkspace(); render(); return;
+    }
+    case "remove-army-spell": {
+      const army = currentArmy(); if (!army) return;
+      army.spellIds.splice(Number(button.dataset.index), 1); saveWorkspace(); render(); return;
+    }
+    case "remove-army-blessing": {
+      const army = currentArmy(); if (!army) return;
+      army.blessingIds.splice(Number(button.dataset.index), 1); saveWorkspace(); render(); return;
+    }
+    case "preview-choice": {
+      const target = button.dataset.target ?? "";
+      if (target) {
+        workspace.activeNodeId = target;
+        render();
+      } else {
+        showToast("End dialogue closes this conversation.");
+      }
+      return;
+    }
+    case "preview-reset": {
+      const record = currentDialogue();
+      if (record) {
+        workspace.activeNodeId = record.sequence.startNodeId;
+        render();
+      }
+      return;
+    }
+    case "export-active": exportActive(); return;
+    case "export-package": exportPackage(); return;
+    case "open-import": document.querySelector<HTMLInputElement>("#import-file")?.click(); return;
+    case "open-content-picker": {
+      const picker = document.querySelector<HTMLDialogElement>("#content-picker-dialog");
+      if (picker && typeof picker.showModal === "function") picker.showModal();
+      else picker?.setAttribute("open", "");
+      return;
+    }
+    case "close-content-picker": {
+      const picker = document.querySelector<HTMLDialogElement>("#content-picker-dialog");
+      if (picker && typeof picker.close === "function") picker.close();
+      else picker?.removeAttribute("open");
+      return;
+    }
+    case "delete-active": {
+      const dialogue = currentDialogue();
+      const quest = currentQuest();
+      const army = currentArmy();
+      const campaign = currentCampaign();
+      deleteCandidate = dialogue ? { type: "dialogue", key: dialogue.key } :
+        quest ? { type: "quest", key: quest.key } : army ? { type: "army", key: army.key } : campaign ? { type: "campaign", key: campaign.key } : null;
+      document.querySelector<HTMLDialogElement>("#confirm-dialog")?.showModal();
+      return;
+    }
+    case "toggle-sidebar": {
+      if (window.innerWidth <= 900) {
+        const sidebar = document.querySelector(".sidebar");
+        sidebar?.classList.toggle("is-open");
+        document.querySelector<HTMLButtonElement>(".mobile-brand")?.setAttribute("aria-expanded", String(sidebar?.classList.contains("is-open") ?? false));
+      } else {
+        sidebarCollapsed = !sidebarCollapsed;
+        root!.querySelector<HTMLElement>(".app-layout")?.classList.toggle("is-sidebar-collapsed", sidebarCollapsed);
+        const sidebarToggle = root!.querySelector<HTMLButtonElement>(".sidebar-collapse-button");
+        if (sidebarToggle) {
+          sidebarToggle.setAttribute("aria-expanded", String(!sidebarCollapsed));
+          sidebarToggle.setAttribute("aria-label", sidebarCollapsed ? "Show sidebar" : "Collapse sidebar");
+          sidebarToggle.title = sidebarCollapsed ? "Show sidebar" : "Collapse sidebar";
+          sidebarToggle.textContent = sidebarCollapsed ? "›" : "‹";
+        }
+      persistEditorSession();
+      }
+      return;
+    }
+  }
+}
+
+root.addEventListener("input", event => {
+  const element = event.target;
+  if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) {
+    if (element instanceof HTMLInputElement && element.dataset.campaignQuestFilter) {
+      const query = element.value.trim().toLocaleLowerCase();
+      const selector = element.dataset.campaignQuestFilter === "floor"
+        ? ".campaign-floor-quest-options .campaign-quest-chip"
+        : ".campaign-quest-pool-list .campaign-quest-row";
+      root!.querySelectorAll<HTMLElement>(selector).forEach(row => {
+        row.hidden = !row.textContent!.toLocaleLowerCase().includes(query);
+      });
+      return;
+    }
+    bindField(element);
+  }
+});
+
+root.addEventListener("keydown", event => {
+  if (editorMode !== "guided" || event.key !== "Enter" || event.isComposing || event.shiftKey) return;
+  const element = event.target;
+  if (element instanceof HTMLTextAreaElement) {
+    event.preventDefault();
+    focusNextGuidedField(element);
+    return;
+  }
+  if (!(element instanceof HTMLInputElement) || ["checkbox", "radio", "file", "button", "submit"].includes(element.type)) return;
+  event.preventDefault();
+  focusNextGuidedField(element);
+});
+
+root.addEventListener("change", event => {
+  const element = event.target;
+  if (!(element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement)) return;
+  if (element instanceof HTMLSelectElement && element.id === "army-unit-picker") {
+    syncArmyLevelPicker(element.value);
+    return;
+  }
+  if (element instanceof HTMLSelectElement && element.id === "army-level-picker") { updateArmyEntityPreview(); return; }
+  if (element instanceof HTMLSelectElement && element.id === "army-spell-picker") { updateArmyAbilityPreview(element.id, "spells", "army-spell-preview"); return; }
+  if (element instanceof HTMLSelectElement && element.id === "army-blessing-picker") { updateArmyAbilityPreview(element.id, "blessings", "army-blessing-preview"); return; }
+  if (element instanceof HTMLSelectElement && element.id === "army-unit-spell-picker") { updateArmyAbilityPreview(element.id, "spells", "army-unit-spell-preview"); return; }
+  bindField(element);
+  if (element.dataset.rerender === "true" || element instanceof HTMLInputElement && element.type === "checkbox") {
+    if (editorMode === "guided" && element instanceof HTMLSelectElement) prepareGuidedFocusAfterChange(element);
+    render();
+  } else if (editorMode === "guided" && element instanceof HTMLSelectElement) {
+    focusNextGuidedField(element);
+  }
+});
+
+root.addEventListener("click", event => {
+  const target = event.target;
+  if (!(target instanceof Element)) return;
+  if (suppressArmyClick && target.closest("[data-army-placement]")) {
+    suppressArmyClick = false;
+    event.preventDefault();
+    return;
+  }
+  const button = target.closest<HTMLButtonElement>("[data-action]");
+  if (button) { onAction(button); return; }
+  if (target.closest("[data-campaign-port]")) return;
+  const route = target.closest<SVGElement>("[data-campaign-route-id]");
+  if (route) {
+    selectedCampaignRouteId = route.getAttribute("data-campaign-route-id");
+    render();
+    return;
+  }
+  const canvas = target.closest<HTMLElement>("[data-campaign-canvas]");
+  if (!canvas || campaignInteractionMode !== "add") return;
+  const rect = canvas.getBoundingClientRect();
+  const snap = Number(canvas.dataset.snap ?? 146);
+  const x = Math.round((event.clientX - rect.left - Number(canvas.dataset.offsetX ?? 0)) / snap);
+  const y = Math.round((event.clientY - rect.top - Number(canvas.dataset.offsetY ?? 0)) / snap);
+  handleCampaignCell(x, y);
+});
+
+root.addEventListener("pointerdown", event => {
+  const target = event.target;
+  if (!(target instanceof Element)) return;
+  const armyPlacement = target.closest<HTMLElement>("[data-army-placement]");
+  if (armyPlacement && event.button === 0 && armyPlacement.dataset.placementId) {
+    armyDragDraft = { placementId: armyPlacement.dataset.placementId, startX: event.clientX, startY: event.clientY, pointerId: event.pointerId, dragging: false };
+  }
+  const port = target.closest<HTMLElement>('[data-campaign-port="output"]');
+  if (!port || campaignInteractionMode === "add") return;
+  pendingCampaignPlugFromId = port.dataset.nodeId ?? null;
+  if (!pendingCampaignPlugFromId) return;
+  selectedCampaignRouteId = null;
+  port.closest<HTMLElement>("[data-campaign-node]")?.classList.add("is-route-source");
+  event.preventDefault();
+  updateCampaignPlugDraft(event.clientX, event.clientY);
+});
+
+root.addEventListener("pointermove", event => {
+  if (armyDragDraft && armyDragDraft.pointerId === event.pointerId) {
+    if (!armyDragDraft.dragging && Math.hypot(event.clientX - armyDragDraft.startX, event.clientY - armyDragDraft.startY) > 6) {
+      armyDragDraft.dragging = true;
+      root!.querySelector("[data-army-grid]")?.classList.add("is-army-dragging");
+    }
+    if (armyDragDraft.dragging) {
+      root!.querySelectorAll(".army-grid-cell.is-drop-target").forEach(cell => cell.classList.remove("is-drop-target"));
+      root!.querySelectorAll(".army-grid-placement.is-swap-target").forEach(placement => placement.classList.remove("is-swap-target"));
+      const cell = armyCellAtPoint(event.clientX, event.clientY);
+      if (cell) {
+        const occupant = armyPlacementAtCell(cell.x, cell.y, armyDragDraft.placementId);
+        if (occupant) {
+          Array.from(root!.querySelectorAll<HTMLElement>("[data-army-placement]")).find(placement => placement.dataset.placementId === occupant.id)?.classList.add("is-swap-target");
+        } else {
+          root!.querySelector<HTMLElement>('[data-army-cell][data-x="' + cell.x + '"][data-y="' + cell.y + '"]')?.classList.add("is-drop-target");
+        }
+      }
+    }
+  }
+  if (pendingCampaignPlugFromId) updateCampaignPlugDraft(event.clientX, event.clientY);
+});
+
+document.addEventListener("pointerup", event => {
+  const armyDraft = armyDragDraft;
+  if (armyDraft && armyDraft.pointerId === event.pointerId) {
+    armyDragDraft = null;
+    root!.querySelector("[data-army-grid]")?.classList.remove("is-army-dragging");
+    root!.querySelectorAll(".army-grid-cell.is-drop-target").forEach(cell => cell.classList.remove("is-drop-target"));
+    root!.querySelectorAll(".army-grid-placement.is-swap-target").forEach(placement => placement.classList.remove("is-swap-target"));
+    if (armyDraft.dragging) {
+      suppressArmyClick = true;
+      window.setTimeout(() => { suppressArmyClick = false; }, 0);
+      const cell = armyCellAtPoint(event.clientX, event.clientY);
+      if (cell) moveArmyPlacementTo(armyDraft.placementId, cell.x, cell.y);
+    }
+  }
+  const fromNodeId = pendingCampaignPlugFromId;
+  if (!fromNodeId) return;
+  const target = event.target;
+  const port = target instanceof Element ? target.closest<HTMLElement>('[data-campaign-port="input"]') : null;
+  const toNodeId = port?.dataset.nodeId ?? null;
+  pendingCampaignPlugFromId = null;
+  clearCampaignPlugDraft();
+  if (!toNodeId) return;
+  if (fromNodeId === toNodeId) {
+    showToast("Drop the plug on a different node.", "warning");
+    return;
+  }
+  connectCampaignPlugs(fromNodeId, toNodeId);
+});
+
+root.addEventListener("keydown", event => {
+  const target = event.target;
+  if (!(target instanceof Element) || !target.matches("[data-campaign-route-id]") || !["Enter", " "].includes(event.key)) return;
+  event.preventDefault();
+  selectedCampaignRouteId = target.getAttribute("data-campaign-route-id");
+  render();
+});
+
+root.addEventListener("dragstart", event => {
+  const target = event.target;
+  if (!(target instanceof Element)) return;
+  if (target.closest("[data-campaign-port]")) { event.preventDefault(); return; }
+  const node = target.closest<HTMLElement>("[data-campaign-node]");
+  if (!node || !event.dataTransfer) return;
+  event.dataTransfer.setData("text/plain", node.dataset.nodeId ?? "");
+  event.dataTransfer.effectAllowed = "move";
+});
+
+root.addEventListener("dragover", event => {
+  const target = event.target;
+  if (!(target instanceof Element) || !target.closest("[data-campaign-canvas]")) return;
+  event.preventDefault();
+  if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+});
+
+root.addEventListener("drop", event => {
+  const target = event.target;
+  if (!(target instanceof Element)) return;
+  const canvas = target.closest<HTMLElement>("[data-campaign-canvas]");
+  const nodeId = event.dataTransfer?.getData("text/plain");
+  if (!canvas || !nodeId) return;
+  event.preventDefault();
+  const rect = canvas.getBoundingClientRect();
+  const snap = Number(canvas.dataset.snap ?? 146);
+  const x = Math.round((event.clientX - rect.left - Number(canvas.dataset.offsetX ?? 0)) / snap);
+  const y = Math.round((event.clientY - rect.top - Number(canvas.dataset.offsetY ?? 0)) / snap);
+  moveCampaignNodeTo(nodeId, x, y);
+});
+
+root.addEventListener("change", event => {
+  const element = event.target;
+  if (element instanceof HTMLInputElement && element.id === "import-file" && element.files?.[0]) {
+    void importFile(element.files[0]);
+  }
+});
+
+window.addEventListener("beforeunload", () => { saveWorkspace(); persistEditorSession(); });
+
+render();

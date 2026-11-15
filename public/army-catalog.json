@@ -1,0 +1,3772 @@
+{
+  "schemaVersion": 1,
+  "source": "Meowdieval Kingdom UnitCatalog roots, Spell assets, and BlessingPool; generated from Unity YAML.",
+  "gridSizes": [
+    {
+      "minFloor": 1,
+      "width": 3,
+      "height": 3
+    },
+    {
+      "minFloor": 3,
+      "width": 4,
+      "height": 4
+    },
+    {
+      "minFloor": 5,
+      "width": 5,
+      "height": 5
+    }
+  ],
+  "factions": [
+    {
+      "id": "MagicCats",
+      "name": "Arcane Academy"
+    },
+    {
+      "id": "Peasants",
+      "name": "Common Folk"
+    },
+    {
+      "id": "Nobles",
+      "name": "Crown Guard"
+    },
+    {
+      "id": "WanderingTrader",
+      "name": "Fortune Seekers"
+    },
+    {
+      "id": "CrystalCats",
+      "name": "Gemstone Guardians"
+    },
+    {
+      "id": "Neutral",
+      "name": "Neutral"
+    },
+    {
+      "id": "HarborClaws",
+      "name": "Port Claws"
+    }
+  ],
+  "units": [
+    {
+      "id": "MagicCats/Alchemist/1",
+      "name": "Alchemist",
+      "factionId": "MagicCats",
+      "faction": "Arcane Academy",
+      "levels": [
+        {
+          "id": "MagicCats/Alchemist/1",
+          "name": "Alchemist",
+          "level": 1,
+          "description": "A practical scholar whose every thrown vial stings twice. At star one she has no mana to charge - just the acid doing its quiet work on every hit.",
+          "tier": 2,
+          "previewImage": "./avatars/MagicCats-Alchemist-1.png",
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 145,
+            "maxMana": 0,
+            "manaRegen": 0,
+            "attackDamage": 13,
+            "attackSpeed": 1.1,
+            "attackRange": 12,
+            "minAttackRange": 0,
+            "critChance": 0.05,
+            "spellPower": 0,
+            "armorResist": 7,
+            "magicResist": 14,
+            "movementSpeed": 2.5
+          }
+        },
+        {
+          "id": "MagicCats/Alchemist/2",
+          "name": "Alchemist",
+          "level": 2,
+          "description": "Stronger acid, heftier flask. The Volatile Mixture fires when the flask charges full - a bubble of debuffs that soaks an entire cluster in Vulnerability and Slow.",
+          "tier": 2,
+          "previewImage": "./avatars/MagicCats-Alchemist-2.png",
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 304,
+            "maxMana": 19,
+            "manaRegen": 1,
+            "attackDamage": 34,
+            "attackSpeed": 1.2,
+            "attackRange": 13,
+            "minAttackRange": 0,
+            "critChance": 0.05,
+            "spellPower": 0,
+            "armorResist": 10,
+            "magicResist": 18,
+            "movementSpeed": 2.6
+          }
+        },
+        {
+          "id": "MagicCats/Alchemist/3",
+          "name": "Alchemist",
+          "level": 3,
+          "description": "The strongest acid, the widest blast, and a lasting pool of toxic residue that punishes any enemy who tries to walk through the crater. The battlefield map no longer belongs to fast melee units.",
+          "tier": 2,
+          "previewImage": "./avatars/MagicCats-Alchemist-3.png",
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 478,
+            "maxMana": 20,
+            "manaRegen": 1,
+            "attackDamage": 51,
+            "attackSpeed": 1.3,
+            "attackRange": 14,
+            "minAttackRange": 0,
+            "critChance": 0.08,
+            "spellPower": 0,
+            "armorResist": 13,
+            "magicResist": 22,
+            "movementSpeed": 2.7
+          }
+        }
+      ]
+    },
+    {
+      "id": "MagicCats/Catnip Ball/1",
+      "name": "Catnip Ball",
+      "factionId": "MagicCats",
+      "faction": "Arcane Academy",
+      "levels": [
+        {
+          "id": "MagicCats/Catnip Ball/1",
+          "name": "Catnip Ball",
+          "level": 1,
+          "description": "A fragrant ball of catnip. Stationary; enemy cats nearby cannot resist attacking it.",
+          "tier": 0,
+          "previewImage": "./avatars/MagicCats-Catnip-Ball-1.png",
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 180,
+            "maxMana": 0,
+            "manaRegen": 0,
+            "attackDamage": 0,
+            "attackSpeed": 0,
+            "attackRange": 0,
+            "minAttackRange": 0,
+            "critChance": 0,
+            "spellPower": 0,
+            "armorResist": 20,
+            "magicResist": 20,
+            "movementSpeed": 0
+          }
+        },
+        {
+          "id": "MagicCats/Catnip Ball/2",
+          "name": "Catnip Ball",
+          "level": 2,
+          "description": "A fragrant ball of catnip. Stationary; enemy cats nearby cannot resist attacking it.",
+          "tier": 0,
+          "previewImage": "./avatars/MagicCats-Catnip-Ball-2.png",
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 540,
+            "maxMana": 0,
+            "manaRegen": 0,
+            "attackDamage": 0,
+            "attackSpeed": 0,
+            "attackRange": 0,
+            "minAttackRange": 0,
+            "critChance": 0,
+            "spellPower": 0,
+            "armorResist": 25,
+            "magicResist": 25,
+            "movementSpeed": 0
+          }
+        },
+        {
+          "id": "MagicCats/Catnip Ball/3",
+          "name": "Catnip Ball",
+          "level": 3,
+          "description": "A fragrant ball of catnip. Stationary; enemy cats nearby cannot resist attacking it.",
+          "tier": 0,
+          "previewImage": "./avatars/MagicCats-Catnip-Ball-3.png",
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 828,
+            "maxMana": 0,
+            "manaRegen": 0,
+            "attackDamage": 0,
+            "attackSpeed": 0,
+            "attackRange": 0,
+            "minAttackRange": 0,
+            "critChance": 0,
+            "spellPower": 0,
+            "armorResist": 30,
+            "magicResist": 30,
+            "movementSpeed": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "Nobles/Crown Heir/1",
+      "name": "Crown Heir",
+      "factionId": "Nobles",
+      "faction": "Nobles",
+      "levels": [
+        {
+          "id": "Nobles/Crown Heir/1",
+          "name": "Crown Heir",
+          "level": 1,
+          "description": "The Crown Heir at rank one contributes nothing beyond their physical presence. Place them safely - they are the investment that pays out when the shop upgrades. On level-up it branches into Queen (option 0) or King (option 1) - AI picks at random; player choice UI still pending (/ux-design).",
+          "tier": 4,
+          "previewImage": "./avatars/Nobles-Crown-Heir-1.png",
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 260,
+            "maxMana": 0,
+            "manaRegen": 0,
+            "attackDamage": 18,
+            "attackSpeed": 1,
+            "attackRange": 2,
+            "critChance": 0.08,
+            "spellPower": 0,
+            "armorResist": 22,
+            "magicResist": 18,
+            "movementSpeed": 2.5
+          }
+        },
+        {
+          "id": "Nobles/The King/2",
+          "name": "The King",
+          "level": 2,
+          "description": "The King at rank two - formation commander. His global Sovereign's Aura passively buffs all Nobles' Armor and Attack Damage; Royal Command surges all stats on mana full.",
+          "tier": 4,
+          "previewImage": "./avatars/Nobles-The-King-2.png",
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 874,
+            "maxMana": 19,
+            "manaRegen": 1,
+            "attackDamage": 41,
+            "attackSpeed": 0.9,
+            "attackRange": 2,
+            "minAttackRange": 0,
+            "critChance": 0.08,
+            "spellPower": 0,
+            "armorResist": 39,
+            "magicResist": 32,
+            "movementSpeed": 2.4
+          }
+        },
+        {
+          "id": "Nobles/The Queen/2",
+          "name": "The Queen",
+          "level": 2,
+          "description": "The Queen at rank two - frontline fighter. Her Vanguard Aura buffs nearby Noble Attack Speed; Sovereign's Charge dashes to the highest-HP enemy and stuns.",
+          "tier": 4,
+          "previewImage": "./avatars/Nobles-The-Queen-2.png",
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 780,
+            "maxMana": 22,
+            "manaRegen": 1,
+            "attackDamage": 45,
+            "attackSpeed": 1.3,
+            "attackRange": 2,
+            "minAttackRange": 0,
+            "critChance": 0.15,
+            "spellPower": 0,
+            "armorResist": 28,
+            "magicResist": 22,
+            "movementSpeed": 2.8
+          }
+        },
+        {
+          "id": "Nobles/High King/3",
+          "name": "High King",
+          "level": 3,
+          "description": "The High King at rank three - the ultimate formation multiplier. His global Sovereign's Aura II buffs all Nobles; Royal Command II surges the entire formation; King's Protection grants adjacent Nobles Last Stand once per combat.",
+          "tier": 4,
+          "previewImage": "./avatars/Nobles-High-King-3.png",
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 1340,
+            "maxMana": 22,
+            "manaRegen": 1,
+            "attackDamage": 64,
+            "attackSpeed": 1,
+            "attackRange": 2,
+            "minAttackRange": 0,
+            "critChance": 0.1,
+            "spellPower": 0,
+            "armorResist": 48,
+            "magicResist": 40,
+            "movementSpeed": 2.5
+          }
+        },
+        {
+          "id": "Nobles/High Queen/3",
+          "name": "High Queen",
+          "level": 3,
+          "description": "The High Queen at rank three - frontline fighter supreme. Her Battle Cry triggers on every kill, driving the Noble formation into a frenzy.",
+          "tier": 4,
+          "previewImage": "./avatars/Nobles-High-Queen-3.png",
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 1196,
+            "maxMana": 21,
+            "manaRegen": 1,
+            "attackDamage": 71,
+            "attackSpeed": 1.5,
+            "attackRange": 2,
+            "minAttackRange": 0,
+            "critChance": 0.2,
+            "spellPower": 0,
+            "armorResist": 36,
+            "magicResist": 28,
+            "movementSpeed": 3
+          }
+        }
+      ]
+    },
+    {
+      "id": "MagicCats/Enchanted Rat/1",
+      "name": "Enchanted Rat",
+      "factionId": "MagicCats",
+      "faction": "Arcane Academy",
+      "levels": [
+        {
+          "id": "MagicCats/Enchanted Rat/1",
+          "name": "Enchanted Rat",
+          "level": 1,
+          "description": "A enchanted grey rat, quick and twitchy.",
+          "tier": 0,
+          "previewImage": "./avatars/MagicCats-Enchanted-Rat-1.png",
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 135,
+            "maxMana": 0,
+            "manaRegen": 0,
+            "attackDamage": 14.7,
+            "attackSpeed": 1.6,
+            "attackRange": 2,
+            "minAttackRange": 0,
+            "critChance": 0,
+            "spellPower": 0,
+            "armorResist": 0,
+            "magicResist": 3,
+            "movementSpeed": 4
+          }
+        },
+        {
+          "id": "MagicCats/Rat King/2",
+          "name": "Rat King",
+          "level": 2,
+          "description": "A very fat, very round rat with sleek grey fur, a smug expression, and a tiny golden crown. Waddles rather than runs.",
+          "tier": 0,
+          "previewImage": "./avatars/MagicCats-Rat-King-2.png",
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 207,
+            "maxMana": 0,
+            "manaRegen": 0,
+            "attackDamage": 23.1,
+            "attackSpeed": 1,
+            "attackRange": 2,
+            "minAttackRange": 0,
+            "critChance": 0,
+            "spellPower": 0,
+            "armorResist": 8,
+            "magicResist": 12,
+            "movementSpeed": 3
+          }
+        }
+      ]
+    },
+    {
+      "id": "Peasants/Fighter/1",
+      "name": "Fighter",
+      "factionId": "Peasants",
+      "faction": "Peasants",
+      "levels": [
+        {
+          "id": "Peasants/Fighter/1",
+          "name": "Fighter",
+          "level": 1,
+          "description": "The Peasants' cheapest frontline.",
+          "tier": 1,
+          "previewImage": "./avatars/Peasants-Fighter-1.png",
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 200,
+            "maxMana": 0,
+            "manaRegen": 0,
+            "attackDamage": 15,
+            "attackSpeed": 1,
+            "attackRange": 2,
+            "minAttackRange": 0,
+            "critChance": 0.05,
+            "spellPower": 0,
+            "armorResist": 22,
+            "magicResist": 17,
+            "movementSpeed": 3
+          }
+        },
+        {
+          "id": "Peasants/Fighter/2",
+          "name": "Fighter",
+          "level": 2,
+          "description": "Fighter hardens up.",
+          "tier": 1,
+          "previewImage": "./avatars/Peasants-Fighter-2.png",
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 600,
+            "maxMana": 16,
+            "manaRegen": 1,
+            "attackDamage": 31.5,
+            "attackSpeed": 1.1,
+            "attackRange": 2,
+            "minAttackRange": 0,
+            "critChance": 0.05,
+            "spellPower": 0,
+            "armorResist": 28,
+            "magicResist": 21,
+            "movementSpeed": 3
+          }
+        },
+        {
+          "id": "Peasants/Fighter/3",
+          "name": "Fighter",
+          "level": 3,
+          "description": "Fighter becomes the Village Champion.",
+          "tier": 1,
+          "previewImage": "./avatars/Peasants-Fighter-3.png",
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 920,
+            "maxMana": 19,
+            "manaRegen": 1,
+            "attackDamage": 49.5,
+            "attackSpeed": 1.2,
+            "attackRange": 2,
+            "minAttackRange": 0,
+            "critChance": 0.07,
+            "spellPower": 0,
+            "armorResist": 38,
+            "magicResist": 28,
+            "movementSpeed": 3
+          }
+        }
+      ]
+    },
+    {
+      "id": "MagicCats/Herb Witch/1",
+      "name": "Herb Witch",
+      "factionId": "MagicCats",
+      "faction": "Arcane Academy",
+      "levels": [
+        {
+          "id": "MagicCats/Herb Witch/1",
+          "name": "Herb Witch",
+          "level": 1,
+          "description": "She tosses a ball of catnip onto the field; enemy cats around it can't help but attack it.",
+          "tier": 3,
+          "previewImage": "./avatars/MagicCats-Herb-Witch-1.png",
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 190,
+            "maxMana": 44,
+            "manaRegen": 4,
+            "attackDamage": 15,
+            "attackSpeed": 1,
+            "attackRange": 11,
+            "minAttackRange": 0,
+            "critChance": 0.05,
+            "spellPower": 0,
+            "armorResist": 10,
+            "magicResist": 18,
+            "movementSpeed": 2.5
+          }
+        },
+        {
+          "id": "MagicCats/Herb Witch/2",
+          "name": "Herb Witch",
+          "level": 2,
+          "description": "Sturdier catnip with a wider lure radius.",
+          "tier": 3,
+          "previewImage": "./avatars/MagicCats-Herb-Witch-2.png",
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 399,
+            "maxMana": 42,
+            "manaRegen": 4,
+            "attackDamage": 45,
+            "attackSpeed": 1.1,
+            "attackRange": 12,
+            "minAttackRange": 0,
+            "critChance": 0.05,
+            "spellPower": 0,
+            "armorResist": 14,
+            "magicResist": 24,
+            "movementSpeed": 2.6
+          }
+        },
+        {
+          "id": "MagicCats/Herb Witch/3",
+          "name": "Herb Witch",
+          "level": 3,
+          "description": "Two catnip balls may be on the field at once.",
+          "tier": 3,
+          "previewImage": "./avatars/MagicCats-Herb-Witch-3.png",
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 627,
+            "maxMana": 40,
+            "manaRegen": 4,
+            "attackDamage": 69,
+            "attackSpeed": 1.2,
+            "attackRange": 13,
+            "minAttackRange": 0,
+            "critChance": 0.08,
+            "spellPower": 0,
+            "armorResist": 18,
+            "magicResist": 30,
+            "movementSpeed": 2.7
+          }
+        }
+      ]
+    },
+    {
+      "id": "Nobles/Jester/1",
+      "name": "Jester",
+      "factionId": "Nobles",
+      "faction": "Nobles",
+      "levels": [
+        {
+          "id": "Nobles/Jester/1",
+          "name": "Jester",
+          "level": 1,
+          "description": "The wildcard of the Noble faction \\u2014 unpredictable, disruptive, and oddly dangerous for a clown. Distract spreads incoming damage by confusing enemy targeting, keeping the Jester alive longer than its HP suggests. On full mana, Tumble leaps onto the furthest enemy and hops back.",
+          "tier": 2,
+          "previewImage": "./avatars/Nobles-Jester-1.png",
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 195,
+            "maxMana": 20,
+            "manaRegen": 1,
+            "attackDamage": 16,
+            "attackSpeed": 1.4,
+            "attackRange": 2,
+            "minAttackRange": 0,
+            "critChance": 0.05,
+            "spellPower": 0,
+            "armorResist": 10,
+            "magicResist": 16,
+            "movementSpeed": 3.5
+          }
+        },
+        {
+          "id": "Nobles/Jester/2",
+          "name": "Jester",
+          "level": 2,
+          "description": "Distract chance raised to 30%. Tumble II now Stuns on landing \\u2014 leaping into the enemy backline to Stun clustered enemies and escaping before they can retaliate.",
+          "tier": 2,
+          "previewImage": "./avatars/Nobles-Jester-2.png",
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 585,
+            "maxMana": 21,
+            "manaRegen": 1,
+            "attackDamage": 33.6,
+            "attackSpeed": 1.5,
+            "attackRange": 2,
+            "minAttackRange": 0,
+            "critChance": 0.08,
+            "spellPower": 0,
+            "armorResist": 14,
+            "magicResist": 20,
+            "movementSpeed": 3.6
+          }
+        },
+        {
+          "id": "Nobles/Jester/3",
+          "name": "Jester",
+          "level": 3,
+          "description": "Distract chance 35%. Tumble III: Stun 1.2s, and a kill chains into another leap (up to 3). Passive: every 3rd basic attack randomly grants a nearby ally +15% Attack Speed for 3s \\u2014 the Jester becomes a passive support unit even when Tumble is on cooldown.",
+          "tier": 2,
+          "previewImage": "./avatars/Nobles-Jester-3.png",
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 897,
+            "maxMana": 22,
+            "manaRegen": 1,
+            "attackDamage": 52.8,
+            "attackSpeed": 1.6,
+            "attackRange": 2,
+            "minAttackRange": 0,
+            "critChance": 0.1,
+            "spellPower": 0,
+            "armorResist": 18,
+            "magicResist": 24,
+            "movementSpeed": 3.8
+          }
+        }
+      ]
+    },
+    {
+      "id": "Nobles/Knight/1",
+      "name": "Knight",
+      "factionId": "Nobles",
+      "faction": "Nobles",
+      "levels": [
+        {
+          "id": "Nobles/Knight/1",
+          "name": "Knight",
+          "level": 1,
+          "description": "The cheapest defensive unit in the Nobles roster. Pure stats tank - the reliable frontline anchor that taunts nearby enemies when hit.",
+          "tier": 1,
+          "previewImage": "./avatars/Nobles-Knight-1.png",
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 220,
+            "maxMana": 0,
+            "manaRegen": 0,
+            "attackDamage": 12,
+            "attackSpeed": 1,
+            "attackRange": 2,
+            "critChance": 0.05,
+            "spellPower": 0,
+            "armorResist": 24,
+            "magicResist": 18,
+            "movementSpeed": 3
+          }
+        },
+        {
+          "id": "Nobles/Knight/2",
+          "name": "Knight",
+          "level": 2,
+          "description": "Shield Bash gives the Knight offensive pressure. On Mana Full, the Knight stuns the primary target and raises a shield barrier for itself.",
+          "tier": 1,
+          "previewImage": "./avatars/Nobles-Knight-2.png",
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 660,
+            "maxMana": 16,
+            "manaRegen": 1,
+            "attackDamage": 25.2,
+            "attackSpeed": 1.1,
+            "attackRange": 2,
+            "minAttackRange": 0,
+            "critChance": 0.05,
+            "spellPower": 0,
+            "armorResist": 30,
+            "magicResist": 22,
+            "movementSpeed": 3
+          }
+        },
+        {
+          "id": "Nobles/Knight/3",
+          "name": "Knight",
+          "level": 3,
+          "description": "Shield Bash II - Stun the primary target (1.5s) and raise a +35 HP Shield. Also stuns all enemies adjacent to the primary target (0.8s, unsupported - adjacency AoE pending engine implementation).",
+          "tier": 1,
+          "previewImage": "./avatars/Nobles-Knight-3.png",
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 1012,
+            "maxMana": 16,
+            "manaRegen": 1,
+            "attackDamage": 39.6,
+            "attackSpeed": 1.2,
+            "attackRange": 2,
+            "minAttackRange": 0,
+            "critChance": 0.08,
+            "spellPower": 0,
+            "armorResist": 40,
+            "magicResist": 30,
+            "movementSpeed": 3
+          }
+        }
+      ]
+    },
+    {
+      "id": "Peasants/Lumberjack/1",
+      "name": "Lumberjack",
+      "factionId": "Peasants",
+      "faction": "Peasants",
+      "levels": [
+        {
+          "id": "Peasants/Lumberjack/1",
+          "name": "Lumberjack",
+          "level": 1,
+          "description": "The Peasants' premium tank. When his mana fills, he winds up and spins his axe, dealing AoE damage and knocking back everyone around him.",
+          "tier": 3,
+          "previewImage": "./avatars/Peasants-Lumberjack-1.png",
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 280,
+            "maxMana": 20,
+            "manaRegen": 1.5,
+            "attackDamage": 22,
+            "attackSpeed": 0.9,
+            "attackRange": 2,
+            "minAttackRange": 0,
+            "critChance": 0.05,
+            "spellPower": 0,
+            "armorResist": 28,
+            "magicResist": 15,
+            "movementSpeed": 2
+          }
+        },
+        {
+          "id": "Peasants/Lumberjack/2",
+          "name": "Lumberjack",
+          "level": 2,
+          "description": "The Peasants' premium tank. When his mana fills, he winds up and spins his axe, dealing AoE damage and knocking back everyone around him.",
+          "tier": 3,
+          "previewImage": "./avatars/Peasants-Lumberjack-2.png",
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 840,
+            "maxMana": 23,
+            "manaRegen": 1.75,
+            "attackDamage": 46.2,
+            "attackSpeed": 1,
+            "attackRange": 2,
+            "minAttackRange": 0,
+            "critChance": 0.08,
+            "spellPower": 0,
+            "armorResist": 38,
+            "magicResist": 20,
+            "movementSpeed": 2.1
+          }
+        },
+        {
+          "id": "Peasants/Lumberjack/3",
+          "name": "Lumberjack",
+          "level": 3,
+          "description": "The Peasants' premium tank. When his mana fills, he winds up and spins his axe, dealing AoE damage and knocking back everyone around him.",
+          "tier": 3,
+          "previewImage": "./avatars/Peasants-Lumberjack-3.png",
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 1288,
+            "maxMana": 25,
+            "manaRegen": 2,
+            "attackDamage": 72.6,
+            "attackSpeed": 1.1,
+            "attackRange": 2,
+            "minAttackRange": 0,
+            "critChance": 0.1,
+            "spellPower": 0,
+            "armorResist": 50,
+            "magicResist": 28,
+            "movementSpeed": 2.2
+          }
+        }
+      ]
+    },
+    {
+      "id": "MagicCats/Luna/1",
+      "name": "Luna",
+      "factionId": "MagicCats",
+      "faction": "Arcane Academy",
+      "levels": [
+        {
+          "id": "MagicCats/Luna/1",
+          "name": "Luna",
+          "level": 1,
+          "description": "The youngest Academy graduate.",
+          "tier": 1,
+          "previewImage": "./avatars/MagicCats-Luna-1.png",
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 240,
+            "maxMana": 41,
+            "manaRegen": 4,
+            "attackDamage": 24,
+            "attackSpeed": 1,
+            "attackRange": 15,
+            "minAttackRange": 0,
+            "critChance": 0.05,
+            "spellPower": 0,
+            "armorResist": 10,
+            "magicResist": 30,
+            "movementSpeed": 3
+          }
+        },
+        {
+          "id": "MagicCats/Luna/2",
+          "name": "Luna",
+          "level": 2,
+          "description": "The youngest Academy graduate.",
+          "tier": 1,
+          "previewImage": "./avatars/MagicCats-Luna-2.png",
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 504,
+            "maxMana": 53,
+            "manaRegen": 5,
+            "attackDamage": 71,
+            "attackSpeed": 1.1,
+            "attackRange": 16,
+            "minAttackRange": 0,
+            "critChance": 0.1,
+            "spellPower": 0,
+            "armorResist": 14,
+            "magicResist": 38,
+            "movementSpeed": 3
+          }
+        },
+        {
+          "id": "MagicCats/Luna/3",
+          "name": "Luna",
+          "level": 3,
+          "description": "The youngest Academy graduate.",
+          "tier": 1,
+          "previewImage": "./avatars/MagicCats-Luna-3.png",
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 792,
+            "maxMana": 69,
+            "manaRegen": 6,
+            "attackDamage": 109,
+            "attackSpeed": 1.2,
+            "attackRange": 17,
+            "minAttackRange": 0,
+            "critChance": 0.12,
+            "spellPower": 0,
+            "armorResist": 18,
+            "magicResist": 48,
+            "movementSpeed": 3
+          }
+        }
+      ]
+    },
+    {
+      "id": "MagicCats/Nekomancer/1",
+      "name": "Nekomancer",
+      "factionId": "MagicCats",
+      "faction": "Arcane Academy",
+      "levels": [
+        {
+          "id": "MagicCats/Nekomancer/1",
+          "name": "Nekomancer",
+          "level": 1,
+          "description": "A necromantic scholar of the Arcane Academy. When her mana fills she raises the nearest fallen ally at 25% health - each ally can only be raised once.",
+          "tier": 3,
+          "previewImage": "./avatars/MagicCats-Nekomancer-1.png",
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 170,
+            "maxMana": 24,
+            "manaRegen": 2,
+            "attackDamage": 16,
+            "attackSpeed": 1,
+            "attackRange": 12,
+            "minAttackRange": 0,
+            "critChance": 0.05,
+            "spellPower": 0,
+            "armorResist": 6,
+            "magicResist": 15,
+            "movementSpeed": 2.5
+          }
+        },
+        {
+          "id": "MagicCats/Nekomancer/2",
+          "name": "Nekomancer",
+          "level": 2,
+          "description": "A necromantic scholar of the Arcane Academy. When her mana fills she raises the nearest fallen ally at 50% health - each ally can only be raised once.",
+          "tier": 3,
+          "previewImage": "./avatars/MagicCats-Nekomancer-2.png",
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 357,
+            "maxMana": 28,
+            "manaRegen": 2,
+            "attackDamage": 48,
+            "attackSpeed": 1.1,
+            "attackRange": 13,
+            "minAttackRange": 0,
+            "critChance": 0.05,
+            "spellPower": 0,
+            "armorResist": 9,
+            "magicResist": 20,
+            "movementSpeed": 2.6
+          }
+        },
+        {
+          "id": "MagicCats/Nekomancer/3",
+          "name": "Nekomancer",
+          "level": 3,
+          "description": "Raise Dead III restores the fallen ally to full health.",
+          "tier": 3,
+          "previewImage": "./avatars/MagicCats-Nekomancer-3.png",
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 561,
+            "maxMana": 32,
+            "manaRegen": 2,
+            "attackDamage": 73.6,
+            "attackSpeed": 1.2,
+            "attackRange": 14,
+            "minAttackRange": 0,
+            "critChance": 0.08,
+            "spellPower": 0,
+            "armorResist": 12,
+            "magicResist": 25,
+            "movementSpeed": 2.7
+          }
+        }
+      ]
+    },
+    {
+      "id": "MagicCats/Plague Caster/1",
+      "name": "Plague Caster",
+      "factionId": "MagicCats",
+      "faction": "Arcane Academy",
+      "levels": [
+        {
+          "id": "MagicCats/Plague Caster/1",
+          "name": "Plague Caster",
+          "level": 1,
+          "description": "The Arcane Academy's anti-heal specialist. Every attack infects the target with Wound, halting regeneration and rendering healing futile. A single Plague Caster counters an entire sustain composition.",
+          "tier": 2,
+          "previewImage": "./avatars/MagicCats-Plague-Caster-1.png",
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 155,
+            "maxMana": 0,
+            "manaRegen": 0,
+            "attackDamage": 15,
+            "attackSpeed": 1.3,
+            "attackRange": 13,
+            "critChance": 0.05,
+            "spellPower": 0,
+            "armorResist": 7,
+            "magicResist": 14,
+            "movementSpeed": 2.5
+          }
+        },
+        {
+          "id": "MagicCats/Plague Caster/2",
+          "name": "Plague Caster",
+          "level": 2,
+          "description": "Wound intensifies to \\u221250%. Plague Spray fires 5 bolts at random enemies on mana full, spreading Wound instantly across the enemy board and shutting down faction-wide healing simultaneously.",
+          "tier": 2,
+          "previewImage": "./avatars/MagicCats-Plague-Caster-2.png",
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 326,
+            "maxMana": 20,
+            "manaRegen": 1,
+            "attackDamage": 45,
+            "attackSpeed": 1.4,
+            "attackRange": 14,
+            "minAttackRange": 0,
+            "critChance": 0.05,
+            "spellPower": 0,
+            "armorResist": 10,
+            "magicResist": 18,
+            "movementSpeed": 2.6
+          }
+        },
+        {
+          "id": "MagicCats/Plague Caster/3",
+          "name": "Plague Caster",
+          "level": 3,
+          "description": "Wound reaches \\u221270% for 5s. Each Plague Spray bolt now also applies Vulnerability (+20% damage taken, 3s) - combining no-heal and damage-amplify on every target hit. Paired with a Rat Enchanter, a target receives +60% effective incoming damage.",
+          "tier": 2,
+          "previewImage": "./avatars/MagicCats-Plague-Caster-3.png",
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 512,
+            "maxMana": 21,
+            "manaRegen": 1,
+            "attackDamage": 69,
+            "attackSpeed": 1.5,
+            "attackRange": 15,
+            "minAttackRange": 0,
+            "critChance": 0.08,
+            "spellPower": 0,
+            "armorResist": 13,
+            "magicResist": 23,
+            "movementSpeed": 2.7
+          }
+        }
+      ]
+    },
+    {
+      "id": "Peasants/Purrciful the Bard/1",
+      "name": "Purrciful the Bard",
+      "factionId": "Peasants",
+      "faction": "Peasants",
+      "levels": [
+        {
+          "id": "Peasants/Purrciful the Bard/1",
+          "name": "Purrciful the Bard",
+          "level": 1,
+          "description": "The core force multiplier of the Peasants. Her aura makes a weak army dangerous just by her presence. Protect her, or let her death echo be plan B.",
+          "tier": 2,
+          "previewImage": "./avatars/Peasants-Purrciful-the-Bard-1.png",
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 160,
+            "maxMana": 25,
+            "manaRegen": 2,
+            "attackDamage": 14,
+            "attackSpeed": 1.1,
+            "attackRange": 2,
+            "minAttackRange": 0,
+            "critChance": 0.05,
+            "spellPower": 0,
+            "armorResist": 12,
+            "magicResist": 8,
+            "movementSpeed": 3
+          }
+        },
+        {
+          "id": "Peasants/Purrciful the Bard/2",
+          "name": "Purrciful the Bard",
+          "level": 2,
+          "description": "The core force multiplier of the Peasants. Her aura makes a weak army dangerous just by her presence. Protect her, or let her death echo be plan B.",
+          "tier": 2,
+          "previewImage": "./avatars/Peasants-Purrciful-the-Bard-2.png",
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 336,
+            "maxMana": 25,
+            "manaRegen": 2.2,
+            "attackDamage": 42,
+            "attackSpeed": 1.2,
+            "attackRange": 2,
+            "minAttackRange": 0,
+            "critChance": 0.05,
+            "spellPower": 0,
+            "armorResist": 18,
+            "magicResist": 12,
+            "movementSpeed": 3
+          }
+        },
+        {
+          "id": "Peasants/Purrciful the Bard/3",
+          "name": "Purrciful the Bard",
+          "level": 3,
+          "description": "The core force multiplier of the Peasants. Her aura makes a weak army dangerous just by her presence. Protect her, or let her death echo be plan B.",
+          "tier": 2,
+          "previewImage": "./avatars/Peasants-Purrciful-the-Bard-3.png",
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 528,
+            "maxMana": 28,
+            "manaRegen": 2.5,
+            "attackDamage": 64.4,
+            "attackSpeed": 1.3,
+            "attackRange": 2,
+            "minAttackRange": 0,
+            "critChance": 0.05,
+            "spellPower": 0,
+            "armorResist": 25,
+            "magicResist": 16,
+            "movementSpeed": 3.2
+          }
+        }
+      ]
+    },
+    {
+      "id": "MagicCats/Rat/1",
+      "name": "Rat",
+      "factionId": "MagicCats",
+      "faction": "Arcane Academy",
+      "levels": [
+        {
+          "id": "MagicCats/Rat/1",
+          "name": "Rat",
+          "level": 1,
+          "description": "A scruffy grey field rat, quick and twitchy. No magic - just teeth and bad intentions.",
+          "tier": 0,
+          "previewImage": "./avatars/MagicCats-Rat-1.png",
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 45,
+            "maxMana": 0,
+            "manaRegen": 0,
+            "attackDamage": 7,
+            "attackSpeed": 1.6,
+            "attackRange": 2,
+            "minAttackRange": 0,
+            "critChance": 0,
+            "spellPower": 0,
+            "armorResist": 0,
+            "magicResist": 0,
+            "movementSpeed": 4
+          }
+        },
+        {
+          "id": "MagicCats/Enchanted Rat/2",
+          "name": "Enchanted Rat",
+          "level": 2,
+          "description": "A enchanted grey rat, quick and twitchy.",
+          "tier": 0,
+          "previewImage": "./avatars/MagicCats-Enchanted-Rat-2.png",
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 135,
+            "maxMana": 0,
+            "manaRegen": 0,
+            "attackDamage": 14.7,
+            "attackSpeed": 1.6,
+            "attackRange": 2,
+            "minAttackRange": 0,
+            "critChance": 0,
+            "spellPower": 0,
+            "armorResist": 0,
+            "magicResist": 3,
+            "movementSpeed": 4
+          }
+        },
+        {
+          "id": "MagicCats/Rat King/3",
+          "name": "Rat King",
+          "level": 3,
+          "description": "A very fat, very round rat with sleek grey fur, a smug expression, and a tiny golden crown. Waddles rather than runs.",
+          "tier": 0,
+          "previewImage": "./avatars/MagicCats-Rat-King-3.png",
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 207,
+            "maxMana": 0,
+            "manaRegen": 0,
+            "attackDamage": 23.1,
+            "attackSpeed": 1,
+            "attackRange": 2,
+            "minAttackRange": 0,
+            "critChance": 0,
+            "spellPower": 0,
+            "armorResist": 8,
+            "magicResist": 12,
+            "movementSpeed": 3
+          }
+        }
+      ]
+    },
+    {
+      "id": "MagicCats/Rat Enchanter/1",
+      "name": "Rat Enchanter",
+      "factionId": "MagicCats",
+      "faction": "Arcane Academy",
+      "levels": [
+        {
+          "id": "MagicCats/Rat Enchanter/1",
+          "name": "Rat Enchanter",
+          "level": 1,
+          "description": "Vermina, a slight, hooded Academy cat.",
+          "tier": 1,
+          "previewImage": "./avatars/MagicCats-Rat-Enchanter-1.png",
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 105,
+            "maxMana": 40,
+            "manaRegen": 4,
+            "attackDamage": 8,
+            "attackSpeed": 1.3,
+            "attackRange": 11,
+            "minAttackRange": 0,
+            "critChance": 0.05,
+            "spellPower": 0,
+            "armorResist": 5,
+            "magicResist": 10,
+            "movementSpeed": 2.5
+          }
+        },
+        {
+          "id": "MagicCats/Rat Enchanter/2",
+          "name": "Rat Enchanter",
+          "level": 2,
+          "description": "Vermina's enchantment deepens. Her summoned Rats become Enchanted Rats.",
+          "tier": 1,
+          "previewImage": "./avatars/MagicCats-Rat-Enchanter-2.png",
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 220,
+            "maxMana": 40,
+            "manaRegen": 4,
+            "attackDamage": 24,
+            "attackSpeed": 1.4,
+            "attackRange": 12,
+            "minAttackRange": 0,
+            "critChance": 0.05,
+            "spellPower": 0,
+            "armorResist": 7,
+            "magicResist": 13,
+            "movementSpeed": 2.6
+          }
+        },
+        {
+          "id": "MagicCats/Rat Enchanter/3",
+          "name": "Rat Enchanter",
+          "level": 3,
+          "description": "Vermina summons royalty.",
+          "tier": 1,
+          "previewImage": "./avatars/MagicCats-Rat-Enchanter-3.png",
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 346,
+            "maxMana": 40,
+            "manaRegen": 5,
+            "attackDamage": 36.8,
+            "attackSpeed": 1.5,
+            "attackRange": 13,
+            "minAttackRange": 0,
+            "critChance": 0.08,
+            "spellPower": 0,
+            "armorResist": 9,
+            "magicResist": 16,
+            "movementSpeed": 2.8
+          }
+        }
+      ]
+    },
+    {
+      "id": "MagicCats/Rat King/1",
+      "name": "Rat King",
+      "factionId": "MagicCats",
+      "faction": "Arcane Academy",
+      "levels": [
+        {
+          "id": "MagicCats/Rat King/1",
+          "name": "Rat King",
+          "level": 1,
+          "description": "A very fat, very round rat with sleek grey fur, a smug expression, and a tiny golden crown. Waddles rather than runs.",
+          "tier": 0,
+          "previewImage": "./avatars/MagicCats-Rat-King-1.png",
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 207,
+            "maxMana": 0,
+            "manaRegen": 0,
+            "attackDamage": 23.1,
+            "attackSpeed": 1,
+            "attackRange": 2,
+            "minAttackRange": 0,
+            "critChance": 0,
+            "spellPower": 0,
+            "armorResist": 8,
+            "magicResist": 12,
+            "movementSpeed": 3
+          }
+        }
+      ]
+    },
+    {
+      "id": "Nobles/Royal Archer/1",
+      "name": "Royal Archer",
+      "factionId": "Nobles",
+      "faction": "Nobles",
+      "levels": [
+        {
+          "id": "Nobles/Royal Archer/1",
+          "name": "Royal Archer",
+          "level": 1,
+          "description": "The Nobles' precision ranged unit. Rewards clean positioning behind the Knight frontline with a passive Attack Damage bonus.",
+          "tier": 1,
+          "previewImage": "./avatars/Nobles-Royal-Archer-1.png",
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 125,
+            "maxMana": 0,
+            "manaRegen": 0,
+            "attackDamage": 15,
+            "attackSpeed": 1.5,
+            "attackRange": 13,
+            "critChance": 0.05,
+            "spellPower": 0,
+            "armorResist": 6,
+            "magicResist": 6,
+            "movementSpeed": 2.5
+          }
+        },
+        {
+          "id": "Nobles/Royal Archer/2",
+          "name": "Royal Archer",
+          "level": 2,
+          "description": "Gains Volley at full mana \\u2014 fires 3 arrows at 3 different enemies. Precision Shot line-of-sight bonus increases to +20% AD.",
+          "tier": 1,
+          "previewImage": "./avatars/Nobles-Royal-Archer-2.png",
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 262,
+            "maxMana": 25,
+            "manaRegen": 1,
+            "attackDamage": 39,
+            "attackSpeed": 1.6,
+            "attackRange": 14,
+            "minAttackRange": 0,
+            "critChance": 0.08,
+            "spellPower": 0,
+            "armorResist": 9,
+            "magicResist": 9,
+            "movementSpeed": 2.6
+          }
+        },
+        {
+          "id": "Nobles/Royal Archer/3",
+          "name": "Royal Archer",
+          "level": 3,
+          "description": "Volley fires 5 arrows, each applying Vulnerability. Precision Shot line-of-sight bonus reaches +25% AD \\u2014 devastating behind a Knight wall.",
+          "tier": 1,
+          "previewImage": "./avatars/Nobles-Royal-Archer-3.png",
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 412,
+            "maxMana": 26,
+            "manaRegen": 1,
+            "attackDamage": 58.5,
+            "attackSpeed": 1.8,
+            "attackRange": 15,
+            "minAttackRange": 0,
+            "critChance": 0.1,
+            "spellPower": 0,
+            "armorResist": 12,
+            "magicResist": 12,
+            "movementSpeed": 2.8
+          }
+        }
+      ]
+    },
+    {
+      "id": "Nobles/Royal Cavalry/1",
+      "name": "Royal Cavalry",
+      "factionId": "Nobles",
+      "faction": "Nobles",
+      "levels": [
+        {
+          "id": "Nobles/Royal Cavalry/1",
+          "name": "Royal Cavalry",
+          "level": 1,
+          "description": "A mounted knight who builds speed on the ride in and crashes into the enemy line.",
+          "tier": 2,
+          "previewImage": "./avatars/Nobles-Royal-Cavalry-1.png",
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 170,
+            "maxMana": 100,
+            "manaRegen": 0,
+            "attackDamage": 16,
+            "attackSpeed": 0.9,
+            "attackRange": 2,
+            "minAttackRange": 0,
+            "critChance": 0.1,
+            "spellPower": 0,
+            "armorResist": 14,
+            "magicResist": 8,
+            "movementSpeed": 3.5
+          }
+        },
+        {
+          "id": "Nobles/Royal Cavalry/2",
+          "name": "Royal Cavalry",
+          "level": 2,
+          "description": "The charge now slows everyone around the impact.",
+          "tier": 2,
+          "previewImage": "./avatars/Nobles-Royal-Cavalry-2.png",
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 510,
+            "maxMana": 100,
+            "manaRegen": 0,
+            "attackDamage": 33.6,
+            "attackSpeed": 1,
+            "attackRange": 2,
+            "minAttackRange": 0,
+            "critChance": 0.1,
+            "spellPower": 0,
+            "armorResist": 18,
+            "magicResist": 11,
+            "movementSpeed": 3.6
+          }
+        },
+        {
+          "id": "Nobles/Royal Cavalry/3",
+          "name": "Royal Cavalry",
+          "level": 3,
+          "description": "The charge now stuns everyone around the impact.",
+          "tier": 2,
+          "previewImage": "./avatars/Nobles-Royal-Cavalry-3.png",
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 782,
+            "maxMana": 100,
+            "manaRegen": 0,
+            "attackDamage": 52.8,
+            "attackSpeed": 1.1,
+            "attackRange": 2,
+            "minAttackRange": 0,
+            "critChance": 0.12,
+            "spellPower": 0,
+            "armorResist": 22,
+            "magicResist": 14,
+            "movementSpeed": 3.7
+          }
+        }
+      ]
+    },
+    {
+      "id": "MagicCats/Silence Caller/1",
+      "name": "Silence Caller",
+      "factionId": "MagicCats",
+      "faction": "Arcane Academy",
+      "levels": [
+        {
+          "id": "MagicCats/Silence Caller/1",
+          "name": "Silence Caller",
+          "level": 1,
+          "description": "The Arcane Academy's hard-CC caster. On Mana Full she unleashes Hush, Silencing her target and stripping their ability window entirely.",
+          "tier": 3,
+          "previewImage": "./avatars/MagicCats-Silence-Caller-1.png",
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 230,
+            "maxMana": 20,
+            "manaRegen": 1,
+            "attackDamage": 20,
+            "attackSpeed": 1,
+            "attackRange": 15,
+            "critChance": 0.05,
+            "spellPower": 0,
+            "armorResist": 10,
+            "magicResist": 22,
+            "movementSpeed": 2.8
+          }
+        },
+        {
+          "id": "MagicCats/Silence Caller/2",
+          "name": "Silence Caller",
+          "level": 2,
+          "description": "Hush II extends Silence to 4s and adds a follow-up Stun - the target staggers upon regaining ability access, double CC from a single cast.",
+          "tier": 3,
+          "previewImage": "./avatars/MagicCats-Silence-Caller-2.png",
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 483,
+            "maxMana": 21,
+            "manaRegen": 1,
+            "attackDamage": 60,
+            "attackSpeed": 1.1,
+            "attackRange": 16,
+            "minAttackRange": 0,
+            "critChance": 0.05,
+            "spellPower": 0,
+            "armorResist": 14,
+            "magicResist": 29,
+            "movementSpeed": 2.9
+          }
+        },
+        {
+          "id": "MagicCats/Silence Caller/3",
+          "name": "Silence Caller",
+          "level": 3,
+          "description": "Hush III: Silence 5s + immediate Stun 1.5s, and the silenced target takes +20% damage for 5s.",
+          "tier": 3,
+          "previewImage": "./avatars/MagicCats-Silence-Caller-3.png",
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 759,
+            "maxMana": 22,
+            "manaRegen": 1,
+            "attackDamage": 92,
+            "attackSpeed": 1.2,
+            "attackRange": 17,
+            "minAttackRange": 0,
+            "critChance": 0.08,
+            "spellPower": 0,
+            "armorResist": 18,
+            "magicResist": 38,
+            "movementSpeed": 3
+          }
+        }
+      ]
+    },
+    {
+      "id": "Nobles/Sir Aldric/1",
+      "name": "Sir Aldric",
+      "factionId": "Nobles",
+      "faction": "Nobles",
+      "levels": [
+        {
+          "id": "Nobles/Sir Aldric/1",
+          "name": "Sir Aldric",
+          "level": 1,
+          "description": "The Nobles' foremost Paladin. A methodical, unshakeable presence who hardens through combat. Heavy tank with no mana at rank one. Steadfast raises his Armor and Magic Resist over time.",
+          "tier": 3,
+          "previewImage": "./avatars/Nobles-Sir-Aldric-1.png",
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 320,
+            "maxMana": 0,
+            "manaRegen": 0,
+            "attackDamage": 20,
+            "attackSpeed": 1,
+            "attackRange": 2,
+            "critChance": 0.05,
+            "spellPower": 0,
+            "armorResist": 25,
+            "magicResist": 20,
+            "movementSpeed": 2
+          }
+        },
+        {
+          "id": "Nobles/Aldric, Sworn Shield/2",
+          "name": "Aldric, Sworn Shield",
+          "level": 2,
+          "description": "Gains Divine Shield on mana full \\u2014 Unbreakable for 4s and a +60 HP barrier. Steadfast grants +3 Armor and +2 Magic Resist per stack.",
+          "tier": 3,
+          "previewImage": "./avatars/Nobles-Aldric-Sworn-Shield-2.png",
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 960,
+            "maxMana": 20,
+            "manaRegen": 1,
+            "attackDamage": 42,
+            "attackSpeed": 1,
+            "attackRange": 2,
+            "minAttackRange": 0,
+            "critChance": 0.05,
+            "spellPower": 0,
+            "armorResist": 32,
+            "magicResist": 27,
+            "movementSpeed": 2.1
+          }
+        },
+        {
+          "id": "Nobles/Aldric, Unbroken/3",
+          "name": "Aldric, Unbroken",
+          "level": 3,
+          "description": "Divine Shield grants Unbreakable for 4s and Shield +100, and Tenacity +10% for 4s to allies within 2.5. Steadfast grants Armor and Magic Resist per stack.",
+          "tier": 3,
+          "previewImage": "./avatars/Nobles-Aldric-Unbroken-3.png",
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 1472,
+            "maxMana": 21,
+            "manaRegen": 1,
+            "attackDamage": 66,
+            "attackSpeed": 1.1,
+            "attackRange": 2,
+            "minAttackRange": 0,
+            "critChance": 0.08,
+            "spellPower": 0,
+            "armorResist": 38,
+            "magicResist": 32,
+            "movementSpeed": 2.2
+          }
+        }
+      ]
+    },
+    {
+      "id": "Neutral/Stray/1",
+      "name": "Stray",
+      "factionId": "Neutral",
+      "faction": "Neutral",
+      "levels": [
+        {
+          "id": "Neutral/Stray/1",
+          "name": "Stray",
+          "level": 1,
+          "description": "A scrappy alley cat who answers the call for a bowl of leftovers.",
+          "tier": 0,
+          "previewImage": "./avatars/Neutral-Stray-1.png",
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 120,
+            "maxMana": 0,
+            "manaRegen": 0,
+            "attackDamage": 8,
+            "attackSpeed": 1.2,
+            "attackRange": 2,
+            "minAttackRange": 0,
+            "critChance": 0,
+            "spellPower": 0,
+            "armorResist": 10,
+            "magicResist": 10,
+            "movementSpeed": 4
+          }
+        }
+      ]
+    },
+    {
+      "id": "Peasants/Tipsy Toes/1",
+      "name": "Tipsy Toes",
+      "factionId": "Peasants",
+      "faction": "Peasants",
+      "levels": [
+        {
+          "id": "Peasants/Tipsy Toes/1",
+          "name": "Tipsy Toes",
+          "level": 1,
+          "description": "A tipsy Tavern recruit. Never sold in the shop.",
+          "tier": 0,
+          "previewImage": "./avatars/Peasants-Tipsy-Toes-1.png",
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 200,
+            "maxMana": 0,
+            "manaRegen": 0,
+            "attackDamage": 10,
+            "attackSpeed": 1,
+            "attackRange": 2,
+            "minAttackRange": 0,
+            "critChance": 0.05,
+            "spellPower": 0,
+            "armorResist": 20,
+            "magicResist": 15,
+            "movementSpeed": 3
+          }
+        }
+      ]
+    },
+    {
+      "id": "Peasants/Tomeowto Thrower/1",
+      "name": "Tomeowto Thrower",
+      "factionId": "Peasants",
+      "faction": "Peasants",
+      "levels": [
+        {
+          "id": "Peasants/Tomeowto Thrower/1",
+          "name": "Tomeowto Thrower",
+          "level": 1,
+          "description": "Wren the Hurler lobs tomeowtos from safe range. Fragile but punishing \\u2014 every throw has a 20% chance to Stun the target for 0.5s.",
+          "tier": 1,
+          "previewImage": "./avatars/Peasants-Tomeowto-Thrower-1.png",
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 120,
+            "maxMana": 0,
+            "manaRegen": 0,
+            "attackDamage": 14,
+            "attackSpeed": 1.5,
+            "attackRange": 12,
+            "minAttackRange": 0,
+            "critChance": 0.05,
+            "spellPower": 0,
+            "armorResist": 5,
+            "magicResist": 5,
+            "movementSpeed": 2.2
+          }
+        },
+        {
+          "id": "Peasants/Tomeowto Thrower/2",
+          "name": "Tomeowto Thrower",
+          "level": 2,
+          "description": "Wren hones her aim. Each throw now slows on hit too, and her stuns land harder. Still fragile - but harder to ignore.",
+          "tier": 1,
+          "previewImage": "./avatars/Peasants-Tomeowto-Thrower-2.png",
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 252,
+            "maxMana": 33,
+            "manaRegen": 1,
+            "attackDamage": 33.6,
+            "attackSpeed": 1.8,
+            "attackRange": 14,
+            "minAttackRange": 0,
+            "critChance": 0.05,
+            "spellPower": 0,
+            "armorResist": 8,
+            "magicResist": 8,
+            "movementSpeed": 2.4
+          }
+        },
+        {
+          "id": "Peasants/Tomeowto Thrower/3",
+          "name": "Tomeowto Thrower",
+          "level": 3,
+          "description": "The Giant Tomeowto. Wren launches an oversized tomeowto that stuns all enemies in a small area. Paired with Barrage she can hold an entire flank from across the board.",
+          "tier": 1,
+          "previewImage": "./avatars/Peasants-Tomeowto-Thrower-3.png",
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 396,
+            "maxMana": 33,
+            "manaRegen": 1,
+            "attackDamage": 51.5,
+            "attackSpeed": 2.2,
+            "attackRange": 16,
+            "minAttackRange": 0,
+            "critChance": 0.05,
+            "spellPower": 0,
+            "armorResist": 12,
+            "magicResist": 12,
+            "movementSpeed": 2.5
+          }
+        }
+      ]
+    },
+    {
+      "id": "Peasants/Village Elder/1",
+      "name": "Village Elder",
+      "factionId": "Peasants",
+      "faction": "Peasants",
+      "levels": [
+        {
+          "id": "Peasants/Village Elder/1",
+          "name": "Village Elder",
+          "level": 1,
+          "description": "An ancient cat whose name no one knows. He carries a staff worn smooth from decades of use. His aura of blessing strengthens allies within 5 tiles \\u2014 slow to move, impossible to rattle.",
+          "tier": 4,
+          "previewImage": "./avatars/Peasants-Village-Elder-1.png",
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 150,
+            "maxMana": 0,
+            "manaRegen": 0,
+            "attackDamage": 20,
+            "attackSpeed": 1.2,
+            "attackRange": 15,
+            "minAttackRange": 0,
+            "critChance": 0.05,
+            "spellPower": 5,
+            "armorResist": 10,
+            "magicResist": 5,
+            "movementSpeed": 1.5
+          }
+        },
+        {
+          "id": "Peasants/Village Elder/2",
+          "name": "Village Elder",
+          "level": 2,
+          "description": "He has seen worse. The Elder's blessing now reaches 7 tiles and deepens for every ally within range. He does not hurry. The battle comes to him.",
+          "tier": 4,
+          "previewImage": "./avatars/Peasants-Village-Elder-2.png",
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 315,
+            "maxMana": 0,
+            "manaRegen": 0,
+            "attackDamage": 60,
+            "attackSpeed": 1.8,
+            "attackRange": 15,
+            "minAttackRange": 0,
+            "critChance": 0.05,
+            "spellPower": 5,
+            "armorResist": 10,
+            "magicResist": 5,
+            "movementSpeed": 1.5
+          }
+        },
+        {
+          "id": "Peasants/Village Elder/3",
+          "name": "Village Elder",
+          "level": 3,
+          "description": "At his strongest the Elder's aura fills the entire field (8 tiles). Those who stand in it do not merely fight harder \\u2014 they endure.",
+          "tier": 4,
+          "previewImage": "./avatars/Peasants-Village-Elder-3.png",
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 495,
+            "maxMana": 0,
+            "manaRegen": 0,
+            "attackDamage": 92,
+            "attackSpeed": 2,
+            "attackRange": 15,
+            "minAttackRange": 0,
+            "critChance": 0.05,
+            "spellPower": 5,
+            "armorResist": 10,
+            "magicResist": 5,
+            "movementSpeed": 1.5
+          }
+        }
+      ]
+    }
+  ],
+  "buildings": [
+    {
+      "id": "Nobles/Ballista/1",
+      "name": "Ballista",
+      "factionId": "Nobles",
+      "faction": "Nobles",
+      "levels": [
+        {
+          "id": "Nobles/Ballista/1",
+          "name": "Ballista",
+          "level": 1,
+          "description": "A polished oak-and-iron siege crossbow on a swivel mount, dressed in Crown Guard livery. Fires at the highest-HP enemy in range, ignoring a portion of their armour.",
+          "tier": 2,
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 220,
+            "maxMana": 32,
+            "manaRegen": 4,
+            "attackDamage": 45,
+            "attackSpeed": 0,
+            "attackRange": 0,
+            "minAttackRange": 0,
+            "critChance": 0,
+            "spellPower": 0,
+            "armorResist": 30,
+            "magicResist": 10,
+            "movementSpeed": 0
+          }
+        },
+        {
+          "id": "Nobles/Heavy Ballista/2",
+          "name": "Heavy Ballista",
+          "level": 2,
+          "description": "Reinforced limbs and heavier bolts. The bolt now pierces through the primary target, striking the first enemy behind them for reduced damage.",
+          "tier": 2,
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 462,
+            "maxMana": 32,
+            "manaRegen": 4,
+            "attackDamage": 135,
+            "attackSpeed": 0,
+            "attackRange": 0,
+            "minAttackRange": 0,
+            "critChance": 0,
+            "spellPower": 0,
+            "armorResist": 36,
+            "magicResist": 14,
+            "movementSpeed": 0
+          }
+        },
+        {
+          "id": "Nobles/Royal Arbalest/3",
+          "name": "Royal Arbalest",
+          "level": 3,
+          "description": "Reinforced limbs engraved with gold plate. The heaviest siege crossbow in the Crown Guard arsenal. Every fourth bolt is a Skewer Shot that tears through the target's Max HP.",
+          "tier": 2,
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 726,
+            "maxMana": 24,
+            "manaRegen": 4,
+            "attackDamage": 207,
+            "attackSpeed": 0,
+            "attackRange": 0,
+            "minAttackRange": 0,
+            "critChance": 0,
+            "spellPower": 0,
+            "armorResist": 44,
+            "magicResist": 18,
+            "movementSpeed": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "Nobles/Catapult/1",
+      "name": "Catapult",
+      "factionId": "Nobles",
+      "faction": "Nobles",
+      "levels": [
+        {
+          "id": "Nobles/Catapult/1",
+          "name": "Catapult",
+          "level": 1,
+          "description": "A heavy timber siege engine with indigo-and-gold Crown Guard banners on its frame and a counterweight stamped with the royal crest. Hurls boulders into dense enemy clusters.",
+          "tier": 3,
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 280,
+            "maxMana": 30,
+            "manaRegen": 3,
+            "attackDamage": 70,
+            "attackSpeed": 0,
+            "attackRange": 0,
+            "minAttackRange": 0,
+            "critChance": 0,
+            "spellPower": 0,
+            "armorResist": 35,
+            "magicResist": 12,
+            "movementSpeed": 0
+          }
+        },
+        {
+          "id": "Nobles/Trebuchet/2",
+          "name": "Trebuchet",
+          "level": 2,
+          "description": "A taller frame with counterweights doubled. Boulders scatter survivors with Knockback on impact, clearing the hit zone.",
+          "tier": 3,
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 840,
+            "maxMana": 30,
+            "manaRegen": 3,
+            "attackDamage": 147,
+            "attackSpeed": 0,
+            "attackRange": 0,
+            "minAttackRange": 0,
+            "critChance": 0,
+            "spellPower": 0,
+            "armorResist": 42,
+            "magicResist": 16,
+            "movementSpeed": 0
+          }
+        },
+        {
+          "id": "Nobles/Grand Trebuchet/3",
+          "name": "Grand Trebuchet",
+          "level": 3,
+          "description": "A towering trebuchet with ceremonial gold fittings and the royal crest on its counterweight. Stuns enemies at the inner impact zone. On destruction, launches one final boulder.",
+          "tier": 3,
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 1288,
+            "maxMana": 24,
+            "manaRegen": 3,
+            "attackDamage": 231,
+            "attackSpeed": 0,
+            "attackRange": 0,
+            "minAttackRange": 0,
+            "critChance": 0,
+            "spellPower": 0,
+            "armorResist": 50,
+            "magicResist": 22,
+            "movementSpeed": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "Peasants/Chapel/1",
+      "name": "Chapel",
+      "factionId": "Peasants",
+      "faction": "Peasants",
+      "levels": [
+        {
+          "id": "Peasants/Chapel/1",
+          "name": "Chapel",
+          "level": 1,
+          "description": "The Peasants' dedicated healing building. Heals the lowest-HP ally on a pulse, keeping the frontline alive.",
+          "tier": 2,
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 250,
+            "maxMana": 10,
+            "manaRegen": 2,
+            "attackDamage": 0,
+            "attackSpeed": 0,
+            "attackRange": 0,
+            "minAttackRange": 0,
+            "critChance": 0,
+            "spellPower": 0,
+            "armorResist": 40,
+            "magicResist": 20,
+            "movementSpeed": 0
+          }
+        },
+        {
+          "id": "Peasants/Chapel/2",
+          "name": "Chapel",
+          "level": 2,
+          "description": "The Peasants' dedicated healing building. Heals the lowest-HP ally on a pulse, keeping the frontline alive.",
+          "tier": 2,
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 750,
+            "maxMana": 10,
+            "manaRegen": 2,
+            "attackDamage": 0,
+            "attackSpeed": 0,
+            "attackRange": 0,
+            "minAttackRange": 0,
+            "critChance": 0,
+            "spellPower": 0,
+            "armorResist": 55,
+            "magicResist": 30,
+            "movementSpeed": 0
+          }
+        },
+        {
+          "id": "Peasants/Chapel/3",
+          "name": "Chapel",
+          "level": 3,
+          "description": "The Peasants' dedicated healing building. Heals the lowest-HP ally on a pulse, keeping the frontline alive.",
+          "tier": 2,
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 1150,
+            "maxMana": 10,
+            "manaRegen": 2,
+            "attackDamage": 0,
+            "attackSpeed": 0,
+            "attackRange": 0,
+            "minAttackRange": 0,
+            "critChance": 0,
+            "spellPower": 0,
+            "armorResist": 70,
+            "magicResist": 40,
+            "movementSpeed": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "Peasants/Milk Tavern/1",
+      "name": "Milk Tavern",
+      "factionId": "Peasants",
+      "faction": "Peasants",
+      "levels": [
+        {
+          "id": "Peasants/Milk Tavern/1",
+          "name": "Milk Tavern",
+          "level": 1,
+          "description": "The Milk Tavern drafts Peasant Fighters during combat, giving the Peasants an endless stream of cheap bodies to fill the front row.",
+          "tier": 3,
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 200,
+            "maxMana": 10,
+            "manaRegen": 1,
+            "attackDamage": 0,
+            "attackSpeed": 0,
+            "attackRange": 0,
+            "minAttackRange": 0,
+            "critChance": 0,
+            "spellPower": 0,
+            "armorResist": 45,
+            "magicResist": 25,
+            "movementSpeed": 0
+          }
+        },
+        {
+          "id": "Peasants/Milk Tavern/2",
+          "name": "Milk Tavern",
+          "level": 2,
+          "description": "Production interval drops by 25%. The first Fighter arrives instantly at combat start, and every spawn briefly gains All Stats \\u2014 milk-fuelled and ready for battle.",
+          "tier": 3,
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 600,
+            "maxMana": 16,
+            "manaRegen": 2,
+            "attackDamage": 0,
+            "attackSpeed": 0,
+            "attackRange": 0,
+            "minAttackRange": 0,
+            "critChance": 0,
+            "spellPower": 0,
+            "armorResist": 45,
+            "magicResist": 25,
+            "movementSpeed": 0
+          }
+        },
+        {
+          "id": "Peasants/Milk Tavern/3",
+          "name": "Milk Tavern",
+          "level": 3,
+          "description": "The Tavern at full production. Two Fighters arrive instantly, the interval halves, and spawns gain permanent All Stats. If the Tavern falls, every Fighter it ever sent surges with Attack Damage as a final gift.",
+          "tier": 3,
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 920,
+            "maxMana": 16,
+            "manaRegen": 2,
+            "attackDamage": 0,
+            "attackSpeed": 0,
+            "attackRange": 0,
+            "minAttackRange": 0,
+            "critChance": 0,
+            "spellPower": 0,
+            "armorResist": 65,
+            "magicResist": 45,
+            "movementSpeed": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "MagicCats/Stone Grimalkin/1",
+      "name": "Stone Grimalkin",
+      "factionId": "MagicCats",
+      "faction": "Arcane Academy",
+      "levels": [
+        {
+          "id": "MagicCats/Stone Grimalkin/1",
+          "name": "Stone Grimalkin",
+          "level": 1,
+          "description": "A weathered stone cat-grotesque crouched on a carved plinth. Stationary ward - enemies that enter its aura are slowed. Wakes when an ally dies or it drops to half HP, rising as a Roused Gargoyle for the rest of combat.",
+          "tier": 1,
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 240,
+            "maxMana": 0,
+            "manaRegen": 0,
+            "attackDamage": 0,
+            "attackSpeed": 0,
+            "attackRange": 0,
+            "minAttackRange": 0,
+            "critChance": 0,
+            "spellPower": 0,
+            "armorResist": 28,
+            "magicResist": 20,
+            "movementSpeed": 0
+          }
+        },
+        {
+          "id": "MagicCats/Roused Gargoyle/2",
+          "name": "Roused Gargoyle",
+          "level": 2,
+          "description": "The stone cracks and the gargoyle wakes. The Magic Cats' only true frontline tank - slow but heavily armoured. Looming Presence travels with it as a moving ward, slowing enemies who press against it.",
+          "tier": 1,
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 720,
+            "maxMana": 0,
+            "manaRegen": 0,
+            "attackDamage": 45,
+            "attackSpeed": 0.8,
+            "attackRange": 2,
+            "minAttackRange": 0,
+            "critChance": 0.05,
+            "spellPower": 0,
+            "armorResist": 32,
+            "magicResist": 24,
+            "movementSpeed": 1.8
+          }
+        },
+        {
+          "id": "MagicCats/Grand Grimalkin/3",
+          "name": "Grand Grimalkin",
+          "level": 3,
+          "description": "Tower-tall, moss-grown and rune-scored. The Grimalkin at full power - when mana fills it unleashes Stone Smash, slamming the ground to damage and knock back all enemies in a 2-tile radius. Looming Presence now reaches 4 tiles.",
+          "tier": 1,
+          "footprint": {
+            "width": 1,
+            "height": 1
+          },
+          "stats": {
+            "maxHealth": 1104,
+            "maxMana": 27,
+            "manaRegen": 2,
+            "attackDamage": 69,
+            "attackSpeed": 0.9,
+            "attackRange": 2,
+            "minAttackRange": 0,
+            "critChance": 0.05,
+            "spellPower": 0,
+            "armorResist": 40,
+            "magicResist": 30,
+            "movementSpeed": 1.8
+          }
+        }
+      ]
+    }
+  ],
+  "spells": [
+    {
+      "id": "Catnip Rally [GrantAbility]",
+      "name": "Catnip Rally",
+      "level": 1,
+      "description": "Catnip Rally targets SelectedAlly (up to 1), granting Catnip Rally. Costs 4 coins.",
+      "tier": 2,
+      "manaCost": 0,
+      "coinCost": 4,
+      "healthCost": 0,
+      "cooldown": 0,
+      "maxTargets": 1
+    },
+    {
+      "id": "Fishbone Hex [GrantAbility]",
+      "name": "Fishbone Hex",
+      "level": 1,
+      "description": "Fishbone Hex targets AllEnemies (up to 2), granting Fishbone Hex. Costs 3 coins.",
+      "tier": 1,
+      "manaCost": 0,
+      "coinCost": 3,
+      "healthCost": 0,
+      "cooldown": 0,
+      "maxTargets": 2
+    },
+    {
+      "id": "Milk Party [GrantAbility]",
+      "name": "Milk Party",
+      "level": 1,
+      "description": "Milk Party targets AllAllies (up to 3), but no abilities are assigned. Costs 3 coins.",
+      "tier": 1,
+      "manaCost": 0,
+      "coinCost": 3,
+      "healthCost": 0,
+      "cooldown": 0,
+      "maxTargets": 3
+    },
+    {
+      "id": "Nine Lives [GrantAbility]",
+      "name": "Nine Lives",
+      "level": 1,
+      "description": "Nine Lives targets SelectedAlly (up to 1), granting Nine Lives. Costs 5 coins.",
+      "tier": 3,
+      "manaCost": 0,
+      "coinCost": 5,
+      "healthCost": 0,
+      "cooldown": 0,
+      "maxTargets": 1
+    },
+    {
+      "id": "Royal Blessing [GrantAbility]",
+      "name": "Royal Blessing",
+      "level": 1,
+      "description": "Royal Blessing targets AllAllies, granting Royal Blessing. Costs 5 coins.",
+      "tier": 3,
+      "manaCost": 0,
+      "coinCost": 5,
+      "healthCost": 0,
+      "cooldown": 0,
+      "maxTargets": 0
+    },
+    {
+      "id": "Sardine Ward [GrantAbility]",
+      "name": "Sardine Ward",
+      "level": 1,
+      "description": "Sardine Ward targets SelectedAlly (up to 1), granting Sardine Ward. Costs 3 coins.",
+      "tier": 1,
+      "manaCost": 0,
+      "coinCost": 3,
+      "healthCost": 0,
+      "cooldown": 0,
+      "maxTargets": 1
+    },
+    {
+      "id": "Stray Muster [Summon]",
+      "name": "Stray Muster",
+      "level": 1,
+      "description": "Stray Muster summons 2x Stray for the coming round. Costs 4 coins.",
+      "tier": 2,
+      "manaCost": 0,
+      "coinCost": 4,
+      "healthCost": 0,
+      "cooldown": 0,
+      "maxTargets": 0
+    },
+    {
+      "id": "Witch's Brew [GenericSpell]",
+      "name": "Witch's Brew",
+      "level": 1,
+      "description": "Witch’s Brew: grants +20 mana to all Magic Cats. Costs3 coins.",
+      "tier": 2,
+      "manaCost": 0,
+      "coinCost": 3,
+      "healthCost": 0,
+      "cooldown": 0,
+      "maxTargets": 0
+    },
+    {
+      "id": "Witch's Curse [GrantAbility]",
+      "name": "Witch's Curse",
+      "level": 1,
+      "description": "Witch's Curse targets AllEnemies, granting Witch's Curse. Costs 8 coins.",
+      "tier": 4,
+      "manaCost": 0,
+      "coinCost": 8,
+      "healthCost": 0,
+      "cooldown": 0,
+      "maxTargets": 0
+    },
+    {
+      "id": "Witch's Mark [GrantAbility]",
+      "name": "Witch's Mark",
+      "level": 1,
+      "description": "Witch's Mark targets RandomEnemy (up to 1), granting Witch's Mark. Costs 2 coins.",
+      "tier": 1,
+      "manaCost": 0,
+      "coinCost": 2,
+      "healthCost": 0,
+      "cooldown": 0,
+      "maxTargets": 1
+    }
+  ],
+  "blessings": [
+    {
+      "id": "Blessing - Arcane Convergence [Synergy]",
+      "name": "Arcane Convergence",
+      "level": 1,
+      "description": "Arcane Convergence grants Spell Power +4, Mana Regen +0,5 for each allied synergy unit on the board of the MagicCats faction.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Arcane Convergence II [Synergy]",
+      "name": "Arcane Convergence",
+      "level": 2,
+      "description": "Arcane Convergence grants Spell Power +6, Mana Regen +0,75 for each allied synergy unit on the board of the MagicCats faction.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Arcane Convergence III [Synergy]",
+      "name": "Arcane Convergence",
+      "level": 3,
+      "description": "Arcane Convergence grants Spell Power +8, Mana Regen +1 for each allied synergy unit on the board of the MagicCats faction.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Arcane Saucer [Keyword]",
+      "name": "Arcane Saucer",
+      "level": 1,
+      "description": "Passive: Spell Power +10, Mana Regen +1.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Arcane Saucer II [Keyword]",
+      "name": "Arcane Saucer",
+      "level": 2,
+      "description": "Passive: Spell Power +15, Mana Regen +1,5.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Arcane Saucer III [Keyword]",
+      "name": "Arcane Saucer",
+      "level": 3,
+      "description": "Passive: Spell Power +20, Mana Regen +2.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Blood Scent [Keyword]",
+      "name": "Blood Scent",
+      "level": 1,
+      "description": "On kill: Attack Damage +4 for 6s.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Blood Scent II [Keyword]",
+      "name": "Blood Scent",
+      "level": 2,
+      "description": "On kill: Attack Damage +6 for 6s.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Blood Scent III [Keyword]",
+      "name": "Blood Scent",
+      "level": 3,
+      "description": "On kill: Attack Damage +8 for 6s.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Bloodletting [Keyword]",
+      "name": "Bloodletting",
+      "level": 1,
+      "description": "On each attack: Heal Reduction +40% for 3s (target).",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Bloodletting II [Keyword]",
+      "name": "Bloodletting",
+      "level": 2,
+      "description": "On each attack: Heal Reduction +55% for 3s (target).",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Bloodletting III [Keyword]",
+      "name": "Bloodletting",
+      "level": 3,
+      "description": "On each attack: Heal Reduction +70% for 4s (target).",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Bristled Fur [Keyword]",
+      "name": "Bristled Fur",
+      "level": 1,
+      "description": "On hit received: Armor +6 for 4s.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Bristled Fur II [Keyword]",
+      "name": "Bristled Fur",
+      "level": 2,
+      "description": "On hit received: Armor +9 for 4s.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Bristled Fur III [Keyword]",
+      "name": "Bristled Fur",
+      "level": 3,
+      "description": "On hit received: Armor +12 for 4s.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Bulwark [Keyword]",
+      "name": "Bulwark",
+      "level": 1,
+      "description": "At combat start: Shield +30.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Bulwark II [Keyword]",
+      "name": "Bulwark",
+      "level": 2,
+      "description": "At combat start: Shield +45.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Bulwark III [Keyword]",
+      "name": "Bulwark",
+      "level": 3,
+      "description": "At combat start: Shield +60.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Cat's Eye [Economy]",
+      "name": "Cat's Eye",
+      "level": 1,
+      "description": "Cat's Eye lifts the fog: enemy boards are revealed before every fight.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Catnip Rush [Keyword]",
+      "name": "Catnip Rush",
+      "level": 1,
+      "description": "Passive: Move Speed +15%, Attack Damage +3.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Catnip Rush II [Keyword]",
+      "name": "Catnip Rush",
+      "level": 2,
+      "description": "Passive: Move Speed +22%, Attack Damage +4.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Catnip Rush III [Keyword]",
+      "name": "Catnip Rush",
+      "level": 3,
+      "description": "Passive: Move Speed +30%, Attack Damage +6.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Charge [Keyword]",
+      "name": "Charge",
+      "level": 1,
+      "description": "At combat start: Move Speed +40% for 6s, Attack Speed +20% for 6s.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Charge II [Keyword]",
+      "name": "Charge",
+      "level": 2,
+      "description": "At combat start: Move Speed +55% for 7s, Attack Speed +30% for 7s.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Charge III [Keyword]",
+      "name": "Charge",
+      "level": 3,
+      "description": "At combat start: Move Speed +70% for 8s, Attack Speed +40% for 8s.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Cornered Cat [Keyword]",
+      "name": "Cornered Cat",
+      "level": 1,
+      "description": "At low HP (All Stats +25% for 6s, Unbreakable for 6s.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Cornered Cat II [Keyword]",
+      "name": "Cornered Cat",
+      "level": 2,
+      "description": "At low HP (All Stats +35% for 7s, Unbreakable for 7s.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Cornered Cat III [Keyword]",
+      "name": "Cornered Cat",
+      "level": 3,
+      "description": "At low HP (All Stats +50% for 8s, Unbreakable for 8s.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Crushing Blows [Keyword]",
+      "name": "Crushing Blows",
+      "level": 1,
+      "description": "Every 4 attacks: Knockback (target).",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Crushing Blows II [Keyword]",
+      "name": "Crushing Blows",
+      "level": 2,
+      "description": "Every 3 attacks: Knockback (target).",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Crushing Blows III [Keyword]",
+      "name": "Crushing Blows",
+      "level": 3,
+      "description": "Every 2 attacks: Knockback (target).",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Devout [Economy]",
+      "name": "Devout",
+      "level": 1,
+      "description": "Devout makes Blessings cost 1 less.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Devout II [Economy]",
+      "name": "Devout",
+      "level": 2,
+      "description": "Devout makes Blessings cost 2 less.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Devout III [Economy]",
+      "name": "Devout",
+      "level": 3,
+      "description": "Devout makes Blessings cost 3 less.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Extra Column [Grid]",
+      "name": "Extra Column",
+      "level": 1,
+      "description": "Adds one column to your deployment grid.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Extra Row [Grid]",
+      "name": "Extra Row",
+      "level": 1,
+      "description": "Adds one row to your deployment grid.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Fat Purse [Economy]",
+      "name": "Fat Purse",
+      "level": 1,
+      "description": "Fat Purse pays +2 Sardines every round.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Fat Purse II [Economy]",
+      "name": "Fat Purse",
+      "level": 2,
+      "description": "Fat Purse pays +3 Sardines every round.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Fat Purse III [Economy]",
+      "name": "Fat Purse",
+      "level": 3,
+      "description": "Fat Purse pays +4 Sardines every round.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Fresh Blood [Keyword]",
+      "name": "Fresh Blood",
+      "level": 1,
+      "description": "On kill: Attack Speed +8% for 8s.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Fresh Blood II [Keyword]",
+      "name": "Fresh Blood",
+      "level": 2,
+      "description": "On kill: Attack Speed +12% for 8s.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Fresh Blood III [Keyword]",
+      "name": "Fresh Blood",
+      "level": 3,
+      "description": "On kill: Attack Speed +16% for 8s.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Growing Fury [Keyword]",
+      "name": "Growing Fury",
+      "level": 1,
+      "description": "Passive: Attack Damage +2. Stacks every 4s, up to 4 times.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 4
+    },
+    {
+      "id": "Blessing - Growing Fury II [Keyword]",
+      "name": "Growing Fury",
+      "level": 2,
+      "description": "Passive: Attack Damage +3. Stacks every 4s, up to 5 times.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 4
+    },
+    {
+      "id": "Blessing - Growing Fury III [Keyword]",
+      "name": "Growing Fury",
+      "level": 3,
+      "description": "Passive: Attack Damage +4. Stacks every 4s, up to 6 times.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 4
+    },
+    {
+      "id": "Blessing - Haggler [Economy]",
+      "name": "Haggler",
+      "level": 1,
+      "description": "Haggler knocks 1 off every shop unit, never below half price.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Haggler II [Economy]",
+      "name": "Haggler",
+      "level": 2,
+      "description": "Haggler knocks 2 off every shop unit, never below half price.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Haggler III [Economy]",
+      "name": "Haggler",
+      "level": 3,
+      "description": "Haggler knocks 3 off every shop unit, never below half price.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Hamstring [Keyword]",
+      "name": "Hamstring",
+      "level": 1,
+      "description": "Every 3 attacks: Slow +30% for 2s (target).",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Hamstring II [Keyword]",
+      "name": "Hamstring",
+      "level": 2,
+      "description": "Every 3 attacks: Slow +40% for 2,5s (target).",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Hamstring III [Keyword]",
+      "name": "Hamstring",
+      "level": 3,
+      "description": "Every 3 attacks: Slow +50% for 3s (target).",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Hearty Stew [Keyword]",
+      "name": "Hearty Stew",
+      "level": 1,
+      "description": "Passive: Max Health +15.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Hearty Stew II [Keyword]",
+      "name": "Hearty Stew",
+      "level": 2,
+      "description": "Passive: Max Health +23.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Hearty Stew III [Keyword]",
+      "name": "Hearty Stew",
+      "level": 3,
+      "description": "Passive: Max Health +30.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Iron Whiskers [Keyword]",
+      "name": "Iron Whiskers",
+      "level": 1,
+      "description": "Passive: Armor +8, Magic Resist +8.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Iron Whiskers II [Keyword]",
+      "name": "Iron Whiskers",
+      "level": 2,
+      "description": "Passive: Armor +12, Magic Resist +12.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Iron Whiskers III [Keyword]",
+      "name": "Iron Whiskers",
+      "level": 3,
+      "description": "Passive: Armor +16, Magic Resist +16.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Lucky Paw [Keyword]",
+      "name": "Lucky Paw",
+      "level": 1,
+      "description": "Passive: Crit Chance +8%.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Lucky Paw II [Keyword]",
+      "name": "Lucky Paw",
+      "level": 2,
+      "description": "Passive: Crit Chance +12%.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Lucky Paw III [Keyword]",
+      "name": "Lucky Paw",
+      "level": 3,
+      "description": "Passive: Crit Chance +16%.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Mana Surge [Keyword]",
+      "name": "Mana Surge",
+      "level": 1,
+      "description": "When mana is full: Spell Power +20 for 5s.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Mana Surge II [Keyword]",
+      "name": "Mana Surge",
+      "level": 2,
+      "description": "When mana is full: Spell Power +30 for 5s.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Mana Surge III [Keyword]",
+      "name": "Mana Surge",
+      "level": 3,
+      "description": "When mana is full: Spell Power +40 for 6s.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Marked Prey [Keyword]",
+      "name": "Marked Prey",
+      "level": 1,
+      "description": "On each attack: Vulnerability +5% for 3s (target).",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Marked Prey II [Keyword]",
+      "name": "Marked Prey",
+      "level": 2,
+      "description": "On each attack: Vulnerability +7,5% for 3s (target).",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Marked Prey III [Keyword]",
+      "name": "Marked Prey",
+      "level": 3,
+      "description": "On each attack: Vulnerability +10% for 4s (target).",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Mouser's Instinct [Keyword]",
+      "name": "Mouser's Instinct",
+      "level": 1,
+      "description": "On kill: Shield +25, Move Speed +20% for 4s.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Mouser's Instinct II [Keyword]",
+      "name": "Mouser's Instinct",
+      "level": 2,
+      "description": "On kill: Shield +38, Move Speed +30% for 5s.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Mouser's Instinct III [Keyword]",
+      "name": "Mouser's Instinct",
+      "level": 3,
+      "description": "On kill: Shield +50, Move Speed +40% for 6s.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Muzzle [Keyword]",
+      "name": "Muzzle",
+      "level": 1,
+      "description": "Every 5 attacks: Silence for 2s (target).",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Muzzle II [Keyword]",
+      "name": "Muzzle",
+      "level": 2,
+      "description": "Every 4 attacks: Silence for 2,5s (target).",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Muzzle III [Keyword]",
+      "name": "Muzzle",
+      "level": 3,
+      "description": "Every 3 attacks: Silence for 3s (target).",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Mystic Pool [Keyword]",
+      "name": "Mystic Pool",
+      "level": 1,
+      "description": "Passive: Mana Regen +0.5.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Mystic Pool II [Keyword]",
+      "name": "Mystic Pool",
+      "level": 2,
+      "description": "Passive: Mana Regen +1.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Mystic Pool III [Keyword]",
+      "name": "Mystic Pool",
+      "level": 3,
+      "description": "Passive: Mana Regen +2.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Nine Lives [Keyword]",
+      "name": "Nine Lives",
+      "level": 1,
+      "description": "Passive: Last Stand.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Nine Lives II [Keyword]",
+      "name": "Nine Lives",
+      "level": 2,
+      "description": "Passive: Last Stand.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Nine Lives III [Keyword]",
+      "name": "Nine Lives",
+      "level": 3,
+      "description": "Passive: Last Stand.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Peasant Levy [Synergy]",
+      "name": "Peasant Levy",
+      "level": 1,
+      "description": "Peasant Levy grants Attack Damage +1, Attack Speed +2% for each allied synergy unit on the board of the Peasants faction.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Peasant Levy II [Synergy]",
+      "name": "Peasant Levy",
+      "level": 2,
+      "description": "Peasant Levy grants Attack Damage +1,5, Attack Speed +3% for each allied synergy unit on the board of the Peasants faction.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Peasant Levy III [Synergy]",
+      "name": "Peasant Levy",
+      "level": 3,
+      "description": "Peasant Levy grants Attack Damage +2, Attack Speed +4% for each allied synergy unit on the board of the Peasants faction.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Rallying Roar [Keyword]",
+      "name": "Rallying Roar",
+      "level": 1,
+      "description": "On nearby ally death: Attack Damage +5 for 6s, Shield +20.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Rallying Roar II [Keyword]",
+      "name": "Rallying Roar",
+      "level": 2,
+      "description": "On nearby ally death: Attack Damage +7 for 7s, Shield +30.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Rallying Roar III [Keyword]",
+      "name": "Rallying Roar",
+      "level": 3,
+      "description": "On nearby ally death: Attack Damage +10 for 8s, Shield +40.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Ricocheting Shot [Keyword]",
+      "name": "Ricocheting Shot",
+      "level": 1,
+      "description": "Passive: Ricochet.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Ricocheting Shot II [Keyword]",
+      "name": "Ricocheting Shot",
+      "level": 2,
+      "description": "Passive: Ricochet.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Ricocheting Shot III [Keyword]",
+      "name": "Ricocheting Shot",
+      "level": 3,
+      "description": "Passive: Ricochet.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Scrounger [Economy]",
+      "name": "Scrounger",
+      "level": 1,
+      "description": "Scrounger makes the first shop reroll each round free.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Scrounger II [Economy]",
+      "name": "Scrounger",
+      "level": 2,
+      "description": "Scrounger makes the first shop reroll each round free.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Scrounger III [Economy]",
+      "name": "Scrounger",
+      "level": 3,
+      "description": "Scrounger makes the first shop reroll each round free.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Second Wind [Keyword]",
+      "name": "Second Wind",
+      "level": 1,
+      "description": "At low HP (Shield +40, Health Regen +5 for 5s. Once per combat.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Second Wind II [Keyword]",
+      "name": "Second Wind",
+      "level": 2,
+      "description": "At low HP (Shield +60, Health Regen +8 for 5s. Once per combat.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Second Wind III [Keyword]",
+      "name": "Second Wind",
+      "level": 3,
+      "description": "At low HP (Shield +80, Health Regen +12 for 6s. Once per combat.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Sharpened Claws [Keyword]",
+      "name": "Sharpened Claws",
+      "level": 1,
+      "description": "Passive: Attack Speed +10%.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Sharpened Claws II [Keyword]",
+      "name": "Sharpened Claws",
+      "level": 2,
+      "description": "Passive: Attack Speed +15%.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Sharpened Claws III [Keyword]",
+      "name": "Sharpened Claws",
+      "level": 3,
+      "description": "Passive: Attack Speed +20%.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Siege Doctrine [Synergy]",
+      "name": "Siege Doctrine",
+      "level": 1,
+      "description": "Siege Doctrine grants Armor +3, Max Health +4 for each allied synergy unit on the board of the Nobles faction.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Siege Doctrine II [Synergy]",
+      "name": "Siege Doctrine",
+      "level": 2,
+      "description": "Siege Doctrine grants Armor +4, Max Health +6 for each allied synergy unit on the board of the Nobles faction.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Siege Doctrine III [Synergy]",
+      "name": "Siege Doctrine",
+      "level": 3,
+      "description": "Siege Doctrine grants Armor +5, Max Health +8 for each allied synergy unit on the board of the Nobles faction.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Slow Simmer [Keyword]",
+      "name": "Slow Simmer",
+      "level": 1,
+      "description": "Passive: Health Regen +2.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Slow Simmer II [Keyword]",
+      "name": "Slow Simmer",
+      "level": 2,
+      "description": "Passive: Health Regen +3.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Slow Simmer III [Keyword]",
+      "name": "Slow Simmer",
+      "level": 3,
+      "description": "Passive: Health Regen +4.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Sore Loser [Economy]",
+      "name": "Sore Loser",
+      "level": 1,
+      "description": "Sore Loser pays +2 Sardines after a lost round.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Sore Loser II [Economy]",
+      "name": "Sore Loser",
+      "level": 2,
+      "description": "Sore Loser pays +3 Sardines after a lost round.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Sore Loser III [Economy]",
+      "name": "Sore Loser",
+      "level": 3,
+      "description": "Sore Loser pays +4 Sardines after a lost round.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Stubborn Streak [Keyword]",
+      "name": "Stubborn Streak",
+      "level": 1,
+      "description": "Passive: Tenacity +40%.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Stubborn Streak II [Keyword]",
+      "name": "Stubborn Streak",
+      "level": 2,
+      "description": "Passive: Tenacity +55%.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Stubborn Streak III [Keyword]",
+      "name": "Stubborn Streak",
+      "level": 3,
+      "description": "Passive: Tenacity +70%.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Usury [Economy]",
+      "name": "Usury",
+      "level": 1,
+      "description": "Usury raises the interest cap by 2.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Usury II [Economy]",
+      "name": "Usury",
+      "level": 2,
+      "description": "Usury raises the interest cap by 3.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Usury III [Economy]",
+      "name": "Usury",
+      "level": 3,
+      "description": "Usury raises the interest cap by 4.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Vengeful Yowl [Keyword]",
+      "name": "Vengeful Yowl",
+      "level": 1,
+      "description": "On nearby ally death: Attack Speed +10% for 5s.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Vengeful Yowl II [Keyword]",
+      "name": "Vengeful Yowl",
+      "level": 2,
+      "description": "On nearby ally death: Attack Speed +15% for 6s.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Vengeful Yowl III [Keyword]",
+      "name": "Vengeful Yowl",
+      "level": 3,
+      "description": "On nearby ally death: Attack Speed +20% for 7s.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Veteran's Pension [Economy]",
+      "name": "Veteran''s Pension",
+      "level": 1,
+      "description": "Veteran''s Pension refunds 2 more Sardine(s) when you sell a unit.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Veteran's Pension II [Economy]",
+      "name": "Veteran's Pension",
+      "level": 2,
+      "description": "Veteran's Pension refunds 2 more Sardine(s) when you sell a unit.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Whirling Paws [Keyword]",
+      "name": "Whirling Paws",
+      "level": 1,
+      "description": "Passive: Cleave.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Whirling Paws II [Keyword]",
+      "name": "Whirling Paws",
+      "level": 2,
+      "description": "Passive: Cleave.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Whirling Paws III [Keyword]",
+      "name": "Whirling Paws",
+      "level": 3,
+      "description": "Passive: Cleave.",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Wide Swings [Keyword]",
+      "name": "Wide Swings",
+      "level": 1,
+      "description": "Every 2 attacks: Stun for 0,5s (target).",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Wide Swings II [Keyword]",
+      "name": "Wide Swings",
+      "level": 2,
+      "description": "Every 2 attacks: Stun for 0,8s (target).",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Wide Swings III [Keyword]",
+      "name": "Wide Swings",
+      "level": 3,
+      "description": "Every 2 attacks: Stun for 1s (target).",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Wider Wares [Economy]",
+      "name": "Wider Wares",
+      "level": 1,
+      "description": "Wider Wares adds 1 shop slot(s).",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Wider Wares II [Economy]",
+      "name": "Wider Wares",
+      "level": 2,
+      "description": "Wider Wares adds 2 shop slot(s).",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    },
+    {
+      "id": "Blessing - Wider Wares III [Economy]",
+      "name": "Wider Wares",
+      "level": 3,
+      "description": "Wider Wares adds 3 shop slot(s).",
+      "manaCost": 0,
+      "coinCost": 0,
+      "healthCost": 0,
+      "cooldown": 0
+    }
+  ]
+}

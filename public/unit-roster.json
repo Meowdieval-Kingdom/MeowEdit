@@ -1,0 +1,329 @@
+{
+  "schemaVersion": 1,
+  "rosterVersion": "game-catalog-snapshot",
+  "source": "Current playable UnitCatalog roots shown under Units in the Meowdieval Compendium; buildings excluded.",
+  "units": [
+    {
+      "id": "MagicCats/Alchemist/1",
+      "displayName": "Alchemist",
+      "faction": "Arcane Academy",
+      "moods": [
+        "Normal",
+        "Cute",
+        "Sleeping",
+        "Hurt",
+        "Confused",
+        "Mad"
+      ],
+      "portrait": "./avatars/MagicCats-Alchemist-1.png"
+    },
+    {
+      "id": "MagicCats/Catnip Ball/1",
+      "displayName": "Catnip Ball",
+      "faction": "Arcane Academy",
+      "moods": [
+        "Normal",
+        "Cute",
+        "Sleeping",
+        "Hurt",
+        "Confused",
+        "Mad"
+      ],
+      "portrait": "./avatars/MagicCats-Catnip-Ball-1.png"
+    },
+    {
+      "id": "MagicCats/Enchanted Rat/1",
+      "displayName": "Enchanted Rat",
+      "faction": "Arcane Academy",
+      "moods": [
+        "Normal",
+        "Cute",
+        "Sleeping",
+        "Hurt",
+        "Confused",
+        "Mad"
+      ],
+      "portrait": "./avatars/MagicCats-Enchanted-Rat-1.png"
+    },
+    {
+      "id": "MagicCats/Herb Witch/1",
+      "displayName": "Herb Witch",
+      "faction": "Arcane Academy",
+      "moods": [
+        "Normal",
+        "Cute",
+        "Sleeping",
+        "Hurt",
+        "Confused",
+        "Mad"
+      ],
+      "portrait": "./avatars/MagicCats-Herb-Witch-1.png"
+    },
+    {
+      "id": "MagicCats/Luna/1",
+      "displayName": "Luna",
+      "faction": "Arcane Academy",
+      "moods": [
+        "Normal",
+        "Cute",
+        "Sleeping",
+        "Hurt",
+        "Confused",
+        "Mad"
+      ],
+      "portrait": "./avatars/MagicCats-Luna-1.png"
+    },
+    {
+      "id": "MagicCats/Nekomancer/1",
+      "displayName": "Nekomancer",
+      "faction": "Arcane Academy",
+      "moods": [
+        "Normal",
+        "Cute",
+        "Sleeping",
+        "Hurt",
+        "Confused",
+        "Mad"
+      ],
+      "portrait": "./avatars/MagicCats-Nekomancer-1.png"
+    },
+    {
+      "id": "MagicCats/Plague Caster/1",
+      "displayName": "Plague Caster",
+      "faction": "Arcane Academy",
+      "moods": [
+        "Normal",
+        "Cute",
+        "Sleeping",
+        "Hurt",
+        "Confused",
+        "Mad"
+      ],
+      "portrait": "./avatars/MagicCats-Plague-Caster-1.png"
+    },
+    {
+      "id": "MagicCats/Rat/1",
+      "displayName": "Rat",
+      "faction": "Arcane Academy",
+      "moods": [
+        "Normal",
+        "Cute",
+        "Sleeping",
+        "Hurt",
+        "Confused",
+        "Mad"
+      ],
+      "portrait": "./avatars/MagicCats-Rat-1.png"
+    },
+    {
+      "id": "MagicCats/Rat Enchanter/1",
+      "displayName": "Rat Enchanter",
+      "faction": "Arcane Academy",
+      "moods": [
+        "Normal",
+        "Cute",
+        "Sleeping",
+        "Hurt",
+        "Confused",
+        "Mad"
+      ],
+      "portrait": "./avatars/MagicCats-Rat-Enchanter-1.png"
+    },
+    {
+      "id": "MagicCats/Rat King/1",
+      "displayName": "Rat King",
+      "faction": "Arcane Academy",
+      "moods": [
+        "Normal",
+        "Cute",
+        "Sleeping",
+        "Hurt",
+        "Confused",
+        "Mad"
+      ],
+      "portrait": "./avatars/MagicCats-Rat-King-1.png"
+    },
+    {
+      "id": "MagicCats/Silence Caller/1",
+      "displayName": "Silence Caller",
+      "faction": "Arcane Academy",
+      "moods": [
+        "Normal",
+        "Cute",
+        "Sleeping",
+        "Hurt",
+        "Confused",
+        "Mad"
+      ],
+      "portrait": "./avatars/MagicCats-Silence-Caller-1.png"
+    },
+    {
+      "id": "Peasants/Fighter/1",
+      "displayName": "Fighter",
+      "faction": "Common Folk",
+      "moods": [
+        "Normal",
+        "Cute",
+        "Sleeping",
+        "Hurt",
+        "Confused",
+        "Mad"
+      ],
+      "portrait": "./avatars/Peasants-Fighter-1.png"
+    },
+    {
+      "id": "Peasants/Lumberjack/1",
+      "displayName": "Lumberjack",
+      "faction": "Common Folk",
+      "moods": [
+        "Normal",
+        "Cute",
+        "Sleeping",
+        "Hurt",
+        "Confused",
+        "Mad"
+      ],
+      "portrait": "./avatars/Peasants-Lumberjack-1.png"
+    },
+    {
+      "id": "Peasants/Purrciful the Bard/1",
+      "displayName": "Purrciful the Bard",
+      "faction": "Common Folk",
+      "moods": [
+        "Normal",
+        "Cute",
+        "Sleeping",
+        "Hurt",
+        "Confused",
+        "Mad"
+      ],
+      "portrait": "./avatars/Peasants-Purrciful-the-Bard-1.png"
+    },
+    {
+      "id": "Peasants/Tipsy Toes/1",
+      "displayName": "Tipsy Toes",
+      "faction": "Common Folk",
+      "moods": [
+        "Normal",
+        "Cute",
+        "Sleeping",
+        "Hurt",
+        "Confused",
+        "Mad"
+      ],
+      "portrait": "./avatars/Peasants-Tipsy-Toes-1.png"
+    },
+    {
+      "id": "Peasants/Tomeowto Thrower/1",
+      "displayName": "Tomeowto Thrower",
+      "faction": "Common Folk",
+      "moods": [
+        "Normal",
+        "Cute",
+        "Sleeping",
+        "Hurt",
+        "Confused",
+        "Mad"
+      ],
+      "portrait": "./avatars/Peasants-Tomeowto-Thrower-1.png"
+    },
+    {
+      "id": "Peasants/Village Elder/1",
+      "displayName": "Village Elder",
+      "faction": "Common Folk",
+      "moods": [
+        "Normal",
+        "Cute",
+        "Sleeping",
+        "Hurt",
+        "Confused",
+        "Mad"
+      ],
+      "portrait": "./avatars/Peasants-Village-Elder-1.png"
+    },
+    {
+      "id": "Nobles/Crown Heir/1",
+      "displayName": "Crown Heir",
+      "faction": "Crown Guard",
+      "moods": [
+        "Normal",
+        "Cute",
+        "Sleeping",
+        "Hurt",
+        "Confused",
+        "Mad"
+      ],
+      "portrait": "./avatars/Nobles-Crown-Heir-1.png"
+    },
+    {
+      "id": "Nobles/Jester/1",
+      "displayName": "Jester",
+      "faction": "Crown Guard",
+      "moods": [
+        "Normal",
+        "Cute",
+        "Sleeping",
+        "Hurt",
+        "Confused",
+        "Mad"
+      ],
+      "portrait": "./avatars/Nobles-Jester-1.png"
+    },
+    {
+      "id": "Nobles/Knight/1",
+      "displayName": "Knight",
+      "faction": "Crown Guard",
+      "moods": [
+        "Normal",
+        "Cute",
+        "Sleeping",
+        "Hurt",
+        "Confused",
+        "Mad"
+      ],
+      "portrait": "./avatars/Nobles-Knight-1.png"
+    },
+    {
+      "id": "Nobles/Royal Archer/1",
+      "displayName": "Royal Archer",
+      "faction": "Crown Guard",
+      "moods": [
+        "Normal",
+        "Cute",
+        "Sleeping",
+        "Hurt",
+        "Confused",
+        "Mad"
+      ],
+      "portrait": "./avatars/Nobles-Royal-Archer-1.png"
+    },
+    {
+      "id": "Nobles/Royal Cavalry/1",
+      "displayName": "Royal Cavalry",
+      "faction": "Crown Guard",
+      "moods": [
+        "Normal",
+        "Cute",
+        "Sleeping",
+        "Hurt",
+        "Confused",
+        "Mad"
+      ],
+      "portrait": "./avatars/Nobles-Royal-Cavalry-1.png"
+    },
+    {
+      "id": "Nobles/Sir Aldric/1",
+      "displayName": "Sir Aldric",
+      "faction": "Crown Guard",
+      "moods": [
+        "Normal",
+        "Cute",
+        "Sleeping",
+        "Hurt",
+        "Confused",
+        "Mad"
+      ],
+      "portrait": "./avatars/Nobles-Sir-Aldric-1.png"
+    }
+  ]
+}

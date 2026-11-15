@@ -1,0 +1,647 @@
+{
+  "format": "meowedit-game-examples",
+  "schemaVersion": 1,
+  "sourceProject": "MeowdievalKingdom",
+  "sourceFiles": {
+    "dialogues": "Assets/Meowdieval/Resources/DialogueSequences",
+    "quests": "Assets/Meowdieval/Resources/AdventureQuests/Definitions.json"
+  },
+  "dialogues": [
+    {
+      "schemaVersion": 1,
+      "sequenceId": "adventure-mode-welcome",
+      "startNodeId": "welcome",
+      "pauseMode": "continue",
+      "defaultCharactersPerSecond": 36,
+      "nodes": [
+        {
+          "id": "welcome",
+          "headline": "Village Elder",
+          "speakers": [
+            {
+              "id": "elder",
+              "unitId": "Peasants/Village Elder/1",
+              "displayName": "Village Elder",
+              "side": "left",
+              "mood": "Normal"
+            }
+          ],
+          "segments": [
+            {
+              "speakerIds": [
+                "elder"
+              ],
+              "text": "Adventure mode lays out a path of battles and rewards. Move your hero to a nearby field, claim what you find, and choose when you're ready to fight!"
+            }
+          ],
+          "actions": [
+            {
+              "label": "Continue"
+            }
+          ]
+        }
+      ],
+      "exampleTitle": "Tutorial Adventure Mode"
+    },
+    {
+      "schemaVersion": 1,
+      "sequenceId": "battle-shop-basics",
+      "startNodeId": "shop",
+      "pauseMode": "continue",
+      "defaultCharactersPerSecond": 38,
+      "nodes": [
+        {
+          "id": "shop",
+          "headline": "Village Elder",
+          "speakers": [
+            {
+              "id": "elder",
+              "unitId": "Peasants/Village Elder/1",
+              "displayName": "Village Elder",
+              "side": "left",
+              "mood": "Normal"
+            }
+          ],
+          "segments": [
+            {
+              "speakerIds": [
+                "elder"
+              ],
+              "text": "You can buy units in the shop and drag them onto the grid to build your team. Arrange them before you begin the fight."
+            }
+          ]
+        },
+        {
+          "id": "battle",
+          "headline": "Village Elder",
+          "speakers": [
+            {
+              "id": "elder",
+              "unitId": "Peasants/Village Elder/1",
+              "displayName": "Village Elder",
+              "side": "left",
+              "mood": "Normal"
+            }
+          ],
+          "segments": [
+            {
+              "speakerIds": [
+                "elder"
+              ],
+              "text": "When you start a battle, your units fight automatically. Watch how your formation fares, then make changes in the next shop."
+            }
+          ],
+          "actions": [
+            {
+              "label": "Let's go"
+            }
+          ]
+        }
+      ],
+      "exampleTitle": "Tutorial Battle Shop"
+    },
+    {
+      "schemaVersion": 1,
+      "sequenceId": "compendium-welcome",
+      "startNodeId": "welcome",
+      "pauseMode": "continue",
+      "defaultCharactersPerSecond": 36,
+      "nodes": [
+        {
+          "id": "welcome",
+          "headline": "Village Elder",
+          "textSpeed": "default",
+          "speakers": [
+            {
+              "id": "elder",
+              "unitId": "Peasants/Village Elder/1",
+              "displayName": "Village Elder",
+              "side": "left",
+              "mood": "Normal"
+            }
+          ],
+          "segments": [
+            {
+              "speakerIds": [
+                "elder"
+              ],
+              "text": "This is the compendium. I collected all the info about our world: Factions, Units, Spells... and I'll let you read it here. Pretty generous, huh?"
+            }
+          ],
+          "actions": [
+            {
+              "label": "Continue"
+            }
+          ]
+        }
+      ],
+      "exampleTitle": "Tutorial Compendium"
+    },
+    {
+      "schemaVersion": 1,
+      "sequenceId": "endless-mode-welcome",
+      "startNodeId": "welcome",
+      "pauseMode": "continue",
+      "defaultCharactersPerSecond": 36,
+      "nodes": [
+        {
+          "id": "welcome",
+          "headline": "Village Elder",
+          "speakers": [
+            {
+              "id": "elder",
+              "unitId": "Peasants/Village Elder/1",
+              "displayName": "Village Elder",
+              "side": "left",
+              "mood": "Normal"
+            }
+          ],
+          "segments": [
+            {
+              "speakerIds": [
+                "elder"
+              ],
+              "text": "Endless mode is a test of how far your warband can go. Build your team, take on each round, and see how long you can last!"
+            }
+          ],
+          "actions": [
+            {
+              "label": "Continue"
+            }
+          ]
+        }
+      ],
+      "exampleTitle": "Tutorial Endless Mode"
+    },
+    {
+      "schemaVersion": 1,
+      "sequenceId": "first-battle-hero",
+      "startNodeId": "hero",
+      "pauseMode": "pause",
+      "defaultCharactersPerSecond": 38,
+      "nodes": [
+        {
+          "id": "hero",
+          "headline": "Village Elder",
+          "speakers": [
+            {
+              "id": "elder",
+              "unitId": "Peasants/Village Elder/1",
+              "displayName": "Village Elder",
+              "side": "left",
+              "mood": "Normal"
+            }
+          ],
+          "segments": [
+            {
+              "speakerIds": [
+                "elder"
+              ],
+              "text": "That special unit is your Hero. You can't sell them, and they'll level up automatically as you progress."
+            }
+          ]
+        }
+      ],
+      "exampleTitle": "Tutorial First Battle"
+    },
+    {
+      "schemaVersion": 1,
+      "sequenceId": "first-blessing",
+      "startNodeId": "welcome",
+      "pauseMode": "continue",
+      "defaultCharactersPerSecond": 38,
+      "nodes": [
+        {
+          "id": "welcome",
+          "headline": "Village Elder",
+          "speakers": [
+            {
+              "id": "elder",
+              "unitId": "Peasants/Village Elder/1",
+              "displayName": "Village Elder",
+              "side": "left",
+              "mood": "Normal"
+            }
+          ],
+          "segments": [
+            {
+              "speakerIds": [
+                "elder"
+              ],
+              "text": "These are Blessings. Their magic stays with your warband across all battles in this run, so choose one that suits your plans."
+            }
+          ],
+          "actions": [
+            {
+              "label": "Continue"
+            }
+          ]
+        }
+      ],
+      "exampleTitle": "Tutorial First Blessing"
+    },
+    {
+      "schemaVersion": 1,
+      "sequenceId": "first-building",
+      "startNodeId": "welcome",
+      "pauseMode": "continue",
+      "defaultCharactersPerSecond": 38,
+      "nodes": [
+        {
+          "id": "welcome",
+          "headline": "Village Elder",
+          "speakers": [
+            {
+              "id": "elder",
+              "unitId": "Peasants/Village Elder/1",
+              "displayName": "Village Elder",
+              "side": "left",
+              "mood": "Normal"
+            }
+          ],
+          "segments": [
+            {
+              "speakerIds": [
+                "elder"
+              ],
+              "text": "That's a building offer. Buildings stay on your board to support your team—buy one and place it on the grid like your units."
+            }
+          ],
+          "actions": [
+            {
+              "label": "Continue"
+            }
+          ]
+        }
+      ],
+      "exampleTitle": "Tutorial First Building"
+    },
+    {
+      "schemaVersion": 1,
+      "sequenceId": "first-spell",
+      "startNodeId": "welcome",
+      "pauseMode": "continue",
+      "defaultCharactersPerSecond": 38,
+      "nodes": [
+        {
+          "id": "welcome",
+          "headline": "Village Elder",
+          "speakers": [
+            {
+              "id": "elder",
+              "unitId": "Peasants/Village Elder/1",
+              "displayName": "Village Elder",
+              "side": "left",
+              "mood": "Normal"
+            }
+          ],
+          "segments": [
+            {
+              "speakerIds": [
+                "elder"
+              ],
+              "text": "A spell has appeared! Spells are one-use magical effects you can buy and cast to turn a battle in your favor."
+            }
+          ],
+          "actions": [
+            {
+              "label": "Continue"
+            }
+          ]
+        }
+      ],
+      "exampleTitle": "Tutorial First Spell"
+    },
+    {
+      "schemaVersion": 1,
+      "sequenceId": "main-menu-welcome",
+      "startNodeId": "welcome",
+      "pauseMode": "continue",
+      "defaultCharactersPerSecond": 34,
+      "nodes": [
+        {
+          "id": "welcome",
+          "headline": "Village Elder",
+          "textSpeed": "default",
+          "speakers": [
+            {
+              "id": "elder",
+              "unitId": "Peasants/Village Elder/1",
+              "displayName": "Village Elder",
+              "side": "left",
+              "mood": "Normal"
+            }
+          ],
+          "segments": [
+            {
+              "speakerIds": [
+                "elder"
+              ],
+              "text": "Welcome to our village! Have you been here before?"
+            }
+          ],
+          "actions": [
+            {
+              "label": "Yes (Tutorials Off)",
+              "targetNodeId": "tutorials-off"
+            },
+            {
+              "label": "No (Tutorials On)",
+              "targetNodeId": "tutorials-on"
+            }
+          ]
+        },
+        {
+          "id": "tutorials-off",
+          "headline": "Village Elder",
+          "textSpeed": "default",
+          "speakers": [
+            {
+              "id": "elder",
+              "unitId": "Peasants/Village Elder/1",
+              "displayName": "Village Elder",
+              "side": "left",
+              "mood": "Normal"
+            }
+          ],
+          "segments": [
+            {
+              "speakerIds": [
+                "elder"
+              ],
+              "text": "Welcome back! Tutorials will stay off. You can turn them on again in Settings."
+            }
+          ],
+          "actions": [
+            {
+              "label": "Continue"
+            }
+          ]
+        },
+        {
+          "id": "tutorials-on",
+          "headline": "Village Elder",
+          "textSpeed": "default",
+          "speakers": [
+            {
+              "id": "elder",
+              "unitId": "Peasants/Village Elder/1",
+              "displayName": "Village Elder",
+              "side": "left",
+              "mood": "Normal"
+            }
+          ],
+          "segments": [
+            {
+              "speakerIds": [
+                "elder"
+              ],
+              "text": "Then let me show you around! Tutorials will appear the first time you visit each mode."
+            }
+          ],
+          "actions": [
+            {
+              "label": "Continue"
+            }
+          ]
+        }
+      ],
+      "exampleTitle": "Tutorial Main Menu"
+    },
+    {
+      "schemaVersion": 1,
+      "sequenceId": "ranked-mode-welcome",
+      "startNodeId": "welcome",
+      "pauseMode": "continue",
+      "defaultCharactersPerSecond": 36,
+      "nodes": [
+        {
+          "id": "welcome",
+          "headline": "Village Elder",
+          "speakers": [
+            {
+              "id": "elder",
+              "unitId": "Peasants/Village Elder/1",
+              "displayName": "Village Elder",
+              "side": "left",
+              "mood": "Normal"
+            }
+          ],
+          "segments": [
+            {
+              "speakerIds": [
+                "elder"
+              ],
+              "text": "Ranked is where you test your skill against the competitive field. Build a warband, play your run, and see how your rating stands!"
+            }
+          ],
+          "actions": [
+            {
+              "label": "Continue"
+            }
+          ]
+        }
+      ],
+      "exampleTitle": "Tutorial Ranked Mode"
+    },
+    {
+      "schemaVersion": 1,
+      "sequenceId": "village-council-example",
+      "startNodeId": "greeting",
+      "pauseMode": "pause",
+      "defaultCharactersPerSecond": 34,
+      "nodes": [
+        {
+          "id": "greeting",
+          "textSpeed": "default",
+          "speakers": [
+            {
+              "id": "elder",
+              "unitId": "Peasants/Village Elder/1",
+              "displayName": "Village Elder",
+              "side": "left",
+              "mood": "Normal"
+            },
+            {
+              "id": "knight",
+              "unitId": "Nobles/Knight/1",
+              "displayName": "Knight",
+              "side": "right",
+              "mood": "Normal"
+            }
+          ],
+          "segments": [
+            {
+              "speakerIds": [
+                "elder"
+              ],
+              "text": "The old bridge is out. We need a plan.\n"
+            },
+            {
+              "speakerIds": [
+                "elder",
+                "knight"
+              ],
+              "text": "We should decide together."
+            }
+          ],
+          "actions": [
+            {
+              "label": "Ask the elder",
+              "targetNodeId": "elder-answer"
+            },
+            {
+              "label": "Ask the knight",
+              "targetNodeId": "knight-answer"
+            }
+          ]
+        },
+        {
+          "id": "elder-answer",
+          "headline": "Village Elder",
+          "textSpeed": "slow",
+          "speakers": [
+            {
+              "id": "elder",
+              "unitId": "Peasants/Village Elder/1",
+              "displayName": "Village Elder",
+              "side": "left",
+              "mood": "Confused"
+            }
+          ],
+          "segments": [
+            {
+              "speakerIds": [
+                "elder"
+              ],
+              "text": "We can rebuild the crossing if we gather timber before nightfall."
+            }
+          ],
+          "actions": [
+            {
+              "label": "Continue"
+            }
+          ]
+        },
+        {
+          "id": "knight-answer",
+          "headline": "Knight",
+          "textSpeed": "fast",
+          "speakers": [
+            {
+              "id": "knight",
+              "unitId": "Nobles/Knight/1",
+              "displayName": "Knight",
+              "side": "right",
+              "mood": "Normal"
+            }
+          ],
+          "segments": [
+            {
+              "speakerIds": [
+                "knight"
+              ],
+              "text": "I'll scout upstream and find a safer ford."
+            }
+          ],
+          "actions": [
+            {
+              "label": "Continue"
+            }
+          ]
+        }
+      ],
+      "exampleTitle": "Village Council Example"
+    }
+  ],
+  "quests": [
+    {
+      "id": "escort-courier",
+      "title": "A Safe Passage",
+      "description": "Escort the courier to the marked battle field and keep them alive.",
+      "sourceKind": "QuestGiver",
+      "sourceSlot": -1,
+      "firstFloor": 1,
+      "repeatEveryFloors": 1,
+      "priority": 0,
+      "objectiveKind": "Escort",
+      "targetNodeKind": "Battle",
+      "targetFloorOffset": 0,
+      "escortUnitId": "Peasants/Fighter/1",
+      "speakerUnitId": "Peasants/Fighter/1",
+      "speakerName": "Courier",
+      "offerText": "Could you escort me to the marked field? I can fight, but I am no match for the dangers ahead alone.",
+      "activeText": "I am ready when you are. Please keep me safe until we reach the marked field.",
+      "acceptLabel": "Accept",
+      "declineLabel": "Decline",
+      "rewardKind": "Sardines",
+      "rewardAmount": 12
+    },
+    {
+      "id": "battle-bounty",
+      "title": "Clear the Ambush",
+      "description": "Win the battle at the marked field.",
+      "sourceKind": "QuestGiver",
+      "sourceSlot": -1,
+      "firstFloor": 1,
+      "repeatEveryFloors": 1,
+      "priority": 0,
+      "objectiveKind": "Battle",
+      "targetNodeKind": "Battle",
+      "targetFloorOffset": 0,
+      "speakerUnitId": "Peasants/Village Elder/1",
+      "speakerName": "Village Elder",
+      "offerText": "There is a dangerous ambush on this floor. Defeat its leader at the marked field and I will reward you.",
+      "activeText": "The ambush is still waiting at the marked field. Win that battle and the bounty is yours.",
+      "acceptLabel": "Accept",
+      "declineLabel": "Decline",
+      "rewardKind": "Sardines",
+      "rewardAmount": 16
+    },
+    {
+      "id": "fetch-sealed-letter",
+      "title": "The Sealed Letter",
+      "description": "Collect the letter at the marked field and deliver it back here.",
+      "sourceKind": "QuestGiver",
+      "sourceSlot": -1,
+      "firstFloor": 1,
+      "repeatEveryFloors": 1,
+      "priority": 0,
+      "objectiveKind": "Fetch",
+      "targetNodeKind": "Reward",
+      "targetFloorOffset": 0,
+      "itemId": "sealed-letter",
+      "speakerUnitId": "Peasants/Village Elder/1",
+      "speakerName": "Village Elder",
+      "offerText": "Could you retrieve a sealed letter from the marked field and bring it back to me?",
+      "activeText": "The letter is marked on your map. Bring it back here once you have found it.",
+      "acceptLabel": "Accept",
+      "declineLabel": "Decline",
+      "rewardKind": "Sardines",
+      "rewardAmount": 10
+    },
+    {
+      "id": "floor-blessing-letter",
+      "title": "A Blessing for the Floor",
+      "description": "Defeat this floor's boss to earn a special Blessing.",
+      "sourceKind": "Letter",
+      "sourceSlot": -1,
+      "firstFloor": 1,
+      "repeatEveryFloors": 1,
+      "priority": 0,
+      "objectiveKind": "ClearFloor",
+      "targetNodeKind": "Boss",
+      "targetFloorOffset": 0,
+      "itemId": "blessing-letter",
+      "speakerUnitId": "",
+      "speakerName": "",
+      "offerText": "You found a letter promising a special Blessing if we defeat this floor's boss. Let's claim it.",
+      "activeText": "The letter promises a special Blessing. Defeat this floor's boss to claim it.",
+      "acceptLabel": "Accept",
+      "declineLabel": "Decline",
+      "rewardKind": "Blessing",
+      "rewardAmount": 1,
+      "rewardContentId": "choice"
+    }
+  ]
+}

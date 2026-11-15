@@ -1,0 +1,31 @@
+{
+  "name": "meowedit",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "A lightweight browser editor for Meowdieval dialogues, quests, and army configurations.",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "npm run verify-demo-assets && tsc --noEmit && vite build",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "preview": "vite preview --host 127.0.0.1",
+    "watermark-demo-assets": "node tools/watermark-demo-assets.mjs",
+    "verify-demo-assets": "node tools/verify-demo-assets.mjs",
+    "confirm-real-assets": "node tools/confirm-real-assets.mjs",
+    "snapshot-game-examples": "node tools/snapshot-game-examples.mjs",
+    "snapshot-unit-roster": "node tools/snapshot-unit-roster.mjs",
+    "snapshot-army-catalog": "node tools/snapshot-army-catalog.mjs"
+  },
+  "devDependencies": {
+    "@types/drawflow": "^0.0.12",
+    "@vitest/coverage-v8": "^5.1.0",
+    "jsdom": "^29.1.1",
+    "typescript": "^5.9.3",
+    "vite": "^8.0.0",
+    "vitest": "^5.1.0"
+  },
+  "dependencies": {
+    "drawflow": "^0.0.60"
+  }
+}

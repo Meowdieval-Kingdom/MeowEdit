@@ -1,0 +1,6 @@
+Zero Cool
+Copyright © 2023 GGBotNet.
+
+License: SIL Open Font License, Version 1.1. The complete license text is in OFL-1.1.txt in this directory. The font creator's release identifies Zero Cool as OFL 1.1.
+
+Source: https://ggbot.itch.io/zero-cool-font
