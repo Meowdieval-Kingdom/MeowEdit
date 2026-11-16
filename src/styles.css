@@ -1015,9 +1015,16 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 .army-cell-target:not(:disabled) { cursor: pointer; }
 .army-cell-target.is-boon { color: #3d6944; background: #dfeadb; border-color: #94ad8f; }
 .army-cell-target.is-bane { color: #925853; background: #f0ddda; border-color: #c7a19b; }
+.army-cell-target.is-lane-selected { background: #cfe0c5; border-color: #638356; }
 .army-cell-target.is-current-target { outline: 2px solid #4c7448; outline-offset: -3px; }
 .army-cell-target > span { font-size: 15px; }
-.army-cell-target-unit { z-index: 1; display: flex; min-width: 0; min-height: 0; flex-direction: column; align-items: center; justify-content: center; gap: 2px; overflow: hidden; pointer-events: none; }
+.army-cell-target[aria-hidden="true"] { pointer-events: none; }
+.army-lane-target { z-index: 2; position: relative; min-width: 0; min-height: 0; padding: 0; background: transparent; border: 1px solid transparent; border-radius: 4px; cursor: pointer; }
+.army-lane-target::before { position: absolute; top: 3px; left: 3px; padding: 2px 5px; color: #505b49; background: rgba(255,254,250,.82); border: 1px solid rgba(180,188,170,.7); border-radius: 4px; content: attr(data-lane-label); font-size: 9px; font-weight: 650; pointer-events: none; }
+.army-lane-target:hover { background: rgba(106,137,91,.09); border-color: #98ae8d; }
+.army-lane-target.is-selected { background: rgba(106,137,91,.12); border: 2px solid #648455; }
+.army-cell-target-unit { z-index: 3; display: flex; min-width: 0; min-height: 0; flex-direction: column; align-items: center; justify-content: center; gap: 2px; overflow: hidden; pointer-events: none; }
+.army-cell-target-unit.is-in-selected-lane { background: rgba(119,158,103,.25); border: 1px solid #68885d; border-radius: 4px; }
 .army-cell-target-unit img { width: min(35px, 65%); height: 48%; min-height: 16px; object-fit: contain; }
 .army-cell-target-unit small { max-width: 100%; overflow: hidden; padding: 1px 3px; color: #384235; background: rgba(255,254,250,.84); border-radius: 3px; font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
 .army-unit-row > button:first-child { cursor: pointer; }

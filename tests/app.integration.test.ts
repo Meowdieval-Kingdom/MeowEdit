@@ -340,7 +340,9 @@ describe("browser application flow", () => {
 
     await import("../src/main");
     document.querySelector<HTMLButtonElement>('[data-action="new-army"]')!.click();
-    for (let step = 0; step < 4; step++) document.querySelector<HTMLButtonElement>('[data-action="editor-next"]')!.click();
+    document.querySelector<HTMLButtonElement>('[data-action="editor-next"]')!.click();
+    document.querySelector<HTMLButtonElement>('[data-action="add-selected-army-unit"]')!.click();
+    for (let step = 0; step < 3; step++) document.querySelector<HTMLButtonElement>('[data-action="editor-next"]')!.click();
     let blessingPicker = document.querySelector<HTMLSelectElement>("#army-blessing-picker")!;
     document.querySelector<HTMLButtonElement>('[data-action="army-ability-filter"][data-kind="blessings"][data-filter="field"]')!.click();
     expect(Array.from(document.querySelectorAll<HTMLOptionElement>("#army-blessing-picker option")).map(option => option.value)).toEqual(["", "picked-column", "random-cells"]);
@@ -352,9 +354,12 @@ describe("browser application flow", () => {
     document.querySelector<HTMLButtonElement>('[data-action="add-configure-battlefield-effect"]')!.click();
     expect(document.querySelector('[role="dialog"][aria-label="Configure battlefield fields"]')?.textContent).toContain("Blessing field");
     expect(JSON.parse(localStorage.getItem("meowedit.workspace.v1")!).armies[0].blessingIds).toEqual(["picked-column"]);
-    document.querySelector<HTMLButtonElement>('[data-action="pick-cell-blessing-lane"][data-y="2"]')!.click();
+    expect(document.querySelector('[data-action="pick-cell-blessing-lane"][data-y="0"]')?.getAttribute("aria-label")).toContain("affects Fighter");
+    document.querySelector<HTMLButtonElement>('[data-action="pick-cell-blessing-lane"][data-y="0"]')!.click();
     let saved = JSON.parse(localStorage.getItem("meowedit.workspace.v1")!);
-    expect(saved.armies[0].cellBlessingPicks[0]).toMatchObject({ rootId: "lane-root", lane: 2, locked: true });
+    expect(saved.armies[0].cellBlessingPicks[0]).toMatchObject({ rootId: "lane-root", lane: 0, cells: [], locked: true });
+    expect(saved.armies[0].units).toHaveLength(1);
+    expect(document.querySelector('[role="dialog"][aria-label="Configure battlefield fields"]')?.textContent).toContain("Lane 1 selected · affects 1 lineup entry.");
     document.querySelector<HTMLButtonElement>('[data-action="close-cell-blessing-focus"]')!.click();
 
     document.querySelector<HTMLButtonElement>('[data-action="editor-next"]')!.click();

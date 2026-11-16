@@ -1080,20 +1080,40 @@ function renderArmyCellTargetFocus(record: ArmyRecord, catalog: ArmyCatalog, ros
     const x = index % size.width, y = Math.floor(index / size.width), key = x + "," + y;
     const hasBoon = contains(boonRule, x, y, false), hasBane = contains(baneRule, x, y, true);
     const isSelected = selected.has(key);
+    const laneSelected = rule === "PickedColumn" && pick.lane === y;
+    const cellClass = 'army-cell-target' + (hasBoon ? ' is-boon' : '') + (hasBane ? ' is-bane' : '') +
+      (isSelected ? ' is-current-target' : '') + (laneSelected ? ' is-lane-selected' : '');
+    const content = hasBoon ? '<span>✦</span>' : hasBane ? '<span>⌁</span>' : '<small>' + (x + 1) + ',' + (y + 1) + '</small>';
+    if (rule === "PickedColumn") {
+      return '<div class="' + cellClass + '" aria-hidden="true" style="grid-column:' + (x + 1) + ';grid-row:' + (y + 1) + '">' + content + '</div>';
+    }
     const disabled = !isEditable || region === "bane" && rule === "RandomCells" && boonCells.has(key) && !isSelected ||
       rule === "RandomCells" && !isSelected && targetCells.length >= count;
-    return '<button type="button" class="army-cell-target' + (hasBoon ? ' is-boon' : '') + (hasBane ? ' is-bane' : '') +
-      (isSelected ? ' is-current-target' : '') + '" data-action="' + (rule === "PickedColumn" ? "pick-cell-blessing-lane" : "toggle-cell-blessing-cell") +
-      '" data-x="' + x + '" data-y="' + y + '"' + (disabled ? ' disabled' : '') +
-      ' aria-pressed="' + (isSelected || rule === "PickedColumn" && pick.lane === y) + '" aria-label="Field ' + (x + 1) + ', ' + (y + 1) +
-      (hasBoon ? ", blessed" : "") + (hasBane ? ", cursed" : "") + '">' + (hasBoon ? '<span>✦</span>' : hasBane ? '<span>⌁</span>' : '<small>' + (x + 1) + ',' + (y + 1) + '</small>') + '</button>';
+    return '<button type="button" class="' + cellClass + '" data-action="toggle-cell-blessing-cell"' +
+      ' data-x="' + x + '" data-y="' + y + '"' + (disabled ? ' disabled' : '') +
+      ' aria-pressed="' + isSelected + '" aria-label="Field ' + (x + 1) + ', ' + (y + 1) +
+      (hasBoon ? ", blessed" : "") + (hasBane ? ", cursed" : "") + '">' + content + '</button>';
   }).join("");
+  const laneButtons = rule === "PickedColumn" ? Array.from({ length: size.height }, (_, lane) => {
+    const affectedUnits = record.units.filter(unit => {
+      const footprint = armyFootprint(catalog, unit.unitId);
+      return lane >= unit.y && lane < unit.y + footprint.height;
+    });
+    const unitNames = affectedUnits.map(unit => resolveArmyLevel(catalog, unit.unitId)?.entity.name ?? unit.unitId);
+    const details = unitNames.length ? "; affects " + unitNames.join(", ") : "; no units in this lane yet";
+    return '<button type="button" class="army-lane-target' + (pick.lane === lane ? ' is-selected' : '') + '" data-action="pick-cell-blessing-lane" data-y="' + lane + '" data-lane-label="Lane ' + (lane + 1) + '" style="grid-column:1 / -1;grid-row:' + (lane + 1) + '" aria-pressed="' + (pick.lane === lane) + '" aria-label="Choose lane ' + (lane + 1) + escapeHtml(details) + '" title="Choose lane ' + (lane + 1) + escapeHtml(details) + '"></button>';
+  }).join("") : "";
+  const selectedLaneUnits = rule === "PickedColumn" && pick.lane >= 0 ? record.units.filter(unit => {
+    const footprint = armyFootprint(catalog, unit.unitId);
+    return pick.lane >= unit.y && pick.lane < unit.y + footprint.height;
+  }) : [];
   const units = record.units.map(unit => {
     const resolved = resolveArmyLevel(catalog, unit.unitId);
     const footprint = armyFootprint(catalog, unit.unitId);
     const portrait = armyLevelPreviewPath(unit.unitId, resolved?.level, resolved?.kind ?? "units", roster);
     const name = resolved?.entity.name ?? unit.unitId;
-    return '<div class="army-cell-target-unit" style="grid-column:' + (unit.x + 1) + ' / span ' + footprint.width + ';grid-row:' + (unit.y + 1) + ' / span ' + footprint.height + '" title="' + escapeHtml(name) + '">' +
+    const inSelectedLane = boonRule === "PickedColumn" && selectedLaneUnits.some(candidate => candidate.id === unit.id);
+    return '<div class="army-cell-target-unit' + (inSelectedLane ? ' is-in-selected-lane' : '') + '" style="grid-column:' + (unit.x + 1) + ' / span ' + footprint.width + ';grid-row:' + (unit.y + 1) + ' / span ' + footprint.height + '" title="' + escapeHtml(name + (inSelectedLane ? " · in selected lane" : "")) + '">' +
       (portrait ? '<img src="' + escapeHtml(portrait) + '" alt="">' : '<b>' + escapeHtml(name.slice(0, 1)) + '</b>') + '<small>' + escapeHtml(name) + '</small></div>';
   }).join("");
   const title = region === "boon" ? "Blessing field" : "Bane field";
@@ -1109,8 +1129,9 @@ function renderArmyCellTargetFocus(record: ArmyRecord, catalog: ArmyCatalog, ros
     (hasBane ? '<div class="army-cell-region-tabs">' + actionButton("cell-blessing-region", "Blessing · " + escapeHtml(cellRuleLabel(mechanics.rule)), "button button-small" + (region === "boon" ? " is-active" : ""), ' data-region="boon"') +
       actionButton("cell-blessing-region", "Bane · " + escapeHtml(cellRuleLabel(mechanics.baneRule)), "button button-small" + (region === "bane" ? " is-active" : ""), ' data-region="bane"') + '</div>' : '<div class="army-cell-region-tabs"><strong>' + escapeHtml(title) + ' · ' + escapeHtml(cellRuleLabel(mechanics.rule)) + '</strong></div>') +
     '<p class="army-cell-instruction">' + escapeHtml(required) + ' <span>Enemy side →</span></p>' +
-    '<div class="army-cell-target-grid" role="group" aria-label="Battlefield fields" style="--army-grid-columns:' + size.width + ';--army-grid-rows:' + size.height + '">' + cells + units + '</div>' +
-    (isEditable ? '<p class="section-note">' + targetCells.length + ' of ' + count + ' selected</p>' : '') +
+    '<div class="army-cell-target-grid" role="group" aria-label="Battlefield fields" style="--army-grid-columns:' + size.width + ';--army-grid-rows:' + size.height + '">' + cells + laneButtons + units + '</div>' +
+    (rule === "PickedColumn" ? '<p class="section-note">' + (pick.lane >= 0 ? 'Lane ' + (pick.lane + 1) + ' selected · affects ' + selectedLaneUnits.length + (selectedLaneUnits.length === 1 ? ' lineup entry.' : ' lineup entries.') : 'Choose one lane. Each lane runs from the rear edge toward the enemy.') + '</p>' :
+      isEditable ? '<p class="section-note">' + targetCells.length + ' of ' + count + ' selected</p>' : '') +
     '</section></div>';
 }
 
