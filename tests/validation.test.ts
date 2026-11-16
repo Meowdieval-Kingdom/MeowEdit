@@ -9,6 +9,38 @@ describe("content validation", () => {
     expect(validateArmy(army, catalog).filter(issue => issue.level === "error")).toEqual([]);
   });
 
+  it("accepts Army curses and validates their configured battlefield targets", () => {
+    const army = armyFixture();
+    army.blessingIds = ["cell-curse"];
+    army.cellBlessingPicks = [{ rootId: "cracked-root", lane: -1, cells: [], locked: false, baneCells: [] }];
+    expect(validateArmy(army, catalog).filter(issue => issue.level === "error")).toEqual([]);
+
+    army.cellBlessingPicks![0].rootId = "unknown-root";
+    expect(validateArmy(army, catalog).some(issue => issue.message.includes("assigned Cell Blessing or Curse"))).toBe(true);
+  });
+
+  it("requires a valid selected lane for a PickedColumn effect", () => {
+    const army = armyFixture();
+    army.blessingIds = ["picked-column"];
+    army.cellBlessingPicks = [{ rootId: "lane-root", lane: 3, cells: [], locked: false, baneCells: [] }];
+    expect(validateArmy(army, catalog).some(issue => issue.message.includes("valid lane"))).toBe(true);
+    army.cellBlessingPicks[0].lane = 2;
+    expect(validateArmy(army, catalog).some(issue => issue.message.includes("valid lane"))).toBe(false);
+  });
+
+  it("checks the configured count and separation of random blessing and bane fields", () => {
+    const army = armyFixture();
+    army.blessingIds = ["random-cells"];
+    army.cellBlessingPicks = [{ rootId: "random-root", lane: -1,
+      cells: [{ x: 0, y: 0 }, { x: 2, y: 2 }], locked: true, baneCells: [{ x: 1, y: 1 }] }];
+    expect(validateArmy(army, catalog).filter(issue => issue.level === "error")).toEqual([]);
+    army.cellBlessingPicks[0].baneCells = [];
+    expect(validateArmy(army, catalog).some(issue => issue.message.includes("configured number of bane cells"))).toBe(true);
+    army.cellBlessingPicks[0].cells = [{ x: 0, y: 0 }, { x: 2, y: 2 }];
+    army.cellBlessingPicks[0].baneCells = [{ x: 0, y: 0 }];
+    expect(validateArmy(army, catalog).some(issue => issue.message.includes("overlap"))).toBe(true);
+  });
+
   it("accepts building placements and validates their full footprint", () => {
     const army = armyFixture();
     army.units[0].x = 2;

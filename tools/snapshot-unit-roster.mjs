@@ -7,6 +7,7 @@ const projectDirectory = path.resolve(scriptDirectory, "..");
 const defaultGameRoot = path.resolve(projectDirectory, "..", "MeowdievalKingdom");
 const gameRootIndex = process.argv.indexOf("--game-root");
 const gameRoot = path.resolve(gameRootIndex >= 0 ? process.argv[gameRootIndex + 1] ?? "" : defaultGameRoot);
+const outputIndex = process.argv.indexOf("--output");
 const scriptableObjects = path.join(gameRoot, "Assets", "Meowdieval", "ScriptableObjects");
 const factionDirectory = path.join(scriptableObjects, "Factions");
 const unitDirectory = path.join(scriptableObjects, "UnitStats", "Resources");
@@ -89,6 +90,6 @@ const manifest = {
   source: "Current playable UnitCatalog roots shown under Units in the Meowdieval Compendium; buildings excluded.",
   units
 };
-const outputPath = path.join(projectDirectory, "public", "unit-roster.json");
+const outputPath = path.resolve(outputIndex >= 0 ? process.argv[outputIndex + 1] ?? "" : path.join(projectDirectory, "public", "unit-roster.json"));
 writeFileSync(outputPath, JSON.stringify(manifest, null, 2) + "\n", "utf8");
-console.log("Wrote " + units.length + " playable Compendium character units to public/unit-roster.json (buildings excluded).");
+console.log("Wrote " + units.length + " playable Compendium character units to " + outputPath + " (buildings excluded).");

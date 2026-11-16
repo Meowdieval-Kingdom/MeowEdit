@@ -17,7 +17,14 @@ export function normalizeArmy(value: unknown, idFactory: IdFactory = createKey):
       spellIds: Array.isArray(unit.spellIds) ? unit.spellIds.map(String) : []
     })),
     spellIds: Array.isArray(source.spellIds) ? source.spellIds.map(String) : [],
-    blessingIds: Array.isArray(source.blessingIds) ? source.blessingIds.map(String) : []
+    blessingIds: Array.isArray(source.blessingIds) ? source.blessingIds.map(String) : [],
+    cellBlessingPicks: Array.isArray(source.cellBlessingPicks ?? source.CellBlessingPicks) ? (source.cellBlessingPicks ?? source.CellBlessingPicks).map((pick: Record<string, any>) => ({
+      rootId: String(pick.rootId ?? pick.RootId ?? ""),
+      lane: Number(pick.lane ?? pick.Lane ?? -1),
+      cells: Array.isArray(pick.cells ?? pick.Cells) ? (pick.cells ?? pick.Cells).map((cell: Record<string, any>) => ({ x: Number(cell.x ?? cell.X ?? 0), y: Number(cell.y ?? cell.Y ?? 0) })) : [],
+      locked: Boolean(pick.locked ?? pick.Locked),
+      baneCells: Array.isArray(pick.baneCells ?? pick.BaneCells) ? (pick.baneCells ?? pick.BaneCells).map((cell: Record<string, any>) => ({ x: Number(cell.x ?? cell.X ?? 0), y: Number(cell.y ?? cell.Y ?? 0) })) : []
+    })) : []
   };
 }
 

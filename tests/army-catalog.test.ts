@@ -25,4 +25,17 @@ describe("army catalog formation geometry", () => {
     expect(canPlaceArmyLevel(army, catalog, "Cats/Barricade/1", 0, 0, grid, "wide")).toBe(true);
     expect(canPlaceArmyLevel(army, catalog, "Cats/Barricade/1", 1, 0, grid, "wide")).toBe(false);
   });
+
+  it("extends the formation for selected grid blessings", () => {
+    expect(armyGridSize(catalog, 1, ["grid-column"])).toEqual({ width: 3, height: 4 });
+    expect(armyGridSize(catalog, 1, ["grid-column", "unknown"])).toEqual({ width: 3, height: 4 });
+  });
+
+  it("also applies grid effects if the game catalog classifies one as a curse", () => {
+    const curseCatalog = {
+      ...catalog,
+      curses: [{ id: "grid-row-curse", name: "Grid Row Curse", family: "grid" as const, mechanics: { effect: "AddRow" } }]
+    };
+    expect(armyGridSize(curseCatalog, 1, ["grid-row-curse"])).toEqual({ width: 4, height: 3 });
+  });
 });

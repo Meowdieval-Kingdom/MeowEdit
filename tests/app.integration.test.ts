@@ -329,6 +329,38 @@ describe("browser application flow", () => {
     expect(swapped.find(unit => unit.id === fighter.id)).toMatchObject({ x: 0, y: 0 });
   });
 
+  it("configures a selected cell blessing and adds a separate Army curse", async () => {
+    vi.resetModules();
+    localStorage.clear();
+    document.body.innerHTML = '<div id="app"></div>';
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => ({
+      ok: true,
+      json: async () => String(input).includes("army-catalog") ? baseCatalog : rosterFixture
+    })));
+
+    await import("../src/main");
+    document.querySelector<HTMLButtonElement>('[data-action="new-army"]')!.click();
+    for (let step = 0; step < 4; step++) document.querySelector<HTMLButtonElement>('[data-action="editor-next"]')!.click();
+    const blessingPicker = document.querySelector<HTMLSelectElement>("#army-blessing-picker")!;
+    blessingPicker.value = "picked-column";
+    blessingPicker.dispatchEvent(new Event("change", { bubbles: true }));
+    document.querySelector<HTMLButtonElement>('[data-action="add-army-blessing"]')!.click();
+    document.querySelector<HTMLButtonElement>('[data-action="configure-cell-blessing"]')!.click();
+    document.querySelector<HTMLButtonElement>('[data-action="pick-cell-blessing-lane"][data-y="2"]')!.click();
+    let saved = JSON.parse(localStorage.getItem("meowedit.workspace.v1")!);
+    expect(saved.armies[0].cellBlessingPicks[0]).toMatchObject({ rootId: "lane-root", lane: 2, locked: true });
+    document.querySelector<HTMLButtonElement>('[data-action="close-cell-blessing-focus"]')!.click();
+
+    document.querySelector<HTMLButtonElement>('[data-action="editor-next"]')!.click();
+    const cursePicker = document.querySelector<HTMLSelectElement>("#army-curse-picker")!;
+    cursePicker.value = "cell-curse";
+    cursePicker.dispatchEvent(new Event("change", { bubbles: true }));
+    document.querySelector<HTMLButtonElement>('[data-action="add-army-curse"]')!.click();
+    saved = JSON.parse(localStorage.getItem("meowedit.workspace.v1")!);
+    expect(saved.armies[0].blessingIds).toEqual(["picked-column", "cell-curse"]);
+    expect(document.querySelector(".army-guided-heading h1")?.textContent).toBe("Curses");
+  });
+
   it("keeps a settings-only campaign in a short randomizer flow", async () => {
     vi.resetModules();
     localStorage.clear();

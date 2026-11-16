@@ -30,9 +30,18 @@ export function armyFootprint(catalog: ArmyCatalog, levelId: string): ArmyFootpr
   };
 }
 
-export function armyGridSize(catalog: ArmyCatalog, floor: number): ArmyFootprint {
-  return [...catalog.gridSizes].sort((a, b) => b.minFloor - a.minFloor).find(size => floor >= size.minFloor)
+export function armyGridSize(catalog: ArmyCatalog, floor: number, blessingIds: readonly string[] = []): ArmyFootprint {
+  const base = [...catalog.gridSizes].sort((a, b) => b.minFloor - a.minFloor).find(size => floor >= size.minFloor)
     ?? { width: 3, height: 3 };
+  let width = base.width, height = base.height;
+  for (const id of blessingIds) {
+    const ability = [...catalog.blessings, ...(catalog.curses ?? [])].find(item => item.id === id);
+    const effect = ability?.mechanics?.effect;
+    if (ability?.family !== "grid") continue;
+    if (effect === "AddRow") width += 1;
+    if (effect === "AddColumn") height += 1;
+  }
+  return { width, height };
 }
 
 export function canPlaceArmyLevel(

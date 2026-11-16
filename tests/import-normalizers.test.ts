@@ -15,6 +15,13 @@ describe("army and campaign import normalization", () => {
     expect(modern).toMatchObject({ key: "army-import-4", previewFloor: 5, units: [{ id: "p1", spellIds: ["fireball"] }] });
   });
 
+  it("preserves Unity cell blessing pick fields in imported army configurations", () => {
+    const army = normalizeArmy({ id: "cell-army", blessingIds: ["Blessing - Moonpath [Cell]"], CellBlessingPicks: [
+      { RootId: "root-id", Lane: 2, Cells: [{ x: 1, y: 2 }], Locked: true, BaneCells: [{ x: 0, y: 0 }] }
+    ] });
+    expect(army.cellBlessingPicks).toEqual([{ rootId: "root-id", lane: 2, cells: [{ x: 1, y: 2 }], locked: true, baneCells: [{ x: 0, y: 0 }] }]);
+  });
+
   it("normalizes standalone campaign envelopes and fills missing board settings", () => {
     const campaign = normalizeCampaign({
       format: "meowedit-campaign", _meowEditWorkspace: { key: "local-key", idAuto: true },

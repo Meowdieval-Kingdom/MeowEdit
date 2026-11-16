@@ -83,7 +83,7 @@ describe("editor rendering", () => {
     expect(html).toContain('data-action="delete-item"');
   });
 
-  it("shows ability descriptions on hover tags and dims unrelated Army setup during loadout steps", () => {
+  it("shows ability previews, separates curses, and focuses selected cell targets", () => {
     const workspace = workspaceFixture();
     const army = workspace.armies[0];
     army.spellIds = ["fireball"];
@@ -98,6 +98,22 @@ describe("editor rendering", () => {
     const blessings = renderApp(workspace, rosterFixture, catalog, [], 4, "guided");
     expect(blessings).toContain('id="army-blessing-preview"');
     expect(blessings).toContain("Boosts armor for the battle.");
+
+    army.blessingIds.push("picked-column", "cell-curse");
+    const focusedBlessing = renderApp(workspace, rosterFixture, catalog, [], 4, "guided");
+    expect(focusedBlessing).toContain('data-action="configure-cell-blessing"');
+    expect(focusedBlessing).toContain("Configure fields");
+    const curses = renderApp(workspace, rosterFixture, catalog, [], 5, "guided");
+    expect(curses).toContain('id="army-curse-preview"');
+    expect(curses).toContain("Cracked Front");
+    expect(curses).toContain("Curse");
+
+    const cellFocus = renderApp(workspace, rosterFixture, catalog, [], 4, "guided", null, undefined, undefined, "units", false,
+      { abilityId: "picked-column", region: "boon" });
+    expect(cellFocus).toContain('role="dialog" aria-modal="true" aria-label="Configure battlefield fields"');
+    expect(cellFocus).toContain("Enemy side →");
+    expect(cellFocus).toContain('data-action="pick-cell-blessing-lane"');
+    expect(cellFocus).toContain("Attack Speed +10%.");
   });
 
   it("renders empty-workspace actions and validation summaries", () => {
@@ -264,7 +280,7 @@ describe("editor rendering", () => {
     workspace.selectedType = "army";
     workspace.selectedKey = army.key;
 
-    const html = renderApp(workspace, rosterFixture, catalog, [], 5, "guided");
+    const html = renderApp(workspace, rosterFixture, catalog, [], 6, "guided");
     expect(html).toContain("Spells by lineup entry");
     expect(html).toContain("Fighter: Fireball");
     expect(html).toContain("Barricade: Shield");

@@ -7,8 +7,11 @@ describe("content export and ZIP packages", () => {
   it("exports unit spell assignments in the standalone army document", () => {
     const army = armyFixture();
     army.units[0].spellIds = ["fireball"];
+    army.blessingIds = ["picked-column"];
+    army.cellBlessingPicks = [{ rootId: "lane-root", lane: 2, cells: [], locked: true, baneCells: [] }];
     const parsed = JSON.parse(activeArmyJson(army));
     expect(parsed.army.units[0]).toEqual({ unitId: "Cats/Fighter/1", x: 0, y: 0, spellIds: ["fireball"] });
+    expect(parsed.army.CellBlessingPicks).toEqual([{ RootId: "lane-root", Lane: 2, Cells: [], Locked: true, BaneCells: [] }]);
   });
 
   it("preserves workspace-only army fields and emits campaign files", () => {

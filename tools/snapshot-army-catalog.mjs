@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -7,12 +8,17 @@ const projectDirectory = path.resolve(scriptDirectory, "..");
 const defaultGameRoot = path.resolve(projectDirectory, "..", "MeowdievalKingdom");
 const gameRootIndex = process.argv.indexOf("--game-root");
 const gameRoot = path.resolve(gameRootIndex >= 0 ? process.argv[gameRootIndex + 1] ?? "" : defaultGameRoot);
+const outputIndex = process.argv.indexOf("--output");
 const scriptableObjects = path.join(gameRoot, "Assets", "Meowdieval", "ScriptableObjects");
 const factionDirectory = path.join(scriptableObjects, "Factions");
 const unitDirectory = path.join(scriptableObjects, "UnitStats", "Resources");
 const spellDirectory = path.join(scriptableObjects, "Spells");
 const blessingDirectory = path.join(scriptableObjects, "Blessings");
 const assetsDirectory = path.join(gameRoot, "Assets", "Meowdieval");
+const scriptsDirectory = path.join(assetsDirectory, "Scripts", "Tactics");
+const implementationDirectories = [
+  "Spells", "MatchManagement/Blessings", "MatchManagement/Opponent", "Abilities", "Keywords", "AI"
+];
 const factionIds = ["Nobles", "Peasants", "HarborClaws", "CrystalCats", "WanderingTrader", "MagicCats", "Neutral"];
 const factionLabels = new Map([
   ["Nobles", "Nobles"], ["Peasants", "Peasants"], ["HarborClaws", "Harbor Claws"],
@@ -86,6 +92,54 @@ function numberField(content, name) {
   if (!raw) return undefined;
   const value = Number(raw);
   return Number.isFinite(value) ? value : undefined;
+}
+
+function booleanField(content, name) {
+  return ["1", "true"].includes(yamlValue(content, name).toLowerCase());
+}
+
+function serializedFields(content, indent) {
+  const names = [...new Set(content.split(/\r?\n/)
+    .map(line => line.match(new RegExp("^\\s{" + indent + "}(_[A-Za-z][A-Za-z0-9]*):"))?.[1])
+    .filter(Boolean))];
+  return Object.fromEntries(names.map(name => {
+    const raw = yamlValue(content, name);
+    const linked = raw.replace(/\{[^}]*guid: ([a-f0-9]{32})[^}]*\}/g, (_match, guid) => {
+      const asset = assetsByGuid.get(guid);
+      return asset ? "asset: " + scalar(readFileSync(asset, "utf8"), "m_Name") : "guid: " + guid;
+    });
+    const value = /^-?\d+(?:\.\d+)?$/.test(linked) ? Number(linked)
+      : linked === "true" ? true : linked === "false" ? false : linked;
+    return [name.replace(/^_/, "").replace(/[A-Z]/g, letter => letter.toLowerCase()), value];
+  }));
+}
+
+const cellRules = ["None", "FrontRow", "BackRow", "OuterColumns", "Corners", "Centre", "NoAdjacentAlly", "PickedColumn", "MovingCell", "RandomCells"];
+function enumName(values, raw) {
+  const index = Number(raw);
+  return Number.isInteger(index) ? values[index] ?? "Unknown" : "Unknown";
+}
+
+function linkedAbility(content, fieldName) {
+  const guid = yamlValue(content, fieldName).match(/guid:\s*([a-f0-9]{32})/)?.[1];
+  const assetPath = guid ? assetsByGuid.get(guid) : undefined;
+  if (!assetPath) return undefined;
+  const asset = readFileSync(assetPath, "utf8");
+  const abilityData = yamlSection(asset, "AbilityData");
+  return {
+    id: scalar(asset, "m_Name"),
+    name: yamlValue(abilityData, "_abilityName"),
+    description: plainDescription(yamlValue(abilityData, "_description"))
+  };
+}
+
+function rootPersistentId(content, visited = new Set()) {
+  const currentPersistentId = yamlValue(content, "_persistentId");
+  const parentGuid = yamlValue(content, "_supersedes").match(/guid:\s*([a-f0-9]{32})/)?.[1];
+  if (!parentGuid || visited.has(parentGuid)) return currentPersistentId;
+  visited.add(parentGuid);
+  const parentPath = assetsByGuid.get(parentGuid);
+  return parentPath ? rootPersistentId(readFileSync(parentPath, "utf8"), visited) : currentPersistentId;
 }
 
 function plainDescription(value) {
@@ -212,14 +266,42 @@ function abilityEntries(directory, allowedGuids = null, include = () => true) {
     const classIdentifier = scalar(content, "m_EditorClassIdentifier");
     if (!id || !name || !include(content, classIdentifier)) continue;
     const level = /\bIII\b/.test(id) ? 3 : /\bII\b/.test(id) ? 2 : 1;
+    const isCell = classIdentifier.endsWith(".CellBlessing");
+    const isEconomy = classIdentifier.endsWith(".EconomyBlessing");
+    const isGridExpansion = classIdentifier.endsWith(".GridExpansionBlessing");
+    const family = isCell ? "cell" : isEconomy ? "economy" : isGridExpansion ? "grid" : "stat";
+    const mechanics = {
+      class: classIdentifier.split(".").at(-1) ?? "",
+      abilityData: serializedFields(abilityData, 4),
+      assetData: serializedFields(content, 2),
+      persistentId: yamlValue(content, "_persistentId"),
+      rootPersistentId: rootPersistentId(content),
+      isCurse: booleanField(content, "_isCurse"),
+      isAdventureOnly: booleanField(content, "_adventureOnly") || (numberField(content, "_curseExtraLives") ?? 0) > 0
+    };
+    if (isGridExpansion) mechanics.effect = enumName(["None", "AddColumn", "AddRow"], yamlValue(content, "_effect"));
+    if (isCell) {
+      mechanics.rule = enumName(cellRules, yamlValue(content, "_rule"));
+      mechanics.rangedOnly = booleanField(content, "_rangedOnly");
+      mechanics.cellCount = numberField(content, "_cellCount") ?? 1;
+      mechanics.effect = linkedAbility(content, "_effect");
+      mechanics.baneRule = enumName(cellRules, yamlValue(content, "_baneRule"));
+      mechanics.baneCellCount = numberField(content, "_baneCellCount") ?? 1;
+      mechanics.baneEffect = linkedAbility(content, "_baneEffect");
+    }
     entries.push({
       id, name, level, description: plainDescription(yamlValue(abilityData, "_description")),
+      family,
+      isCurse: mechanics.isCurse,
+      isAdventureOnly: mechanics.isAdventureOnly,
       tier: numberField(content, "_tier"),
       manaCost: numberField(abilityData, "_manaCost"),
       coinCost: numberField(abilityData, "_coinCost"),
       healthCost: numberField(abilityData, "_healthCost"),
       cooldown: numberField(abilityData, "_cooldown"),
-      maxTargets: numberField(content, "_maxTargets")
+      maxTargets: numberField(content, "_maxTargets"),
+      mechanics,
+      sourceHash: createHash("sha256").update(content).digest("hex")
     });
   }
   return entries;
@@ -229,7 +311,28 @@ const spellEntries = abilityEntries(spellDirectory, null, (_content, classIdenti
 const blessingPoolPath = path.join(blessingDirectory, "BlessingPool.asset");
 const blessingPool = readFileSync(blessingPoolPath, "utf8");
 const blessingGuids = new Set(referenceGuids(blessingPool));
-const blessingEntries = abilityEntries(blessingDirectory, blessingGuids);
+// Keep the Shop pool as a lookup source, and include every top-level authored blessing/curse.
+// CellEffects are linked effects and stay nested under the Cell Blessing that uses them.
+for (const file of readdirSync(blessingDirectory).filter(file => file.endsWith(".asset"))) {
+  const guid = guidFor(path.join(blessingDirectory, file));
+  if (guid) blessingGuids.add(guid);
+}
+const authoredBlessingEntries = abilityEntries(blessingDirectory, blessingGuids);
+const blessingEntries = authoredBlessingEntries.filter(entry => !entry.isCurse);
+const curseEntries = authoredBlessingEntries.filter(entry => entry.isCurse);
+
+const implementationSources = implementationDirectories.flatMap(directory => {
+  const absolute = path.join(scriptsDirectory, directory);
+  return existsSync(absolute) ? filesBelow(absolute).filter(file => file.endsWith(".cs")).map(file => {
+    const source = readFileSync(file, "utf8");
+    const classes = [...source.matchAll(/\b(?:class|enum|struct|interface)\s+([A-Za-z_][A-Za-z0-9_]*)/g)].map(match => match[1]);
+    return {
+      id: path.relative(assetsDirectory, file).split(path.sep).join("/"),
+      classes,
+      sourceHash: createHash("sha256").update(source).digest("hex")
+    };
+  }) : [];
+}).sort((left, right) => left.id.localeCompare(right.id));
 
 const sortByName = (left, right) => left.name.localeCompare(right.name) || (left.level ?? 0) - (right.level ?? 0) || left.id.localeCompare(right.id);
 for (const entry of [...units, ...buildings]) entry.levels.sort((left, right) => left.level - right.level || left.name.localeCompare(right.name));
@@ -237,14 +340,15 @@ units.sort(sortByName);
 buildings.sort(sortByName);
 spellEntries.sort(sortByName);
 blessingEntries.sort(sortByName);
+curseEntries.sort(sortByName);
 
-if (units.length === 0 || spellEntries.length === 0 || blessingEntries.length === 0) {
-  throw new Error("The game catalog snapshot is incomplete; units, spells, and blessings must all be present.");
+if (units.length === 0 || spellEntries.length === 0 || blessingEntries.length === 0 || curseEntries.length === 0) {
+  throw new Error("The game catalog snapshot is incomplete; units, spells, blessings, and curses must all be present.");
 }
 
 const catalog = {
   schemaVersion: 1,
-  source: "Meowdieval Kingdom UnitCatalog roots, Spell assets, and BlessingPool; generated from Unity YAML.",
+  source: "Meowdieval Kingdom UnitCatalog roots, Spell assets, and top-level Blessing/Curses; generated from Unity YAML.",
   gridSizes: [
     { minFloor: 1, width: 3, height: 3 },
     { minFloor: 3, width: 4, height: 4 },
@@ -254,9 +358,11 @@ const catalog = {
   units,
   buildings,
   spells: spellEntries,
-  blessings: blessingEntries
+  blessings: blessingEntries,
+  curses: curseEntries,
+  implementationSources
 };
 
-const outputPath = path.join(projectDirectory, "public", "army-catalog.json");
+const outputPath = path.resolve(outputIndex >= 0 ? process.argv[outputIndex + 1] ?? "" : path.join(projectDirectory, "public", "army-catalog.json"));
 writeFileSync(outputPath, JSON.stringify(catalog, null, 2) + "\n", "utf8");
-console.log(`Wrote ${units.length} unit roots, ${buildings.length} building roots, ${spellEntries.length} spells, and ${blessingEntries.length} blessings to public/army-catalog.json.`);
+console.log(`Wrote ${units.length} unit roots, ${buildings.length} building roots, ${spellEntries.length} spells, ${blessingEntries.length} blessings, and ${curseEntries.length} curses to ${outputPath}.`);

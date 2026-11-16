@@ -54,7 +54,14 @@ function armyDocument(record: ArmyRecord): object {
     name: record.name,
     units: record.units.map(unit => ({ unitId: unit.unitId, x: unit.x, y: unit.y, spellIds: unit.spellIds ?? [] })),
     spellIds: record.spellIds,
-    blessingIds: record.blessingIds
+    blessingIds: record.blessingIds,
+    CellBlessingPicks: (record.cellBlessingPicks ?? []).map(pick => ({
+      RootId: pick.rootId,
+      Lane: pick.lane,
+      Cells: pick.cells.map(cell => ({ x: cell.x, y: cell.y })),
+      Locked: pick.locked,
+      BaneCells: pick.baneCells.map(cell => ({ x: cell.x, y: cell.y }))
+    }))
   };
 }
 

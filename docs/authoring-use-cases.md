@@ -54,8 +54,14 @@ Guided segments this work into **Basics → Objective → Quest giver → Offer 
 1. Name the Army. The stable ID is generated automatically and stays in Advanced.
 2. Choose entries from separate unit and building catalogs. Preview each level's description, combat stats, and grid footprint before adding it. Review a selected lineup entry in its own stats panel; replace or remove it here, and assign its per-entry spells.
 3. Arrange the lineup on a separate battle-grid screen. The grid uses the selected floor size and each entry's full footprint. Select then click an open cell or drag an entry to move it; overlapping or out-of-bounds placements are rejected.
-4. Add Army-wide spells and blessings on separate focused screens. Their effect descriptions and costs appear in the picker preview and on hover over assigned tags; unrelated Army context is dimmed while choosing.
-5. Review the lineup, Army-wide spells/blessings, and each entry's assigned spells. Advanced remains available on each screen for stable IDs and the complete form. Save/export the Army for reuse by Quest targets or Campaign Battle/Boss nodes.
+4. Add Army-wide spells, blessings, and curses on separate focused screens. Their current game descriptions, levels, costs, and curse-only status appear in the picker preview; unrelated Army context is dimmed while choosing.
+5. When an assigned blessing or curse targets battle cells, open its focused battlefield view. Review the game's row/column rule and linked boon/bane effects; choose the lane for a picked-column effect or the exact fields for random-cell effects. Grid expansion blessings change the formation dimensions. Other cell rules preview their actual region and remain driven by the game's rule.
+6. Review the lineup, Army-wide spells/blessings/curses, configured field targets, and each entry's assigned spells. Advanced remains available on each screen for stable IDs and the complete form. Save/export the Army for reuse by Quest targets or Campaign Battle/Boss nodes.
+
+### Refresh game data
+
+1. Run the local, git-ignored `tools/local/sync-game-data.ps1` against the sibling game checkout to compare units, spells, blessings, curses, and serialized mechanics with MeowEdit's checked-in snapshots.
+2. Inspect new, removed, and changed catalog entries. Rerun with `-Detailed` to list changed IDs and fields, then rerun with `-Apply` to import reviewed snapshots. The helper stages its output outside the repo first and does not write the Unity project.
 
 ## Campaign: author a complete custom adventure
 

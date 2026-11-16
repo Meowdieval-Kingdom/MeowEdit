@@ -159,6 +159,14 @@ export interface ArmyUnitPlacement {
   spellIds: string[];
 }
 
+export interface ArmyCellBlessingPick {
+  rootId: string;
+  lane: number;
+  cells: Array<{ x: number; y: number }>;
+  locked: boolean;
+  baneCells: Array<{ x: number; y: number }>;
+}
+
 export interface ArmyRecord {
   key: string;
   isGameExample?: boolean;
@@ -169,6 +177,7 @@ export interface ArmyRecord {
   units: ArmyUnitPlacement[];
   spellIds: string[];
   blessingIds: string[];
+  cellBlessingPicks?: ArmyCellBlessingPick[];
 }
 
 export type AdventureNodeKind = "Start" | "Battle" | "Reward" | "Boss" | "Quest" | "Shop";
@@ -301,6 +310,11 @@ export interface ArmyCatalogAbility {
   healthCost?: number;
   cooldown?: number;
   maxTargets?: number;
+  family?: "stat" | "cell" | "economy" | "grid";
+  isCurse?: boolean;
+  isAdventureOnly?: boolean;
+  mechanics?: Record<string, unknown>;
+  sourceHash?: string;
 }
 
 export interface ArmyCatalog {
@@ -311,6 +325,8 @@ export interface ArmyCatalog {
   factions: Array<{ id: string; name: string }>;
   spells: ArmyCatalogAbility[];
   blessings: ArmyCatalogAbility[];
+  curses?: ArmyCatalogAbility[];
+  implementationSources?: Array<{ id: string; classes: string[]; sourceHash: string }>;
 }
 
 export interface QuestRecord {

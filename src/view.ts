@@ -888,20 +888,30 @@ export function renderArmyEntityPreview(catalog: ArmyCatalog, entityId: string, 
   return armyLevelMarkup(entity, level, kind, armyLevelPreviewPath(entityId, level, kind, roster));
 }
 
-export function renderArmyAbilityPreview(catalog: ArmyCatalog, abilityId: string, kind: "spells" | "blessings"): string {
-  const ability = catalog[kind].find(item => item.id === abilityId);
-  if (!ability) return '<div class="army-preview-empty">Choose a ' + (kind === "spells" ? "spell" : "blessing") + ' to preview its effect.</div>';
+export function renderArmyAbilityPreview(catalog: ArmyCatalog, abilityId: string, kind: "spells" | "blessings" | "curses"): string {
+  const entries = kind === "spells" ? catalog.spells : kind === "curses" ? catalog.curses ?? [] : [...catalog.blessings, ...(catalog.curses ?? [])];
+  const ability = entries.find(item => item.id === abilityId);
+  if (!ability) return '<div class="army-preview-empty">Choose a ' + (kind === "spells" ? "spell" : kind === "curses" ? "curse" : "blessing") + ' to preview its effect.</div>';
   const details = [ability.level ? "Level " + ability.level : "", ability.tier ? "Tier " + ability.tier : "",
+    ability.isAdventureOnly ? "Adventure only" : "",
     (ability.manaCost ?? 0) > 0 ? ability.manaCost + " mana" : "", (ability.coinCost ?? 0) > 0 ? ability.coinCost + " coins" : "",
     (ability.healthCost ?? 0) > 0 ? ability.healthCost + " health" : "", (ability.cooldown ?? 0) > 0 ? ability.cooldown + "s cooldown" : "",
     ability.maxTargets ? "Up to " + ability.maxTargets + " targets" : ""].filter(Boolean).join(" · ");
-  return '<article class="army-ability-preview"><strong>' + escapeHtml(ability.name) + '</strong>' + (details ? '<span>' + escapeHtml(details) + '</span>' : "") +
-    '<p>' + escapeHtml(ability.description || "No effect description is available in the game catalog.") + '</p></article>';
+  const mechanics = ability.mechanics ?? {};
+  const family = ability.family === "cell" ? "Cell · " + String(mechanics.rule ?? "") : ability.family === "grid" ? "Grid · " + String(mechanics.effect ?? "") : ability.family === "economy" ? "Economy" : "";
+  const cellEffect = mechanics.effect && typeof mechanics.effect === "object" ? mechanics.effect as { name?: string; description?: string } : undefined;
+  const baneEffect = mechanics.baneEffect && typeof mechanics.baneEffect === "object" ? mechanics.baneEffect as { name?: string; description?: string } : undefined;
+  const effectDetails = ability.family === "cell" ? '<div class="army-cell-effect-summary"><strong>' + escapeHtml(family) + '</strong>' +
+    (cellEffect?.description ? '<span>Effect · ' + escapeHtml(cellEffect.description) + '</span>' : "") +
+    (baneEffect?.description ? '<span>Bane · ' + escapeHtml(baneEffect.description) + '</span>' : "") +
+    (mechanics.rangedOnly === true ? '<span>Ranged units only</span>' : "") + '</div>' : "";
+  return '<article class="army-ability-preview' + (ability.isCurse ? ' is-curse' : '') + '"><strong>' + escapeHtml(ability.name) + (ability.isCurse ? ' <small>Curse</small>' : '') + '</strong>' + (details ? '<span>' + escapeHtml(details) + '</span>' : "") +
+    '<p>' + escapeHtml(ability.description || "No effect description is available in the game catalog.") + '</p>' + effectDetails + '</article>';
 }
 
-function armyAbilityChip(catalog: ArmyCatalog, id: string, index: number, kind: "spell" | "blessing" | "unit-spell"): string {
-  const ability = (kind === "blessing" ? catalog.blessings : catalog.spells).find(item => item.id === id);
-  const action = kind === "blessing" ? "remove-army-blessing" : kind === "unit-spell" ? "remove-army-unit-spell" : "remove-army-spell";
+function armyAbilityChip(catalog: ArmyCatalog, id: string, index: number, kind: "spell" | "blessing" | "curse" | "unit-spell"): string {
+  const ability = (kind === "blessing" ? [...catalog.blessings, ...(catalog.curses ?? [])] : kind === "curse" ? catalog.curses ?? [] : catalog.spells).find(item => item.id === id);
+  const action = kind === "blessing" || kind === "curse" ? "remove-army-blessing" : kind === "unit-spell" ? "remove-army-unit-spell" : "remove-army-spell";
   const title = [ability?.description, ability?.tier ? "Tier " + ability.tier : "", ability?.level ? "Level " + ability.level : "",
     ability?.manaCost ? "Mana " + ability.manaCost : "", ability?.coinCost ? "Coins " + ability.coinCost : "",
     ability?.healthCost ? "Health " + ability.healthCost : "", ability?.cooldown ? "Cooldown " + ability.cooldown + "s" : "",
@@ -912,8 +922,10 @@ function armyAbilityChip(catalog: ArmyCatalog, id: string, index: number, kind: 
 }
 
 function renderArmyGrid(record: ArmyRecord, size: { width: number; height: number }, catalog: ArmyCatalog, roster: UnitRoster, selectedId: string | null): string {
-  const cells = Array.from({ length: 25 }, (_, index) => {
-    const x = index % 5, y = Math.floor(index / 5), active = x < size.width && y < size.height;
+  const visualWidth = Math.max(5, size.width, ...record.units.map(unit => unit.x + armyFootprint(catalog, unit.unitId).width));
+  const visualHeight = Math.max(5, size.height, ...record.units.map(unit => unit.y + armyFootprint(catalog, unit.unitId).height));
+  const cells = Array.from({ length: visualWidth * visualHeight }, (_, index) => {
+    const x = index % visualWidth, y = Math.floor(index / visualWidth), active = x < size.width && y < size.height;
     const occupied = record.units.some(unit => { const fp = armyFootprint(catalog, unit.unitId); return x >= unit.x && x < unit.x + fp.width && y >= unit.y && y < unit.y + fp.height; });
     return '<button type="button" class="army-grid-cell' + (active ? " is-active" : " is-outside") + (occupied ? " is-covered" : "") + '" data-action="place-army-unit" data-army-cell data-x="' + x + '" data-y="' + y + '" style="grid-column:' + (x + 1) + ';grid-row:' + (y + 1) + '"' + (!active || occupied ? " disabled" : "") + ' aria-label="Grid cell ' + (x + 1) + ', ' + (y + 1) + '">' + (active && !occupied ? '<span class="army-cell-plus">+</span>' : active ? "" : '<span class="army-cell-lock">·</span>') + '</button>';
   }).join("");
@@ -925,7 +937,7 @@ function renderArmyGrid(record: ArmyRecord, size: { width: number; height: numbe
       (portrait ? '<img src="' + escapeHtml(portrait) + '" alt="">' : '<span class="army-unit-initial">' + escapeHtml((resolved?.entity.name ?? unit.unitId).slice(0, 1)) + '</span>') +
       '<strong>' + escapeHtml(resolved?.entity.name ?? unit.unitId) + '</strong><small>' + (resolved?.kind === "buildings" ? "Building · " : "") + 'Lv ' + (resolved?.level.level ?? "?") + ' · ' + fp.width + '×' + fp.height + '</small></button>';
   }).join("");
-  return '<div class="army-grid" data-army-grid role="group" aria-label="Enemy battle grid" style="--army-grid-columns:5">' + cells + tiles + '</div>';
+  return '<div class="army-grid" data-army-grid role="group" aria-label="Enemy battle grid" style="--army-grid-columns:' + visualWidth + ';--army-grid-rows:' + visualHeight + '">' + cells + tiles + '</div>';
 }
 
 function renderArmyPlacementList(record: ArmyRecord, catalog: ArmyCatalog, selectedId: string | null): string {
@@ -951,15 +963,125 @@ function renderArmyPicker(catalog: ArmyCatalog, kind: ArmyCatalogKind, placement
       '<p class="army-empty">No ' + actualKind + ' are present in the game catalog.</p>') + '</section>';
 }
 
-function renderArmyAbilityPicker(catalog: ArmyCatalog, kind: "spells" | "blessings", ids: string[]): string {
-  const chips = ids.map((id, index) => armyAbilityChip(catalog, id, index, kind === "spells" ? "spell" : "blessing")).join("");
-  const options = catalog[kind].map(item => [item.id, item.name + (item.level && item.level > 1 ? " · Level " + item.level : "")] as [string, string]);
-  return '<div class="army-ability-picker"><div class="army-add-row">' + pickerField(kind === "spells" ? "army-spell-picker" : "army-blessing-picker", kind === "spells" ? "Spell" : "Blessing", "", [["", "Choose a " + (kind === "spells" ? "spell" : "blessing")], ...options]) +
-    actionButton(kind === "spells" ? "add-army-spell" : "add-army-blessing", "Add", "button button-small") + '</div><div id="' + (kind === "spells" ? "army-spell-preview" : "army-blessing-preview") + '">' + renderArmyAbilityPreview(catalog, "", kind) + '</div><div class="army-chips">' + (chips || '<p class="section-note">None assigned yet.</p>') + '</div></div>';
+function renderArmyAbilityPicker(catalog: ArmyCatalog, kind: "spells" | "blessings" | "curses", ids: string[], sourceIds: string[] = ids): string {
+  const entries = kind === "spells" ? catalog.spells : kind === "curses" ? catalog.curses ?? [] : catalog.blessings;
+  const assignedIds = ids.filter(id => entries.some(entry => entry.id === id));
+  const chips = assignedIds.map(id => armyAbilityChip(catalog, id, sourceIds.indexOf(id), kind === "spells" ? "spell" : kind === "curses" ? "curse" : "blessing")).join("");
+  const options = entries.map(item => [item.id, item.name + (item.level && item.level > 1 ? " · Level " + item.level : "") + (item.isAdventureOnly ? " · Adventure only" : "")] as [string, string]);
+  const pickerId = kind === "spells" ? "army-spell-picker" : kind === "curses" ? "army-curse-picker" : "army-blessing-picker";
+  const label = kind === "spells" ? "Spell" : kind === "curses" ? "Curse" : "Blessing";
+  const action = kind === "spells" ? "add-army-spell" : kind === "curses" ? "add-army-curse" : "add-army-blessing";
+  const previewId = kind === "spells" ? "army-spell-preview" : kind === "curses" ? "army-curse-preview" : "army-blessing-preview";
+  return '<div class="army-ability-picker"><div class="army-add-row">' + pickerField(pickerId, label, "", [["", "Choose a " + label.toLowerCase()], ...options]) +
+    actionButton(action, "Add", "button button-small") + '</div><div id="' + previewId + '">' + renderArmyAbilityPreview(catalog, "", kind) + '</div><div class="army-chips">' + (chips || '<p class="section-note">None assigned yet.</p>') + '</div></div>';
 }
 
-function renderArmyEditor(record: ArmyRecord, catalog: ArmyCatalog, roster: UnitRoster, mode: EditorMode, selectedArmyPlacementId: string | null, activeStep: number, catalogKind: ArmyCatalogKind, helpVisible: boolean, returnState?: RelatedEditorReturnState): string {
-  const floor = Math.max(1, Math.min(99, record.previewFloor || 1)), size = armyGridSize(catalog, floor);
+function armyAbilityById(catalog: ArmyCatalog, id: string) {
+  return [...catalog.blessings, ...(catalog.curses ?? [])].find(item => item.id === id);
+}
+
+function cellRuleLabel(rule: unknown): string {
+  const labels: Record<string, string> = {
+    None: "No cell region", FrontRow: "Front row", BackRow: "Back row", OuterColumns: "Outer columns",
+    Corners: "Corner fields", Centre: "Center field", NoAdjacentAlly: "Fields with no adjacent ally",
+    PickedColumn: "Selected lane", MovingCell: "Moving field", RandomCells: "Chosen fields"
+  };
+  return labels[String(rule)] ?? "Cell field";
+}
+
+function renderArmyCellBlessingList(catalog: ArmyCatalog, ids: string[]): string {
+  const cellEntries = ids.map(id => armyAbilityById(catalog, id)).filter(item => item?.family === "cell");
+  if (!cellEntries.length) return "";
+  return '<section class="army-cell-list"><h3>Battlefield effects</h3>' + cellEntries.map(item =>
+    '<div class="army-cell-list-row"><span><strong>' + escapeHtml(item!.name) + '</strong><small>' + escapeHtml(cellRuleLabel(item!.mechanics?.rule)) +
+    (item!.isCurse ? ' · Curse' : '') + '</small></span>' +
+    actionButton("configure-cell-blessing", "Configure fields", "button button-small", ' data-ability-id="' + escapeHtml(item!.id) + '"') + '</div>'
+  ).join("") + '</section>';
+}
+
+function renderArmyCellTargetFocus(record: ArmyRecord, catalog: ArmyCatalog, roster: UnitRoster, abilityId: string, region: "boon" | "bane"): string {
+  const ability = armyAbilityById(catalog, abilityId);
+  if (!ability || ability.family !== "cell") return "";
+  const mechanics = ability.mechanics ?? {};
+  const size = armyGridSize(catalog, Math.max(1, record.previewFloor || 1), record.blessingIds);
+  const rootId = String(mechanics.rootPersistentId ?? mechanics.persistentId ?? ability.id);
+  const pick = record.cellBlessingPicks?.find(item => item.rootId === rootId) ?? { rootId, lane: -1, cells: [], locked: false, baneCells: [] };
+  const rule = String(region === "boon" ? mechanics.rule ?? "None" : mechanics.baneRule ?? "None");
+  const count = Number(region === "boon" ? mechanics.cellCount ?? 1 : mechanics.baneCellCount ?? 1);
+  const isEditable = rule === "PickedColumn" || rule === "RandomCells";
+  const targetCells = region === "boon" ? pick.cells : pick.baneCells;
+  const selected = new Set(targetCells.map(cell => cell.x + "," + cell.y));
+  const boonRule = String(mechanics.rule ?? "None"), baneRule = String(mechanics.baneRule ?? "None");
+  const boonCells = new Set(pick.cells.map(cell => cell.x + "," + cell.y));
+  const baneCells = new Set(pick.baneCells.map(cell => cell.x + "," + cell.y));
+  const isolatedCells = new Set<string>();
+  for (const unit of record.units) {
+    const footprint = armyFootprint(catalog, unit.unitId);
+    const hasNeighbor = record.units.some(other => {
+      if (other.id === unit.id) return false;
+      const otherFootprint = armyFootprint(catalog, other.unitId);
+      return other.x < unit.x + footprint.width + 1 && other.x + otherFootprint.width > unit.x - 1 &&
+        other.y < unit.y + footprint.height + 1 && other.y + otherFootprint.height > unit.y - 1;
+    });
+    if (!hasNeighbor) {
+      for (let x = unit.x; x < unit.x + footprint.width; x++)
+        for (let y = unit.y; y < unit.y + footprint.height; y++) isolatedCells.add(x + "," + y);
+    }
+  }
+  const contains = (cellRule: string, x: number, y: number, isBane: boolean) => {
+    const key = x + "," + y;
+    if (cellRule === "PickedColumn") return pick.lane >= 0 && y === pick.lane;
+    if (cellRule === "RandomCells") return (isBane ? baneCells : boonCells).has(key);
+    if (cellRule === "FrontRow") return x === size.width - 1;
+    if (cellRule === "BackRow") return x === 0;
+    if (cellRule === "OuterColumns") return y === 0 || y === size.height - 1;
+    if (cellRule === "Corners") return (x === 0 || x === size.width - 1) && (y === 0 || y === size.height - 1);
+    if (cellRule === "Centre") return (x === Math.floor((size.width - 1) / 2) || x === Math.ceil((size.width - 1) / 2)) &&
+      (y === Math.floor((size.height - 1) / 2) || y === Math.ceil((size.height - 1) / 2));
+    if (cellRule === "MovingCell") return x === 0 && y === 0;
+    if (cellRule === "NoAdjacentAlly") return isolatedCells.has(key);
+    return false;
+  };
+  const cells = Array.from({ length: size.width * size.height }, (_, index) => {
+    const x = index % size.width, y = Math.floor(index / size.width), key = x + "," + y;
+    const hasBoon = contains(boonRule, x, y, false), hasBane = contains(baneRule, x, y, true);
+    const isSelected = selected.has(key);
+    const disabled = !isEditable || region === "bane" && rule === "RandomCells" && boonCells.has(key) && !isSelected ||
+      rule === "RandomCells" && !isSelected && targetCells.length >= count;
+    return '<button type="button" class="army-cell-target' + (hasBoon ? ' is-boon' : '') + (hasBane ? ' is-bane' : '') +
+      (isSelected ? ' is-current-target' : '') + '" data-action="' + (rule === "PickedColumn" ? "pick-cell-blessing-lane" : "toggle-cell-blessing-cell") +
+      '" data-x="' + x + '" data-y="' + y + '"' + (disabled ? ' disabled' : '') +
+      ' aria-pressed="' + (isSelected || rule === "PickedColumn" && pick.lane === y) + '" aria-label="Field ' + (x + 1) + ', ' + (y + 1) +
+      (hasBoon ? ", blessed" : "") + (hasBane ? ", cursed" : "") + '">' + (hasBoon ? '<span>✦</span>' : hasBane ? '<span>⌁</span>' : '<small>' + (x + 1) + ',' + (y + 1) + '</small>') + '</button>';
+  }).join("");
+  const units = record.units.map(unit => {
+    const resolved = resolveArmyLevel(catalog, unit.unitId);
+    const footprint = armyFootprint(catalog, unit.unitId);
+    const portrait = armyLevelPreviewPath(unit.unitId, resolved?.level, resolved?.kind ?? "units", roster);
+    const name = resolved?.entity.name ?? unit.unitId;
+    return '<div class="army-cell-target-unit" style="grid-column:' + (unit.x + 1) + ' / span ' + footprint.width + ';grid-row:' + (unit.y + 1) + ' / span ' + footprint.height + '" title="' + escapeHtml(name) + '">' +
+      (portrait ? '<img src="' + escapeHtml(portrait) + '" alt="">' : '<b>' + escapeHtml(name.slice(0, 1)) + '</b>') + '<small>' + escapeHtml(name) + '</small></div>';
+  }).join("");
+  const title = region === "boon" ? "Blessing field" : "Bane field";
+  const required = rule === "PickedColumn" ? "Choose a lane. It runs from the rear edge toward the enemy." :
+    rule === "RandomCells" ? "Choose " + count + (count === 1 ? " field." : " fields.") : rule === "MovingCell" ? "The highlighted field moves each round." :
+    rule === "NoAdjacentAlly" ? "The game checks nearby allies at combat start." : "This area follows the selected game's cell rule.";
+  const hasBane = baneRule !== "None";
+  return '<div class="army-cell-focus-backdrop"><section class="army-cell-focus" role="dialog" aria-modal="true" aria-label="Configure battlefield fields">' +
+    '<header><div><span class="eyebrow">' + (ability.isCurse ? "CURSE" : "CELL BLESSING") + '</span><h2>' + escapeHtml(ability.name) + '</h2></div>' +
+    actionButton("close-cell-blessing-focus", "Done", "button button-primary") + '</header>' +
+    '<div class="army-cell-focus-details"><div><strong>' + escapeHtml(cellRuleLabel(mechanics.rule)) + '</strong><span>' + escapeHtml(String(mechanics.effect && typeof mechanics.effect === "object" ? (mechanics.effect as { description?: string }).description ?? "" : "")) + '</span></div>' +
+    (hasBane ? '<div><strong>' + escapeHtml(cellRuleLabel(mechanics.baneRule)) + '</strong><span>' + escapeHtml(String((mechanics.baneEffect as { description?: string } | undefined)?.description ?? "")) + '</span></div>' : '') + '</div>' +
+    (hasBane ? '<div class="army-cell-region-tabs">' + actionButton("cell-blessing-region", "Blessing · " + escapeHtml(cellRuleLabel(mechanics.rule)), "button button-small" + (region === "boon" ? " is-active" : ""), ' data-region="boon"') +
+      actionButton("cell-blessing-region", "Bane · " + escapeHtml(cellRuleLabel(mechanics.baneRule)), "button button-small" + (region === "bane" ? " is-active" : ""), ' data-region="bane"') + '</div>' : '<div class="army-cell-region-tabs"><strong>' + escapeHtml(title) + ' · ' + escapeHtml(cellRuleLabel(mechanics.rule)) + '</strong></div>') +
+    '<p class="army-cell-instruction">' + escapeHtml(required) + ' <span>Enemy side →</span></p>' +
+    '<div class="army-cell-target-grid" role="group" aria-label="Battlefield fields" style="--army-grid-columns:' + size.width + ';--army-grid-rows:' + size.height + '">' + cells + units + '</div>' +
+    (isEditable ? '<p class="section-note">' + targetCells.length + ' of ' + count + ' selected</p>' : '') +
+    '</section></div>';
+}
+
+function renderArmyEditor(record: ArmyRecord, catalog: ArmyCatalog, roster: UnitRoster, mode: EditorMode, selectedArmyPlacementId: string | null, activeStep: number, catalogKind: ArmyCatalogKind, helpVisible: boolean, returnState?: RelatedEditorReturnState, cellFocus?: { abilityId: string | null; region: "boon" | "bane" }): string {
+  const floor = Math.max(1, Math.min(99, record.previewFloor || 1)), size = armyGridSize(catalog, floor, record.blessingIds);
   const selected = record.units.find(item => item.id === selectedArmyPlacementId), resolved = selected ? resolveArmyLevel(catalog, selected.unitId) : undefined;
   const actualKind = catalogKind;
   const list = renderArmyPlacementList(record, catalog, selectedArmyPlacementId), grid = renderArmyGrid(record, size, catalog, roster, selectedArmyPlacementId);
@@ -971,26 +1093,30 @@ function renderArmyEditor(record: ArmyRecord, catalog: ArmyCatalog, roster: Unit
   const detail = selected ? selectedStats + unitSpellPanel : '<div class="army-preview-empty">Select a unit or building to see full stats and edit its spells.</div>';
   const spells = record.spellIds.map((id, index) => armyAbilityChip(catalog, id, index, "spell")).join("");
   const blessings = record.blessingIds.map((id, index) => armyAbilityChip(catalog, id, index, "blessing")).join("");
+  const cellFocusOverlay = cellFocus?.abilityId ? renderArmyCellTargetFocus(record, catalog, roster, cellFocus.abilityId, cellFocus.region) : "";
   const perEntrySpellReview = record.units.map(placement => {
     const entry = resolveArmyLevel(catalog, placement.unitId);
     const name = entry?.entity.name || placement.unitId;
     const assigned = placement.spellIds.map(id => catalog.spells.find(spell => spell.id === id)?.name || id);
     return name + ": " + (assigned.length ? assigned.join(", ") : "no spells");
   });
-  const steps = ["Name", "Choose units", "Arrange grid", "Army spells", "Blessings", "Review"];
+  const steps = ["Name", "Choose units", "Arrange grid", "Army spells", "Blessings", "Curses", "Review"];
   if (mode === "guided") {
     const step = Math.max(0, Math.min(steps.length - 1, activeStep));
     let screen = "";
     if (step === 0) screen = '<div class="army-name-focus"><label class="field"><span class="field-label">Army name</span><input data-bind="name" value="' + escapeHtml(record.name) + '" placeholder="Bridge guards" autocomplete="off"></label></div>';
     else if (step === 1) screen = '<div class="army-guided-units"><section class="army-focus-panel"><p class="section-note help-copy">Choose the lineup now; arrange the positions next.</p>' + picker + '</section><aside class="army-secondary-panel">' + list + (selected ? unitSpellPanel : '') + '</aside></div>';
     else if (step === 2) screen = '<div class="army-guided-position"><section class="army-position-focus">' + board + list + '</section><aside class="army-position-inspector">' + detail + '</aside></div>';
-    else if (step === 3 || step === 4) {
-      const abilityKind = step === 3 ? "spells" : "blessings";
-      screen = '<div class="army-guided-loadout"><section class="army-focus-panel"><p class="section-note help-copy">Choose effects that apply across the army.</p>' + renderArmyAbilityPicker(catalog, abilityKind, step === 3 ? record.spellIds : record.blessingIds) + '</section><div class="army-context-muted"><strong>Other setup</strong><span>' + record.units.length + ' lineup entries · ' + (step === 3 ? record.blessingIds.length + " blessings" : record.spellIds.length + " spells") + '</span></div></div>';
-    } else screen = '<section class="army-review"><dl><div><dt>Name</dt><dd>' + escapeHtml(record.name || "Untitled army") + '</dd></div><div><dt>Board</dt><dd>Floor ' + floor + ' · ' + size.width + ' × ' + size.height + '</dd></div><div><dt>Lineup</dt><dd>' + record.units.length + ' units and buildings</dd></div><div><dt>Army spells</dt><dd>' + record.spellIds.length + '</dd></div><div><dt>Blessings</dt><dd>' + record.blessingIds.length + '</dd></div></dl>' + list + '<div class="army-review-effects"><span>Spells</span><div class="army-chips">' + (spells || "<small>None</small>") + '</div><span>Blessings</span><div class="army-chips">' + (blessings || "<small>None</small>") + '</div></div>' + reviewList("Spells by lineup entry", perEntrySpellReview) + '</section>';
-    return '<main class="workspace-main army-editor guided-editor army-guided-step-' + step + '">' + renderGuidedEditorHeader("Army", record.name || "New army", returnState, helpVisible) + '<div class="army-guided-progress" role="progressbar" aria-label="Army setup" aria-valuemin="1" aria-valuemax="' + steps.length + '" aria-valuenow="' + (step + 1) + '"><span style="width:' + ((step + 1) / steps.length * 100) + '%"></span></div><section class="army-guided-screen"><div class="army-guided-heading"><span>Step ' + (step + 1) + ' of ' + steps.length + '</span><h1>' + steps[step] + '</h1></div>' + screen + '</section>' + renderWorkflowFooter(steps, step, "Ready to export") + '</main>';
+    else if (step >= 3 && step <= 5) {
+      const abilityKind = step === 3 ? "spells" : step === 4 ? "blessings" : "curses";
+      const entries = abilityKind === "spells" ? record.spellIds : record.blessingIds;
+      const cellIds = entries.filter(id => armyAbilityById(catalog, id)?.family === "cell");
+      screen = '<div class="army-guided-loadout"><section class="army-focus-panel">' + renderArmyAbilityPicker(catalog, abilityKind, entries, abilityKind === "spells" ? entries : record.blessingIds) +
+        (abilityKind === "spells" ? "" : renderArmyCellBlessingList(catalog, cellIds)) + '</section><div class="army-context-muted"><strong>Army setup</strong><span>' + record.units.length + ' lineup entries</span></div></div>';
+    } else screen = '<section class="army-review"><dl><div><dt>Name</dt><dd>' + escapeHtml(record.name || "Untitled army") + '</dd></div><div><dt>Board</dt><dd>Floor ' + floor + ' · ' + size.width + ' × ' + size.height + '</dd></div><div><dt>Lineup</dt><dd>' + record.units.length + ' units and buildings</dd></div><div><dt>Army spells</dt><dd>' + record.spellIds.length + '</dd></div><div><dt>Blessings and curses</dt><dd>' + record.blessingIds.length + '</dd></div></dl>' + list + '<div class="army-review-effects"><span>Spells</span><div class="army-chips">' + (spells || "<small>None</small>") + '</div><span>Blessings / curses</span><div class="army-chips">' + (blessings || "<small>None</small>") + '</div></div>' + renderArmyCellBlessingList(catalog, record.blessingIds) + reviewList("Spells by lineup entry", perEntrySpellReview) + '</section>';
+    return '<main class="workspace-main army-editor guided-editor army-guided-step-' + step + '">' + renderGuidedEditorHeader("Army", record.name || "New army", returnState, helpVisible) + '<div class="army-guided-progress" role="progressbar" aria-label="Army setup" aria-valuemin="1" aria-valuemax="' + steps.length + '" aria-valuenow="' + (step + 1) + '"><span style="width:' + ((step + 1) / steps.length * 100) + '%"></span></div><section class="army-guided-screen"><div class="army-guided-heading"><span>Step ' + (step + 1) + ' of ' + steps.length + '</span><h1>' + steps[step] + '</h1></div>' + screen + '</section>' + renderWorkflowFooter(steps, step, "Ready to export") + '</main>' + cellFocusOverlay;
   }
-  const armyAbilities = '<section class="army-wide-abilities" id="army-loadout"><section><span class="eyebrow">ARMY-WIDE SPELLS</span>' + renderArmyAbilityPicker(catalog, "spells", record.spellIds) + '</section><section><span class="eyebrow">ARMY BLESSINGS</span>' + renderArmyAbilityPicker(catalog, "blessings", record.blessingIds) + '</section></section>';
+  const armyAbilities = '<section class="army-wide-abilities" id="army-loadout"><section><span class="eyebrow">ARMY-WIDE SPELLS</span>' + renderArmyAbilityPicker(catalog, "spells", record.spellIds) + '</section><section><span class="eyebrow">ARMY BLESSINGS</span>' + renderArmyAbilityPicker(catalog, "blessings", record.blessingIds, record.blessingIds) + '</section><section><span class="eyebrow">ARMY CURSES</span>' + renderArmyAbilityPicker(catalog, "curses", record.blessingIds, record.blessingIds) + '</section></section>' + renderArmyCellBlessingList(catalog, record.blessingIds);
   const advancedSections = [
     { id: "army-identity", label: "Basics" }, { id: "army-placement", label: "Formation" },
     { id: "army-lineup", label: "Lineup" }, { id: "army-loadout", label: "Loadout" }
@@ -1000,7 +1126,7 @@ function renderArmyEditor(record: ArmyRecord, catalog: ArmyCatalog, roster: Unit
     '<section class="army-identity" id="army-identity"><label class="field"><span class="field-label">Army name</span><input data-bind="name" value="' + escapeHtml(record.name) + '" placeholder="Bridge guards"></label>' + inputField("Army ID", "id", record.id, { placeholder: "bridge-guards", hint: "Quest battle nodes reference this stable ID." }) + '</section>' +
     '<section class="army-layout" id="army-placement">' + board + '<aside class="army-pickers">' + picker + unitSpellPanel + '</aside></section>' +
     armyAbilities + '<section class="army-roster-section" id="army-lineup"><div class="section-heading"><div><h2>Lineup</h2><p class="help-copy">Select a row to preview it in the formation and edit its spells.</p></div></div>' + list + '</section>' +
-    '<section class="army-data-note help-copy"><strong>Game loading pending</strong><p>Authored Armies are included in exports; the game does not load them yet.</p></section></main>';
+    '<section class="army-data-note help-copy"><strong>Game loading pending</strong><p>Authored Armies are included in exports; the game does not load them yet.</p></section></main>' + cellFocusOverlay;
 }
 
 const CAMPAIGN_SHOP_KIND_LABELS: Array<[CampaignShopOfferKind, string]> = [
@@ -1593,7 +1719,8 @@ export function renderApp(
   campaignViewState: CampaignViewState = { selectedFloorId: null, selectedNodeId: null, interactionMode: "select", nodeKind: "Battle", addMenuOpen: false, pendingPlugFromId: null, selectedRouteId: null },
   relatedReturnState?: RelatedEditorReturnState,
   armyCatalogKind: ArmyCatalogKind = "units",
-  helpVisible = false
+  helpVisible = false,
+  cellFocus?: { abilityId: string | null; region: "boon" | "bane" }
 ): string {
   const item = selectedItem(workspace);
   const guidedCompact = editorMode === "guided" && item !== null;
@@ -1622,7 +1749,7 @@ export function renderApp(
   } else if ("floors" in item) {
     content = renderCampaignEditor(item, workspace, catalog, editorMode, campaignViewState, activeEditorStep, helpVisible, relatedReturnState);
   } else {
-    content = renderArmyEditor(item, catalog, roster, editorMode, selectedArmyPlacementId, activeEditorStep, armyCatalogKind, helpVisible, relatedReturnState);
+    content = renderArmyEditor(item, catalog, roster, editorMode, selectedArmyPlacementId, activeEditorStep, armyCatalogKind, helpVisible, relatedReturnState, cellFocus);
   }
 
   return '<div class="app-shell' + (guidedCompact ? ' guided-shell' : '') + (focusedDialogueTitle ? ' guided-title-shell' : '') + (helpVisible ? ' help-visible' : '') + '">' +

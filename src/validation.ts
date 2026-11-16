@@ -471,7 +471,7 @@ export function validateArmy(record: ArmyRecord, catalog: ArmyCatalog): Validati
   if (!nonEmpty(record.name)) issues.push({ level: "error", message: "Army name is required." });
   if (!nonEmpty(record.id)) issues.push({ level: "error", message: "Army ID is required." });
   const floor = Math.max(1, Number(record.previewFloor) || 1);
-  const size = armyGridSize(catalog, floor);
+  const size = armyGridSize(catalog, floor, record.blessingIds);
   const placementIds = record.units.map(unit => unit.id);
   if (!uniqueValues(placementIds)) issues.push({ level: "error", message: "Army unit placement IDs must be unique." });
   for (const [index, unit] of record.units.entries()) {
@@ -491,7 +491,36 @@ export function validateArmy(record: ArmyRecord, catalog: ArmyCatalog): Validati
   if (!uniqueValues(record.spellIds)) issues.push({ level: "error", message: "Army spells must not be duplicated." });
   if (record.spellIds.some(id => !catalog.spells.some(spell => spell.id === id))) issues.push({ level: "error", message: "Choose spells from the current game catalog." });
   if (!uniqueValues(record.blessingIds)) issues.push({ level: "error", message: "Army blessings must not be duplicated." });
-  if (record.blessingIds.some(id => !catalog.blessings.some(blessing => blessing.id === id))) issues.push({ level: "error", message: "Choose blessings from the current game BlessingPool." });
+  const selectableBlessings = [...catalog.blessings, ...(catalog.curses ?? [])];
+  if (record.blessingIds.some(id => !selectableBlessings.some(blessing => blessing.id === id))) issues.push({ level: "error", message: "Choose blessings or curses from the current game catalog." });
+  for (const pick of record.cellBlessingPicks ?? []) {
+    const ability = selectableBlessings.find(item => {
+      const rootId = String(item.mechanics?.rootPersistentId ?? item.mechanics?.persistentId ?? item.id);
+      return item.family === "cell" && rootId === pick.rootId && record.blessingIds.includes(item.id);
+    });
+    if (!ability) {
+      issues.push({ level: "error", message: "Cell targeting can only be configured for an assigned Cell Blessing or Curse." });
+      continue;
+    }
+    const mechanics = ability.mechanics ?? {};
+    const rule = String(mechanics.rule ?? "None");
+    const baneRule = String(mechanics.baneRule ?? "None");
+    const grid = armyGridSize(catalog, floor, record.blessingIds);
+    const validCells = (cells: Array<{ x: number; y: number }>) => cells.every(cell => Number.isInteger(cell.x) && Number.isInteger(cell.y) && cell.x >= 0 && cell.y >= 0 && cell.x < grid.width && cell.y < grid.height) &&
+      new Set(cells.map(cell => cell.x + ":" + cell.y)).size === cells.length;
+    if (rule === "PickedColumn" && (!Number.isInteger(pick.lane) || pick.lane < 0 || pick.lane >= grid.height)) {
+      issues.push({ level: "error", message: "Choose a valid lane for the selected Cell Blessing." });
+    }
+    if (rule === "RandomCells" && (!validCells(pick.cells) || pick.cells.length !== Number(mechanics.cellCount ?? 1))) {
+      issues.push({ level: "error", message: "Choose the configured number of cells for the selected Cell Blessing." });
+    }
+    if (baneRule === "RandomCells" && (!validCells(pick.baneCells) || pick.baneCells.length !== Number(mechanics.baneCellCount ?? 1))) {
+      issues.push({ level: "error", message: "Choose the configured number of bane cells for the selected Cell Blessing." });
+    }
+    if ((pick.baneCells ?? []).some(bane => pick.cells.some(boon => bane.x === boon.x && bane.y === boon.y))) {
+      issues.push({ level: "error", message: "Blessing and bane fields cannot overlap." });
+    }
+  }
   return issues;
 }
 

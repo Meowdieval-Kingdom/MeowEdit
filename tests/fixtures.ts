@@ -12,7 +12,14 @@ export const catalog: ArmyCatalog = {
     { id: "Cats/Barricade/1", name: "Barricade", level: 1, description: "A broad defensive structure.", tier: 2, footprint: { width: 2, height: 1 }, stats: { maxHealth: 250, maxMana: 0, manaRegen: 0, attackDamage: 0, attackSpeed: 0, attackRange: 0, minAttackRange: 0, critChance: 0, spellPower: 0, armorResist: 20, magicResist: 10, movementSpeed: 0 } }
   ] }], factions: [{ id: "Cats", name: "Cats" }],
   spells: [{ id: "fireball", name: "Fireball", description: "Deals fire damage to nearby enemies.", tier: 1, manaCost: 5, coinCost: 2, cooldown: 3, maxTargets: 4 }, { id: "shield", name: "Shield", description: "Protects an ally." }],
-  blessings: [{ id: "blessing", name: "Blessing", description: "Boosts armor for the battle.", level: 1 }]
+  blessings: [
+    { id: "blessing", name: "Blessing", description: "Boosts armor for the battle.", level: 1 },
+    { id: "picked-column", name: "Lane Guardian", description: "A lane effect.", level: 1, family: "cell", mechanics: { rule: "PickedColumn", persistentId: "lane-root", rootPersistentId: "lane-root", cellCount: 1, effect: { description: "Attack Speed +10%." }, baneRule: "None" } },
+    { id: "random-cells", name: "Lucky Fields", description: "Two selected cells and one bane.", family: "cell", mechanics: { rule: "RandomCells", persistentId: "random-root", rootPersistentId: "random-root", cellCount: 2, effect: { description: "Attack +10%." }, baneRule: "RandomCells", baneCellCount: 1, baneEffect: { description: "Armor -5." } } },
+    { id: "grid-column", name: "Extra Column", description: "Adds one column.", family: "grid", mechanics: { effect: "AddColumn" } }
+  ],
+  curses: [{ id: "cell-curse", name: "Cracked Front", description: "A front curse.", level: 1, family: "cell", isCurse: true,
+    mechanics: { rule: "BackRow", persistentId: "cracked-root", rootPersistentId: "cracked-root", effect: { description: "Attack Speed +20%." }, baneRule: "FrontRow", baneEffect: { description: "Armor -15." } } }]
 };
 
 export function armyFixture(): ArmyRecord {

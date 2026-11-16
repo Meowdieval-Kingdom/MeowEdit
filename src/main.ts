@@ -67,7 +67,7 @@ let roster = ROSTER_FALLBACK;
 let armyCatalog: ArmyCatalog = {
   schemaVersion: 1,
   gridSizes: [{ minFloor: 1, width: 3, height: 3 }, { minFloor: 3, width: 4, height: 4 }, { minFloor: 5, width: 5, height: 5 }],
-  units: [], buildings: [], factions: [], spells: [], blessings: []
+  units: [], buildings: [], factions: [], spells: [], blessings: [], curses: []
 };
 let activeEditorStep = initialEditorSession.activeEditorStep;
 let editorMode: EditorMode = initialEditorSession.editorMode;
@@ -80,6 +80,8 @@ let activeDialogueGraph: Drawflow | null = null;
 let deleteCandidate: { type: "dialogue" | "quest" | "army" | "campaign"; key: string } | null = null;
 let removeGameExamplesPending = false;
 let selectedArmyPlacementId: string | null = initialEditorSession.selectedArmyPlacementId;
+let selectedArmyCellBlessingId: string | null = null;
+let selectedArmyCellRegion: "boon" | "bane" = "boon";
 let armyCatalogKind: ArmyCatalogKind = initialEditorSession.armyCatalogKind;
 let armyDragDraft: { placementId: string; startX: number; startY: number; pointerId: number; dragging: boolean } | null = null;
 let suppressArmyClick = false;
@@ -239,6 +241,7 @@ async function loadArmyCatalog(): Promise<ArmyCatalog> {
     if (!response.ok) return armyCatalog;
     const parsed = await response.json() as ArmyCatalog;
     if (parsed.schemaVersion !== 1 || !Array.isArray(parsed.units) || !Array.isArray(parsed.spells) || !Array.isArray(parsed.blessings)) return armyCatalog;
+    if (!Array.isArray(parsed.curses)) parsed.curses = [];
     return parsed;
   } catch {
     return armyCatalog;
@@ -283,6 +286,7 @@ function render(): void {
     if (selectedCampaignNodeId === null && floor?.nodes.length) selectedCampaignNodeId = floor.nodes[0].id;
   }
   if (selectedArmyPlacementId && !currentArmy()?.units.some(unit => unit.id === selectedArmyPlacementId)) selectedArmyPlacementId = null;
+  if (selectedArmyCellBlessingId && !currentArmy()?.blessingIds.some(id => id === selectedArmyCellBlessingId)) selectedArmyCellBlessingId = null;
   persistEditorSession();
   const focusAfterPath = guidedFocusAfterPath;
   const focusExactPath = guidedFocusExactPath;
@@ -302,7 +306,7 @@ function render(): void {
   }, returnContext ? {
     parent: returnContext.parentType === "campaign" ? "Campaign" : "Quest",
     label: returnContext.returnLabel
-  } : undefined, armyCatalogKind, helpVisible);
+  } : undefined, armyCatalogKind, helpVisible, { abilityId: selectedArmyCellBlessingId, region: selectedArmyCellRegion });
   const appLayout = root!.querySelector<HTMLElement>(".app-layout");
   appLayout?.classList.toggle("is-sidebar-collapsed", sidebarCollapsed);
   appLayout?.classList.toggle("is-sidebar-open", root!.querySelector<HTMLElement>(".sidebar")?.classList.contains("is-open") ?? false);
@@ -894,7 +898,7 @@ function moveArmyPlacementTo(placementId: string, x: number, y: number): boolean
   const army = currentArmy();
   const selected = army?.units.find(unit => unit.id === placementId);
   if (!army || !selected) return false;
-  const grid = armyGridSize(armyCatalog, army.previewFloor);
+  const grid = armyGridSize(armyCatalog, army.previewFloor, army.blessingIds);
   const occupant = armyPlacementAtCell(x, y, selected.id);
   const destination = occupant ? { x: occupant.x, y: occupant.y } : { x, y };
   const moved = moveArmyUnit(army, selected.id, destination.x, destination.y, moves => canApplyArmyMoves(army, moves, grid));
@@ -911,7 +915,7 @@ function moveArmyPlacementTo(placementId: string, x: number, y: number): boolean
 function addArmyUnitAt(x: number, y: number, unitId: string): void {
   const army = currentArmy();
   if (!army || !unitId) return;
-  const grid = armyGridSize(armyCatalog, army.previewFloor);
+  const grid = armyGridSize(armyCatalog, army.previewFloor, army.blessingIds);
   if (selectedArmyPlacementId) {
     const selected = army.units.find(unit => unit.id === selectedArmyPlacementId);
     if (selected) {
@@ -949,7 +953,7 @@ function addSelectedArmyUnit(): void {
   const army = currentArmy();
   const unitId = selectedArmyPickerLevelId();
   if (!army || !unitId) return;
-  const grid = armyGridSize(armyCatalog, army.previewFloor);
+  const grid = armyGridSize(armyCatalog, army.previewFloor, army.blessingIds);
   const cell = firstAvailableArmyCell(army.units, armyCatalog, unitId, grid);
   if (!cell) {
     showToast("There is no open space large enough for this entry on the current grid.", "warning");
@@ -969,7 +973,7 @@ function replaceSelectedArmyUnit(): void {
   const levelPicker = root!.querySelector<HTMLSelectElement>("#army-level-picker");
   const variant = armyCatalog[armyCatalogKind].find(item => item.id === unitPicker?.value)?.levels.find(level => level.level === Number(levelPicker?.value));
   if (!army || !selected || !variant) return;
-  const grid = armyGridSize(armyCatalog, army.previewFloor);
+  const grid = armyGridSize(armyCatalog, army.previewFloor, army.blessingIds);
   const replaced = replaceArmyUnit(army, selected.id, variant.id, (placement, candidateId) =>
     canPlaceArmyLevel(army.units, armyCatalog, candidateId, placement.x, placement.y, grid, placement.id));
   if (!replaced) {
@@ -991,12 +995,12 @@ function addSelectedArmyUnitSpell(): void {
   render();
 }
 
-function addArmyAbility(kind: "spell" | "blessing"): void {
+function addArmyAbility(kind: "spell" | "blessing" | "curse"): void {
   const army = currentArmy();
-  const pickerId = kind === "spell" ? "army-spell-picker" : "army-blessing-picker";
+  const pickerId = kind === "spell" ? "army-spell-picker" : kind === "curse" ? "army-curse-picker" : "army-blessing-picker";
   const picker = root!.querySelector<HTMLSelectElement>("#" + pickerId);
   const id = picker?.value ?? "";
-  const catalog = kind === "spell" ? armyCatalog.spells : armyCatalog.blessings;
+  const catalog = kind === "spell" ? armyCatalog.spells : kind === "curse" ? armyCatalog.curses ?? [] : armyCatalog.blessings;
   const list = kind === "spell" ? army?.spellIds : army?.blessingIds;
   if (!army || !id || !catalog.some(item => item.id === id) || !list || list.includes(id)) return;
   list.push(id);
@@ -1027,7 +1031,7 @@ function updateArmyEntityPreview(): void {
   preview.innerHTML = renderArmyEntityPreview(armyCatalog, unitPicker.value, Number(levelPicker.value), armyCatalogKind, roster);
 }
 
-function updateArmyAbilityPreview(pickerId: string, kind: "spells" | "blessings", previewId = "army-ability-preview"): void {
+function updateArmyAbilityPreview(pickerId: string, kind: "spells" | "blessings" | "curses", previewId = "army-ability-preview"): void {
   const picker = root!.querySelector<HTMLSelectElement>("#" + pickerId);
   const preview = root!.querySelector<HTMLElement>("#" + previewId);
   if (picker && preview) preview.innerHTML = renderArmyAbilityPreview(armyCatalog, picker.value, kind);
@@ -2203,6 +2207,7 @@ function onAction(button: HTMLButtonElement): void {
     }
     case "add-army-spell": addArmyAbility("spell"); return;
     case "add-army-blessing": addArmyAbility("blessing"); return;
+    case "add-army-curse": addArmyAbility("curse"); return;
     case "add-army-unit-spell": addSelectedArmyUnitSpell(); return;
     case "remove-army-unit-spell": {
       const army = currentArmy();
@@ -2215,7 +2220,67 @@ function onAction(button: HTMLButtonElement): void {
     }
     case "remove-army-blessing": {
       const army = currentArmy(); if (!army) return;
-      army.blessingIds.splice(Number(button.dataset.index), 1); saveWorkspace(); render(); return;
+      const [removedId] = army.blessingIds.splice(Number(button.dataset.index), 1);
+      const allBlessings = armyCatalog.blessings.concat(armyCatalog.curses ?? []);
+      const removed = allBlessings.find(item => item.id === removedId);
+      const rootId = String(removed?.mechanics?.rootPersistentId ?? removed?.mechanics?.persistentId ?? removedId);
+      if (!army.blessingIds.some(id => {
+        const ability = allBlessings.find(item => item.id === id);
+        return String(ability?.mechanics?.rootPersistentId ?? ability?.mechanics?.persistentId ?? id) === rootId;
+      })) army.cellBlessingPicks = (army.cellBlessingPicks ?? []).filter(pick => pick.rootId !== rootId);
+      if (selectedArmyCellBlessingId === removedId) selectedArmyCellBlessingId = null;
+      saveWorkspace(); render(); return;
+    }
+    case "configure-cell-blessing": {
+      const army = currentArmy();
+      const id = button.dataset.abilityId ?? "";
+      if (!army?.blessingIds.includes(id)) return;
+      const ability = armyCatalog.blessings.concat(armyCatalog.curses ?? []).find(item => item.id === id);
+      if (ability?.family !== "cell") return;
+      selectedArmyCellBlessingId = id;
+      selectedArmyCellRegion = "boon";
+      const rootId = String(ability.mechanics?.rootPersistentId ?? ability.mechanics?.persistentId ?? id);
+      army.cellBlessingPicks ??= [];
+      if (!army.cellBlessingPicks.some(pick => pick.rootId === rootId)) army.cellBlessingPicks.push({ rootId, lane: -1, cells: [], locked: false, baneCells: [] });
+      render(); return;
+    }
+    case "close-cell-blessing-focus": selectedArmyCellBlessingId = null; render(); return;
+    case "cell-blessing-region": {
+      const region = button.dataset.region;
+      if (region === "boon" || region === "bane") { selectedArmyCellRegion = region; render(); }
+      return;
+    }
+    case "pick-cell-blessing-lane":
+    case "toggle-cell-blessing-cell": {
+      const army = currentArmy();
+      const ability = armyCatalog.blessings.concat(armyCatalog.curses ?? []).find(item => item.id === selectedArmyCellBlessingId);
+      if (!army || !ability || ability.family !== "cell") return;
+      const mechanics = ability.mechanics ?? {};
+      const rootId = String(mechanics.rootPersistentId ?? mechanics.persistentId ?? ability.id);
+      army.cellBlessingPicks ??= [];
+      let pick = army.cellBlessingPicks.find(item => item.rootId === rootId);
+      if (!pick) { pick = { rootId, lane: -1, cells: [], locked: false, baneCells: [] }; army.cellBlessingPicks.push(pick); }
+      if (button.dataset.action === "pick-cell-blessing-lane") {
+        pick.lane = Number(button.dataset.y);
+        pick.locked = true;
+        pick.cells = [];
+      } else {
+        const field = selectedArmyCellRegion === "boon" ? "cells" : "baneCells";
+        const cells = pick[field];
+        const x = Number(button.dataset.x), y = Number(button.dataset.y);
+        const index = cells.findIndex(cell => cell.x === x && cell.y === y);
+        if (index >= 0) cells.splice(index, 1);
+        else {
+          const capacity = Number(selectedArmyCellRegion === "boon" ? mechanics.cellCount ?? 1 : mechanics.baneCellCount ?? 1);
+          if (cells.length >= capacity) { showToast("This effect targets " + capacity + (capacity === 1 ? " field." : " fields."), "warning"); return; }
+          if (selectedArmyCellRegion === "bane" && pick.cells.some(cell => cell.x === x && cell.y === y)) { showToast("The blessing and bane fields cannot overlap.", "warning"); return; }
+          cells.push({ x, y });
+        }
+        const boonReady = String(mechanics.rule) !== "RandomCells" || pick.cells.length === Number(mechanics.cellCount ?? 1);
+        const baneReady = String(mechanics.baneRule) !== "RandomCells" || pick.baneCells.length === Number(mechanics.baneCellCount ?? 1);
+        pick.locked = boonReady && baneReady;
+      }
+      saveWorkspace(); render(); return;
     }
     case "preview-choice": {
       const target = button.dataset.target ?? "";
@@ -2321,6 +2386,7 @@ root.addEventListener("change", event => {
   if (element instanceof HTMLSelectElement && element.id === "army-level-picker") { updateArmyEntityPreview(); return; }
   if (element instanceof HTMLSelectElement && element.id === "army-spell-picker") { updateArmyAbilityPreview(element.id, "spells", "army-spell-preview"); return; }
   if (element instanceof HTMLSelectElement && element.id === "army-blessing-picker") { updateArmyAbilityPreview(element.id, "blessings", "army-blessing-preview"); return; }
+  if (element instanceof HTMLSelectElement && element.id === "army-curse-picker") { updateArmyAbilityPreview(element.id, "curses", "army-curse-preview"); return; }
   if (element instanceof HTMLSelectElement && element.id === "army-unit-spell-picker") { updateArmyAbilityPreview(element.id, "spells", "army-unit-spell-preview"); return; }
   bindField(element);
   if (element.dataset.rerender === "true" || element instanceof HTMLInputElement && element.type === "checkbox") {
