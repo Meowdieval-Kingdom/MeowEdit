@@ -80,7 +80,7 @@ let activeDialogueGraph: Drawflow | null = null;
 let deleteCandidate: { type: "dialogue" | "quest" | "army" | "campaign"; key: string } | null = null;
 let removeGameExamplesPending = false;
 let selectedArmyPlacementId: string | null = initialEditorSession.selectedArmyPlacementId;
-let selectedArmyCellBlessingId: string | null = null;
+let selectedArmyBattlefieldEffectId: string | null = null;
 let selectedArmyCellRegion: "boon" | "bane" = "boon";
 let armyCatalogKind: ArmyCatalogKind = initialEditorSession.armyCatalogKind;
 let armyDragDraft: { placementId: string; startX: number; startY: number; pointerId: number; dragging: boolean } | null = null;
@@ -286,7 +286,7 @@ function render(): void {
     if (selectedCampaignNodeId === null && floor?.nodes.length) selectedCampaignNodeId = floor.nodes[0].id;
   }
   if (selectedArmyPlacementId && !currentArmy()?.units.some(unit => unit.id === selectedArmyPlacementId)) selectedArmyPlacementId = null;
-  if (selectedArmyCellBlessingId && !currentArmy()?.blessingIds.some(id => id === selectedArmyCellBlessingId)) selectedArmyCellBlessingId = null;
+  if (selectedArmyBattlefieldEffectId && !currentArmy()?.blessingIds.some(id => id === selectedArmyBattlefieldEffectId)) selectedArmyBattlefieldEffectId = null;
   persistEditorSession();
   const focusAfterPath = guidedFocusAfterPath;
   const focusExactPath = guidedFocusExactPath;
@@ -306,7 +306,7 @@ function render(): void {
   }, returnContext ? {
     parent: returnContext.parentType === "campaign" ? "Campaign" : "Quest",
     label: returnContext.returnLabel
-  } : undefined, armyCatalogKind, helpVisible, { abilityId: selectedArmyCellBlessingId, region: selectedArmyCellRegion });
+  } : undefined, armyCatalogKind, helpVisible, { abilityId: selectedArmyBattlefieldEffectId, region: selectedArmyCellRegion });
   const appLayout = root!.querySelector<HTMLElement>(".app-layout");
   appLayout?.classList.toggle("is-sidebar-collapsed", sidebarCollapsed);
   appLayout?.classList.toggle("is-sidebar-open", root!.querySelector<HTMLElement>(".sidebar")?.classList.contains("is-open") ?? false);
@@ -1004,8 +1004,21 @@ function addArmyAbility(kind: "spell" | "blessing" | "curse"): void {
   const list = kind === "spell" ? army?.spellIds : army?.blessingIds;
   if (!army || !id || !catalog.some(item => item.id === id) || !list || list.includes(id)) return;
   list.push(id);
+  if (kind !== "spell") focusArmyBattlefieldEffect(id);
   saveWorkspace();
   render();
+}
+
+function focusArmyBattlefieldEffect(id: string): boolean {
+  const army = currentArmy();
+  const ability = armyCatalog.blessings.concat(armyCatalog.curses ?? []).find(item => item.id === id);
+  if (!army || ability?.family !== "cell") return false;
+  selectedArmyBattlefieldEffectId = id;
+  selectedArmyCellRegion = "boon";
+  const rootId = String(ability.mechanics?.rootPersistentId ?? ability.mechanics?.persistentId ?? id);
+  army.cellBlessingPicks ??= [];
+  if (!army.cellBlessingPicks.some(pick => pick.rootId === rootId)) army.cellBlessingPicks.push({ rootId, lane: -1, cells: [], locked: false, baneCells: [] });
+  return true;
 }
 
 function syncArmyLevelPicker(unitBaseId: string): void {
@@ -2228,23 +2241,17 @@ function onAction(button: HTMLButtonElement): void {
         const ability = allBlessings.find(item => item.id === id);
         return String(ability?.mechanics?.rootPersistentId ?? ability?.mechanics?.persistentId ?? id) === rootId;
       })) army.cellBlessingPicks = (army.cellBlessingPicks ?? []).filter(pick => pick.rootId !== rootId);
-      if (selectedArmyCellBlessingId === removedId) selectedArmyCellBlessingId = null;
+      if (selectedArmyBattlefieldEffectId === removedId) selectedArmyBattlefieldEffectId = null;
       saveWorkspace(); render(); return;
     }
-    case "configure-cell-blessing": {
+    case "configure-battlefield-effect": {
       const army = currentArmy();
       const id = button.dataset.abilityId ?? "";
       if (!army?.blessingIds.includes(id)) return;
-      const ability = armyCatalog.blessings.concat(armyCatalog.curses ?? []).find(item => item.id === id);
-      if (ability?.family !== "cell") return;
-      selectedArmyCellBlessingId = id;
-      selectedArmyCellRegion = "boon";
-      const rootId = String(ability.mechanics?.rootPersistentId ?? ability.mechanics?.persistentId ?? id);
-      army.cellBlessingPicks ??= [];
-      if (!army.cellBlessingPicks.some(pick => pick.rootId === rootId)) army.cellBlessingPicks.push({ rootId, lane: -1, cells: [], locked: false, baneCells: [] });
-      render(); return;
+      if (focusArmyBattlefieldEffect(id)) { render(); }
+      return;
     }
-    case "close-cell-blessing-focus": selectedArmyCellBlessingId = null; render(); return;
+    case "close-cell-blessing-focus": selectedArmyBattlefieldEffectId = null; render(); return;
     case "cell-blessing-region": {
       const region = button.dataset.region;
       if (region === "boon" || region === "bane") { selectedArmyCellRegion = region; render(); }
@@ -2253,7 +2260,7 @@ function onAction(button: HTMLButtonElement): void {
     case "pick-cell-blessing-lane":
     case "toggle-cell-blessing-cell": {
       const army = currentArmy();
-      const ability = armyCatalog.blessings.concat(armyCatalog.curses ?? []).find(item => item.id === selectedArmyCellBlessingId);
+      const ability = armyCatalog.blessings.concat(armyCatalog.curses ?? []).find(item => item.id === selectedArmyBattlefieldEffectId);
       if (!army || !ability || ability.family !== "cell") return;
       const mechanics = ability.mechanics ?? {};
       const rootId = String(mechanics.rootPersistentId ?? mechanics.persistentId ?? ability.id);

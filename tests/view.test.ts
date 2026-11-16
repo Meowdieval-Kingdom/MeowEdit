@@ -101,12 +101,14 @@ describe("editor rendering", () => {
 
     army.blessingIds.push("picked-column", "cell-curse");
     const focusedBlessing = renderApp(workspace, rosterFixture, catalog, [], 4, "guided");
-    expect(focusedBlessing).toContain('data-action="configure-cell-blessing"');
-    expect(focusedBlessing).toContain("Configure fields");
+    expect(focusedBlessing).toContain('data-action="configure-battlefield-effect"');
+    expect(focusedBlessing).toContain('class="army-chip-area">Choose a lane</small>');
+    expect(focusedBlessing).toContain("FIELD · Choose a lane");
     const curses = renderApp(workspace, rosterFixture, catalog, [], 5, "guided");
     expect(curses).toContain('id="army-curse-preview"');
     expect(curses).toContain("Cracked Front");
     expect(curses).toContain("Curse");
+    expect(curses).toContain("FIELD · Back row · Bane: Front row");
 
     const cellFocus = renderApp(workspace, rosterFixture, catalog, [], 4, "guided", null, undefined, undefined, "units", false,
       { abilityId: "picked-column", region: "boon" });

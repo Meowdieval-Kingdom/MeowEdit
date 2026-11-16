@@ -345,7 +345,7 @@ describe("browser application flow", () => {
     blessingPicker.value = "picked-column";
     blessingPicker.dispatchEvent(new Event("change", { bubbles: true }));
     document.querySelector<HTMLButtonElement>('[data-action="add-army-blessing"]')!.click();
-    document.querySelector<HTMLButtonElement>('[data-action="configure-cell-blessing"]')!.click();
+    expect(document.querySelector('[role="dialog"][aria-label="Configure battlefield fields"]')?.textContent).toContain("Blessing field");
     document.querySelector<HTMLButtonElement>('[data-action="pick-cell-blessing-lane"][data-y="2"]')!.click();
     let saved = JSON.parse(localStorage.getItem("meowedit.workspace.v1")!);
     expect(saved.armies[0].cellBlessingPicks[0]).toMatchObject({ rootId: "lane-root", lane: 2, locked: true });
@@ -359,6 +359,42 @@ describe("browser application flow", () => {
     saved = JSON.parse(localStorage.getItem("meowedit.workspace.v1")!);
     expect(saved.armies[0].blessingIds).toEqual(["picked-column", "cell-curse"]);
     expect(document.querySelector(".army-guided-heading h1")?.textContent).toBe("Curses");
+    expect(document.querySelector('[data-action="configure-battlefield-effect"][data-ability-id="cell-curse"]')?.getAttribute("aria-label"))
+      .toContain("Back row · Bane: Front row");
+    expect(document.querySelector('[role="dialog"][aria-label="Configure battlefield fields"]')?.textContent).toContain("Cracked Front");
+    document.querySelector<HTMLButtonElement>('[data-action="close-cell-blessing-focus"]')!.click();
+    document.querySelector<HTMLButtonElement>('[data-action="configure-battlefield-effect"][data-ability-id="cell-curse"]')!.click();
+    expect(document.querySelector('[role="dialog"][aria-label="Configure battlefield fields"]')?.textContent).toContain("Cracked Front");
+  });
+
+  it("lets authors pick individual blessing and bane fields on the board", async () => {
+    vi.resetModules();
+    localStorage.clear();
+    document.body.innerHTML = '<div id="app"></div>';
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => ({
+      ok: true,
+      json: async () => String(input).includes("army-catalog") ? baseCatalog : rosterFixture
+    })));
+
+    await import("../src/main");
+    document.querySelector<HTMLButtonElement>('[data-action="new-army"]')!.click();
+    for (let step = 0; step < 4; step++) document.querySelector<HTMLButtonElement>('[data-action="editor-next"]')!.click();
+    const blessingPicker = document.querySelector<HTMLSelectElement>("#army-blessing-picker")!;
+    blessingPicker.value = "random-cells";
+    blessingPicker.dispatchEvent(new Event("change", { bubbles: true }));
+    document.querySelector<HTMLButtonElement>('[data-action="add-army-blessing"]')!.click();
+
+    document.querySelector<HTMLButtonElement>('[data-action="toggle-cell-blessing-cell"][data-x="1"][data-y="1"]')!.click();
+    document.querySelector<HTMLButtonElement>('[data-action="toggle-cell-blessing-cell"][data-x="2"][data-y="2"]')!.click();
+    document.querySelector<HTMLButtonElement>('[data-action="cell-blessing-region"][data-region="bane"]')!.click();
+    document.querySelector<HTMLButtonElement>('[data-action="toggle-cell-blessing-cell"][data-x="0"][data-y="0"]')!.click();
+
+    const saved = JSON.parse(localStorage.getItem("meowedit.workspace.v1")!);
+    expect(saved.armies[0].cellBlessingPicks[0]).toMatchObject({
+      rootId: "random-root",
+      cells: [{ x: 1, y: 1 }, { x: 2, y: 2 }],
+      baneCells: [{ x: 0, y: 0 }]
+    });
   });
 
   it("keeps a settings-only campaign in a short randomizer flow", async () => {

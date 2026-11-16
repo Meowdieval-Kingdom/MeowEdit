@@ -4,6 +4,7 @@ import type {
   DialogueNode,
   DialogueRecord,
   ArmyCatalog,
+  ArmyCatalogAbility,
   ArmyCatalogLevel,
   ArmyCatalogUnit,
   ArmyRecord,
@@ -898,7 +899,7 @@ export function renderArmyAbilityPreview(catalog: ArmyCatalog, abilityId: string
     (ability.healthCost ?? 0) > 0 ? ability.healthCost + " health" : "", (ability.cooldown ?? 0) > 0 ? ability.cooldown + "s cooldown" : "",
     ability.maxTargets ? "Up to " + ability.maxTargets + " targets" : ""].filter(Boolean).join(" · ");
   const mechanics = ability.mechanics ?? {};
-  const family = ability.family === "cell" ? "Cell · " + String(mechanics.rule ?? "") : ability.family === "grid" ? "Grid · " + String(mechanics.effect ?? "") : ability.family === "economy" ? "Economy" : "";
+  const family = ability.family === "cell" ? "Field · " + battlefieldTargetSummary(ability) : ability.family === "grid" ? "Grid · " + String(mechanics.effect ?? "") : ability.family === "economy" ? "Economy" : "";
   const cellEffect = mechanics.effect && typeof mechanics.effect === "object" ? mechanics.effect as { name?: string; description?: string } : undefined;
   const baneEffect = mechanics.baneEffect && typeof mechanics.baneEffect === "object" ? mechanics.baneEffect as { name?: string; description?: string } : undefined;
   const effectDetails = ability.family === "cell" ? '<div class="army-cell-effect-summary"><strong>' + escapeHtml(family) + '</strong>' +
@@ -912,13 +913,18 @@ export function renderArmyAbilityPreview(catalog: ArmyCatalog, abilityId: string
 function armyAbilityChip(catalog: ArmyCatalog, id: string, index: number, kind: "spell" | "blessing" | "curse" | "unit-spell"): string {
   const ability = (kind === "blessing" ? [...catalog.blessings, ...(catalog.curses ?? [])] : kind === "curse" ? catalog.curses ?? [] : catalog.spells).find(item => item.id === id);
   const action = kind === "blessing" || kind === "curse" ? "remove-army-blessing" : kind === "unit-spell" ? "remove-army-unit-spell" : "remove-army-spell";
+  const area = ability ? battlefieldTargetSummary(ability) : null;
   const title = [ability?.description, ability?.tier ? "Tier " + ability.tier : "", ability?.level ? "Level " + ability.level : "",
     ability?.manaCost ? "Mana " + ability.manaCost : "", ability?.coinCost ? "Coins " + ability.coinCost : "",
     ability?.healthCost ? "Health " + ability.healthCost : "", ability?.cooldown ? "Cooldown " + ability.cooldown + "s" : "",
-    ability?.maxTargets ? "Max targets " + ability.maxTargets : ""].filter(Boolean).join("\n");
-  return '<span class="army-chip" title="' + escapeHtml(title || "No effect description is available in the game catalog.") + '" tabindex="0">' + escapeHtml(ability?.name ?? id) +
+    ability?.maxTargets ? "Max targets " + ability.maxTargets : "", area ?? ""].filter(Boolean).join("\n");
+  const name = escapeHtml(ability?.name ?? id);
+  const label = area
+    ? '<button type="button" class="army-chip-select" data-action="configure-battlefield-effect" data-ability-id="' + escapeHtml(id) + '" aria-label="Configure battlefield fields for ' + name + ': ' + escapeHtml(area) + '" title="Configure battlefield fields"><span>' + name + '</span><small class="army-chip-area">' + escapeHtml(area) + '</small></button>'
+    : name;
+  return '<span class="army-chip" title="' + escapeHtml(title || "No effect description is available in the game catalog.") + '" tabindex="0">' + label +
     (ability?.level && ability.level > 1 ? ' <small>Lv ' + ability.level + '</small>' : "") +
-    actionButton(action, "×", "chip-remove", ' data-index="' + index + '" aria-label="Remove ' + escapeHtml(ability?.name ?? "effect") + '"') + '</span>';
+    actionButton(action, "×", "chip-remove", ' data-index="' + index + '" aria-label="Remove ' + name + '"') + '</span>';
 }
 
 function renderArmyGrid(record: ArmyRecord, size: { width: number; height: number }, catalog: ArmyCatalog, roster: UnitRoster, selectedId: string | null): string {
@@ -967,7 +973,8 @@ function renderArmyAbilityPicker(catalog: ArmyCatalog, kind: "spells" | "blessin
   const entries = kind === "spells" ? catalog.spells : kind === "curses" ? catalog.curses ?? [] : catalog.blessings;
   const assignedIds = ids.filter(id => entries.some(entry => entry.id === id));
   const chips = assignedIds.map(id => armyAbilityChip(catalog, id, sourceIds.indexOf(id), kind === "spells" ? "spell" : kind === "curses" ? "curse" : "blessing")).join("");
-  const options = entries.map(item => [item.id, item.name + (item.level && item.level > 1 ? " · Level " + item.level : "") + (item.isAdventureOnly ? " · Adventure only" : "")] as [string, string]);
+  const options = entries.map(item => [item.id, item.name + (item.level && item.level > 1 ? " · Level " + item.level : "") +
+    (item.isAdventureOnly ? " · Adventure only" : "") + (battlefieldTargetSummary(item) ? " · FIELD · " + battlefieldTargetSummary(item) : "")] as [string, string]);
   const pickerId = kind === "spells" ? "army-spell-picker" : kind === "curses" ? "army-curse-picker" : "army-blessing-picker";
   const label = kind === "spells" ? "Spell" : kind === "curses" ? "Curse" : "Blessing";
   const action = kind === "spells" ? "add-army-spell" : kind === "curses" ? "add-army-curse" : "add-army-blessing";
@@ -989,14 +996,15 @@ function cellRuleLabel(rule: unknown): string {
   return labels[String(rule)] ?? "Cell field";
 }
 
-function renderArmyCellBlessingList(catalog: ArmyCatalog, ids: string[]): string {
-  const cellEntries = ids.map(id => armyAbilityById(catalog, id)).filter(item => item?.family === "cell");
-  if (!cellEntries.length) return "";
-  return '<section class="army-cell-list"><h3>Battlefield effects</h3>' + cellEntries.map(item =>
-    '<div class="army-cell-list-row"><span><strong>' + escapeHtml(item!.name) + '</strong><small>' + escapeHtml(cellRuleLabel(item!.mechanics?.rule)) +
-    (item!.isCurse ? ' · Curse' : '') + '</small></span>' +
-    actionButton("configure-cell-blessing", "Configure fields", "button button-small", ' data-ability-id="' + escapeHtml(item!.id) + '"') + '</div>'
-  ).join("") + '</section>';
+function battlefieldTargetSummary(ability: ArmyCatalogAbility): string | null {
+  if (ability.family !== "cell") return null;
+  const mechanics = ability.mechanics ?? {};
+  const describeRule = (rule: unknown, count: unknown) => String(rule) === "RandomCells"
+    ? "Random fields ×" + Math.max(1, Number(count) || 1)
+    : String(rule) === "PickedColumn" ? "Choose a lane" : cellRuleLabel(rule);
+  const boon = describeRule(mechanics.rule, mechanics.cellCount);
+  const baneRule = String(mechanics.baneRule ?? "None");
+  return baneRule === "None" ? boon : boon + " · Bane: " + describeRule(baneRule, mechanics.baneCellCount);
 }
 
 function renderArmyCellTargetFocus(record: ArmyRecord, catalog: ArmyCatalog, roster: UnitRoster, abilityId: string, region: "boon" | "bane"): string {
@@ -1110,13 +1118,12 @@ function renderArmyEditor(record: ArmyRecord, catalog: ArmyCatalog, roster: Unit
     else if (step >= 3 && step <= 5) {
       const abilityKind = step === 3 ? "spells" : step === 4 ? "blessings" : "curses";
       const entries = abilityKind === "spells" ? record.spellIds : record.blessingIds;
-      const cellIds = entries.filter(id => armyAbilityById(catalog, id)?.family === "cell");
       screen = '<div class="army-guided-loadout"><section class="army-focus-panel">' + renderArmyAbilityPicker(catalog, abilityKind, entries, abilityKind === "spells" ? entries : record.blessingIds) +
-        (abilityKind === "spells" ? "" : renderArmyCellBlessingList(catalog, cellIds)) + '</section><div class="army-context-muted"><strong>Army setup</strong><span>' + record.units.length + ' lineup entries</span></div></div>';
-    } else screen = '<section class="army-review"><dl><div><dt>Name</dt><dd>' + escapeHtml(record.name || "Untitled army") + '</dd></div><div><dt>Board</dt><dd>Floor ' + floor + ' · ' + size.width + ' × ' + size.height + '</dd></div><div><dt>Lineup</dt><dd>' + record.units.length + ' units and buildings</dd></div><div><dt>Army spells</dt><dd>' + record.spellIds.length + '</dd></div><div><dt>Blessings and curses</dt><dd>' + record.blessingIds.length + '</dd></div></dl>' + list + '<div class="army-review-effects"><span>Spells</span><div class="army-chips">' + (spells || "<small>None</small>") + '</div><span>Blessings / curses</span><div class="army-chips">' + (blessings || "<small>None</small>") + '</div></div>' + renderArmyCellBlessingList(catalog, record.blessingIds) + reviewList("Spells by lineup entry", perEntrySpellReview) + '</section>';
+        '</section><div class="army-context-muted"><strong>Army setup</strong><span>' + record.units.length + ' lineup entries</span></div></div>';
+    } else screen = '<section class="army-review"><dl><div><dt>Name</dt><dd>' + escapeHtml(record.name || "Untitled army") + '</dd></div><div><dt>Board</dt><dd>Floor ' + floor + ' · ' + size.width + ' × ' + size.height + '</dd></div><div><dt>Lineup</dt><dd>' + record.units.length + ' units and buildings</dd></div><div><dt>Army spells</dt><dd>' + record.spellIds.length + '</dd></div><div><dt>Blessings and curses</dt><dd>' + record.blessingIds.length + '</dd></div></dl>' + list + '<div class="army-review-effects"><span>Spells</span><div class="army-chips">' + (spells || "<small>None</small>") + '</div><span>Blessings / curses</span><div class="army-chips">' + (blessings || "<small>None</small>") + '</div></div>' + reviewList("Spells by lineup entry", perEntrySpellReview) + '</section>';
     return '<main class="workspace-main army-editor guided-editor army-guided-step-' + step + '">' + renderGuidedEditorHeader("Army", record.name || "New army", returnState, helpVisible) + '<div class="army-guided-progress" role="progressbar" aria-label="Army setup" aria-valuemin="1" aria-valuemax="' + steps.length + '" aria-valuenow="' + (step + 1) + '"><span style="width:' + ((step + 1) / steps.length * 100) + '%"></span></div><section class="army-guided-screen"><div class="army-guided-heading"><span>Step ' + (step + 1) + ' of ' + steps.length + '</span><h1>' + steps[step] + '</h1></div>' + screen + '</section>' + renderWorkflowFooter(steps, step, "Ready to export") + '</main>' + cellFocusOverlay;
   }
-  const armyAbilities = '<section class="army-wide-abilities" id="army-loadout"><section><span class="eyebrow">ARMY-WIDE SPELLS</span>' + renderArmyAbilityPicker(catalog, "spells", record.spellIds) + '</section><section><span class="eyebrow">ARMY BLESSINGS</span>' + renderArmyAbilityPicker(catalog, "blessings", record.blessingIds, record.blessingIds) + '</section><section><span class="eyebrow">ARMY CURSES</span>' + renderArmyAbilityPicker(catalog, "curses", record.blessingIds, record.blessingIds) + '</section></section>' + renderArmyCellBlessingList(catalog, record.blessingIds);
+  const armyAbilities = '<section class="army-wide-abilities" id="army-loadout"><section><span class="eyebrow">ARMY-WIDE SPELLS</span>' + renderArmyAbilityPicker(catalog, "spells", record.spellIds) + '</section><section><span class="eyebrow">ARMY BLESSINGS</span>' + renderArmyAbilityPicker(catalog, "blessings", record.blessingIds, record.blessingIds) + '</section><section><span class="eyebrow">ARMY CURSES</span>' + renderArmyAbilityPicker(catalog, "curses", record.blessingIds, record.blessingIds) + '</section></section>';
   const advancedSections = [
     { id: "army-identity", label: "Basics" }, { id: "army-placement", label: "Formation" },
     { id: "army-lineup", label: "Lineup" }, { id: "army-loadout", label: "Loadout" }
