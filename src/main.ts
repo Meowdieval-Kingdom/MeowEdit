@@ -45,7 +45,7 @@ import { normalizeArmy, normalizeCampaign } from "./import-normalizers";
 import { EditorNavigationHistory, type RelatedEditorReturnContext } from "./editor-navigation";
 import { defaultEditorSession, loadEditorSession, saveEditorSession } from "./editor-session";
 import { includeArmyUnitsInRoster } from "./roster";
-import { escapeHtml, renderApp, renderLivePreview, renderValidationSummary, renderArmyEntityPreview, renderArmyAbilityPreview, type EditorMode } from "./view";
+import { escapeHtml, renderApp, renderLivePreview, renderValidationSummary, renderArmyEntityPreview, renderArmyAbilityPreview, type ArmyAbilityFilters, type ArmyAbilityKind, type ArmyAbilitySelections, type EditorMode } from "./view";
 
 const STORAGE_KEY = "meowedit.workspace.v1";
 const initialEditorSession = (() => {
@@ -82,6 +82,9 @@ let removeGameExamplesPending = false;
 let selectedArmyPlacementId: string | null = initialEditorSession.selectedArmyPlacementId;
 let selectedArmyBattlefieldEffectId: string | null = null;
 let selectedArmyCellRegion: "boon" | "bane" = "boon";
+let armyAbilityFilters: ArmyAbilityFilters = { spells: "all", blessings: "all", curses: "all" };
+let armyAbilityCategory: ArmyAbilityKind = "spells";
+let armyAbilitySelections: ArmyAbilitySelections = { spells: "", blessings: "", curses: "" };
 let armyCatalogKind: ArmyCatalogKind = initialEditorSession.armyCatalogKind;
 let armyDragDraft: { placementId: string; startX: number; startY: number; pointerId: number; dragging: boolean } | null = null;
 let suppressArmyClick = false;
@@ -306,7 +309,7 @@ function render(): void {
   }, returnContext ? {
     parent: returnContext.parentType === "campaign" ? "Campaign" : "Quest",
     label: returnContext.returnLabel
-  } : undefined, armyCatalogKind, helpVisible, { abilityId: selectedArmyBattlefieldEffectId, region: selectedArmyCellRegion });
+  } : undefined, armyCatalogKind, helpVisible, { abilityId: selectedArmyBattlefieldEffectId, region: selectedArmyCellRegion }, armyAbilityFilters, armyAbilityCategory, armyAbilitySelections);
   const appLayout = root!.querySelector<HTMLElement>(".app-layout");
   appLayout?.classList.toggle("is-sidebar-collapsed", sidebarCollapsed);
   appLayout?.classList.toggle("is-sidebar-open", root!.querySelector<HTMLElement>(".sidebar")?.classList.contains("is-open") ?? false);
@@ -1002,9 +1005,23 @@ function addArmyAbility(kind: "spell" | "blessing" | "curse"): void {
   const id = picker?.value ?? "";
   const catalog = kind === "spell" ? armyCatalog.spells : kind === "curse" ? armyCatalog.curses ?? [] : armyCatalog.blessings;
   const list = kind === "spell" ? army?.spellIds : army?.blessingIds;
-  if (!army || !id || !catalog.some(item => item.id === id) || !list || list.includes(id)) return;
+  if (!army || !id || !catalog.some(item => item.id === id) || !list) return;
+  armyAbilitySelections[kind === "spell" ? "spells" : kind === "curse" ? "curses" : "blessings"] = id;
+  if (list.includes(id)) return;
   list.push(id);
   if (kind !== "spell") focusArmyBattlefieldEffect(id);
+  saveWorkspace();
+  render();
+}
+
+function addAndConfigureArmyBattlefieldEffect(id: string, kind: "blessings" | "curses"): void {
+  const army = currentArmy();
+  const catalog = kind === "curses" ? armyCatalog.curses ?? [] : armyCatalog.blessings;
+  const ability = catalog.find(item => item.id === id);
+  if (!army || ability?.family !== "cell") return;
+  armyAbilitySelections[kind] = id;
+  if (!army.blessingIds.includes(id)) army.blessingIds.push(id);
+  if (!focusArmyBattlefieldEffect(id)) return;
   saveWorkspace();
   render();
 }
@@ -1044,10 +1061,13 @@ function updateArmyEntityPreview(): void {
   preview.innerHTML = renderArmyEntityPreview(armyCatalog, unitPicker.value, Number(levelPicker.value), armyCatalogKind, roster);
 }
 
-function updateArmyAbilityPreview(pickerId: string, kind: "spells" | "blessings" | "curses", previewId = "army-ability-preview"): void {
+function updateArmyAbilityPreview(pickerId: string, kind: ArmyAbilityKind, previewId = "army-ability-preview"): void {
   const picker = root!.querySelector<HTMLSelectElement>("#" + pickerId);
   const preview = root!.querySelector<HTMLElement>("#" + previewId);
-  if (picker && preview) preview.innerHTML = renderArmyAbilityPreview(armyCatalog, picker.value, kind);
+  if (picker && preview) {
+    armyAbilitySelections[kind] = picker.value;
+    preview.innerHTML = renderArmyAbilityPreview(armyCatalog, picker.value, kind);
+  }
 }
 
 function addNode(): void {
@@ -1749,6 +1769,23 @@ function setMobileSidebarOpen(open: boolean): void {
 function onAction(button: HTMLButtonElement): void {
   const action = button.dataset.action;
   switch (action) {
+    case "army-ability-filter": {
+      const kind = button.dataset.kind;
+      const filter = button.dataset.filter;
+      if ((kind === "spells" || kind === "blessings" || kind === "curses") && (filter === "all" || filter === "field")) {
+        armyAbilityFilters[kind] = filter;
+        render();
+      }
+      return;
+    }
+    case "army-ability-category": {
+      const kind = button.dataset.kind;
+      if (kind === "spells" || kind === "blessings" || kind === "curses") {
+        armyAbilityCategory = kind;
+        render();
+      }
+      return;
+    }
     case "toggle-help":
       helpVisible = !helpVisible;
       persistEditorSession();
@@ -2221,6 +2258,23 @@ function onAction(button: HTMLButtonElement): void {
     case "add-army-spell": addArmyAbility("spell"); return;
     case "add-army-blessing": addArmyAbility("blessing"); return;
     case "add-army-curse": addArmyAbility("curse"); return;
+    case "add-configure-battlefield-effect": {
+      const id = button.dataset.abilityId ?? "";
+      const kind = button.dataset.kind;
+      if (kind === "blessings" || kind === "curses") addAndConfigureArmyBattlefieldEffect(id, kind);
+      return;
+    }
+    case "select-army-ability": {
+      const id = button.dataset.abilityId ?? "";
+      const kind = button.dataset.kind;
+      const army = currentArmy();
+      const activeIds = kind === "spells" ? army?.spellIds : army?.blessingIds;
+      if (!army || !id || !activeIds?.includes(id) || (kind !== "spells" && kind !== "blessings" && kind !== "curses")) return;
+      armyAbilityCategory = kind;
+      armyAbilitySelections[kind] = id;
+      render();
+      return;
+    }
     case "add-army-unit-spell": addSelectedArmyUnitSpell(); return;
     case "remove-army-unit-spell": {
       const army = currentArmy();
@@ -2248,6 +2302,10 @@ function onAction(button: HTMLButtonElement): void {
       const army = currentArmy();
       const id = button.dataset.abilityId ?? "";
       if (!army?.blessingIds.includes(id)) return;
+      if (button.dataset.kind === "blessings" || button.dataset.kind === "curses") {
+        armyAbilityCategory = button.dataset.kind;
+        armyAbilitySelections[button.dataset.kind] = id;
+      }
       if (focusArmyBattlefieldEffect(id)) { render(); }
       return;
     }

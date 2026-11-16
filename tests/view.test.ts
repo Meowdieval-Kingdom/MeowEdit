@@ -20,6 +20,10 @@ describe("editor rendering", () => {
     expect(html).toContain("Fireball");
     expect(html).toContain('aria-label="Jump to editor section"');
     expect(html).toContain('href="#army-lineup"');
+    expect(html).toContain('aria-label="Army ability type"');
+    expect(html).toContain("Army abilities");
+    expect(html).not.toContain('id="army-blessing-picker"');
+    expect(html).not.toContain('id="army-curse-picker"');
   });
 
   it("keeps Army Guided tasks separate and previews unit, building, and ability data", () => {
@@ -102,12 +106,16 @@ describe("editor rendering", () => {
     army.blessingIds.push("picked-column", "cell-curse");
     const focusedBlessing = renderApp(workspace, rosterFixture, catalog, [], 4, "guided");
     expect(focusedBlessing).toContain('data-action="configure-battlefield-effect"');
+    expect(focusedBlessing).toContain('data-kind="blessings" data-filter="field"');
+    expect(focusedBlessing).toContain("Field effects · 2");
     expect(focusedBlessing).toContain('class="army-chip-area">Choose a lane</small>');
     expect(focusedBlessing).toContain("FIELD · Choose a lane");
     const curses = renderApp(workspace, rosterFixture, catalog, [], 5, "guided");
     expect(curses).toContain('id="army-curse-preview"');
     expect(curses).toContain("Cracked Front");
     expect(curses).toContain("Curse");
+    expect(curses).toContain('data-kind="curses" data-filter="field"');
+    expect(curses).toContain("Field effects · 1");
     expect(curses).toContain("FIELD · Back row · Bane: Front row");
 
     const cellFocus = renderApp(workspace, rosterFixture, catalog, [], 4, "guided", null, undefined, undefined, "units", false,
