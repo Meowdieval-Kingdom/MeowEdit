@@ -438,11 +438,11 @@ function avatarMarkup(
   const unit = roster.units.find(candidate => candidate.id === unitId);
   const portrait = unit?.portraitCaptures?.[mood as FaceMood] || unit?.portrait;
   return '<div class="game-avatar avatar-' + side + '" aria-hidden="true">' +
-    '<img class="game-avatar-frame-back" src="/game-preview/shopframeback.png" alt="">' +
+    '<img class="game-avatar-frame-back" src="./game-preview/shopframeback.png" alt="">' +
     '<span class="game-avatar-mask">' + (portrait
       ? '<img class="game-avatar-portrait" src="' + escapeHtml(portrait) + '" alt="">'
       : '<span class="game-avatar-empty"></span>') + '</span>' +
-    '<img class="game-avatar-frame-front" src="/game-preview/shopframefront.png" alt="">' +
+    '<img class="game-avatar-frame-front" src="./game-preview/shopframefront.png" alt="">' +
     '</div>';
 }
 
@@ -467,7 +467,7 @@ function renderWorkflowFooter(steps: string[], activeStep: number, completeCopy 
 function renderDialogueMap(activeNodeId: string, addAction = "guided-add-node"): string {
   return '<section class="guided-moment-map" aria-label="Dialogue map">' +
     '<div class="moment-map-heading"><span>Dialogue map</span><div class="moment-map-tools">' +
-    '<span class="graph-plug-key"><i aria-hidden="true"></i> Drag a plug to reroute</span>' +
+    '<span class="graph-plug-key" data-dialogue-graph-connect-status role="status" aria-live="polite"><i aria-hidden="true"></i><span data-dialogue-graph-connect-message>Drag or tap plugs to connect</span></span>' +
     actionButton("dialogue-graph-arrange", "↙ Compact", "graph-layout-button", ' aria-label="Compact layout" title="Compact layout"') +
     '<div class="graph-zoom-tools" aria-label="Map zoom controls">' +
     actionButton("dialogue-graph-zoom-out", "−", "graph-zoom-button", ' aria-label="Zoom out" title="Zoom out"') +
@@ -475,7 +475,7 @@ function renderDialogueMap(activeNodeId: string, addAction = "guided-add-node"):
     actionButton("dialogue-graph-zoom-in", "+", "graph-zoom-button", ' aria-label="Zoom in" title="Zoom in"') +
     '</div>' + actionButton(addAction, "＋ Add moment", "text-button guided-add-moment") + '</div></div>' +
     '<div class="dialogue-node-graph" data-dialogue-node-graph data-active-node-id="' + escapeHtml(activeNodeId) + '" role="application" aria-label="Interactive dialogue node graph"></div>' +
-    '<p class="dialogue-graph-hint help-copy">Drag plugs to connect. Drag empty space to pan; double-click a line to add a bend.</p>' +
+    '<p class="dialogue-graph-hint help-copy">Drag a plug to connect, or tap a route plug then its destination. Drag empty space to pan.</p>' +
     '</section>';
 }
 
@@ -1578,7 +1578,7 @@ export function renderApp(
   return '<div class="app-shell' + (guidedCompact ? ' guided-shell' : '') + (focusedDialogueTitle ? ' guided-title-shell' : '') + (helpVisible ? ' help-visible' : '') + '">' +
     '<header class="topbar">' +
     '<button type="button" class="sidebar-collapse-button" data-action="toggle-sidebar" aria-expanded="true" aria-label="Collapse sidebar" title="Collapse sidebar">‹</button>' +
-    '<button type="button" class="mobile-brand" data-action="toggle-sidebar" aria-expanded="false"><span class="brand-mark">M</span><strong>MEOWEDIT</strong></button>' +
+    '<button type="button" class="mobile-brand" data-action="toggle-sidebar" aria-expanded="false" aria-label="Open navigation menu" title="Open navigation menu"><span class="brand-mark">M</span><strong>MEOWEDIT</strong><span class="mobile-menu-chevron" aria-hidden="true">›</span></button>' +
     '<div class="topbar-context"><span>' + (item && "sequence" in item ? "Dialogue" : item && "definition" in item ? "Quest" : item && "floors" in item ? "Campaign" : item ? "Army" : "Start") + '</span>' +
     '<span class="save-indicator"><i></i><span id="save-status">All changes saved</span></span></div>' +
     toolbar +
@@ -1586,6 +1586,7 @@ export function renderApp(
     '</header>' +
     '<div class="app-layout">' +
     renderSidebar(hasGameExamples, item !== null) +
+    '<button type="button" class="sidebar-backdrop" data-action="close-sidebar" aria-label="Close navigation menu" tabindex="-1"></button>' +
     '<div class="stage-wrap">' + content + '</div>' +
     '</div>' +
     '<div class="toast-region" id="toast-region" aria-live="polite"></div>' +

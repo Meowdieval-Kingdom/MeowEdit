@@ -428,7 +428,10 @@ describe("editor rendering", () => {
     record.sequence.nodes[0].speakers = [{ id: "speaker", unitId: "Cats/Fighter/1", displayName: "Fighter", side: "left", mood: "Normal" }];
     record.sequence.nodes[0].segments[0].speakerIds = ["speaker"];
     const roster: UnitRoster = { ...rosterFixture, units: [{ id: "Cats/Fighter/1", displayName: "Fighter", faction: "Cats", portrait: "/fighter.png", moods: ["Normal"] }] };
-    expect(renderDialoguePreview(record, { ...workspaceFixture(), activeNodeId: null }, roster)).toContain("/fighter.png");
+    const previewHtml = renderDialoguePreview(record, { ...workspaceFixture(), activeNodeId: null }, roster);
+    expect(previewHtml).toContain("/fighter.png");
+    expect(previewHtml).toContain('src="./game-preview/shopframeback.png"');
+    expect(previewHtml).toContain('src="./game-preview/shopframefront.png"');
 
     record.sequence.nodes[0].speakers[0] = { id: "speaker", unitId: "Neutral/Stray/1", displayName: "Stray", side: "left", mood: "Normal" };
     const armyRoster = includeArmyUnitsInRoster(rosterFixture, {

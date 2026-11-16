@@ -296,6 +296,7 @@ function render(): void {
   } : undefined, armyCatalogKind, helpVisible);
   const appLayout = root!.querySelector<HTMLElement>(".app-layout");
   appLayout?.classList.toggle("is-sidebar-collapsed", sidebarCollapsed);
+  appLayout?.classList.toggle("is-sidebar-open", root!.querySelector<HTMLElement>(".sidebar")?.classList.contains("is-open") ?? false);
   const sidebarToggle = root!.querySelector<HTMLButtonElement>(".sidebar-collapse-button");
   if (sidebarToggle) {
     sidebarToggle.setAttribute("aria-expanded", String(!sidebarCollapsed));
@@ -1696,6 +1697,22 @@ function handleRemoveExamplesDialogClose(event: Event): void {
   removeGameExamplesPending = false;
 }
 
+function setMobileSidebarOpen(open: boolean): void {
+  const sidebar = root!.querySelector<HTMLElement>(".sidebar");
+  const appLayout = root!.querySelector<HTMLElement>(".app-layout");
+  const toggle = root!.querySelector<HTMLButtonElement>(".mobile-brand");
+  sidebar?.classList.toggle("is-open", open);
+  appLayout?.classList.toggle("is-sidebar-open", open);
+  if (toggle) {
+    toggle.classList.toggle("is-open", open);
+    toggle.setAttribute("aria-expanded", String(open));
+    toggle.setAttribute("aria-label", open ? "Close navigation menu" : "Open navigation menu");
+    toggle.title = open ? "Close navigation menu" : "Open navigation menu";
+    const chevron = toggle.querySelector<HTMLElement>(".mobile-menu-chevron");
+    if (chevron) chevron.textContent = open ? "‹" : "›";
+  }
+}
+
 function onAction(button: HTMLButtonElement): void {
   const action = button.dataset.action;
   switch (action) {
@@ -1776,6 +1793,9 @@ function onAction(button: HTMLButtonElement): void {
       document.querySelector<HTMLDialogElement>("#remove-examples-dialog")?.showModal();
       return;
     }
+    case "close-sidebar":
+      setMobileSidebarOpen(false);
+      return;
     case "select-item": {
       const picker = document.querySelector<HTMLDialogElement>("#content-picker-dialog");
       if (picker?.open) {
@@ -2187,9 +2207,8 @@ function onAction(button: HTMLButtonElement): void {
     }
     case "toggle-sidebar": {
       if (window.innerWidth <= 900) {
-        const sidebar = document.querySelector(".sidebar");
-        sidebar?.classList.toggle("is-open");
-        document.querySelector<HTMLButtonElement>(".mobile-brand")?.setAttribute("aria-expanded", String(sidebar?.classList.contains("is-open") ?? false));
+        const sidebar = root!.querySelector<HTMLElement>(".sidebar");
+        setMobileSidebarOpen(!(sidebar?.classList.contains("is-open") ?? false));
       } else {
         sidebarCollapsed = !sidebarCollapsed;
         root!.querySelector<HTMLElement>(".app-layout")?.classList.toggle("is-sidebar-collapsed", sidebarCollapsed);
@@ -2200,8 +2219,8 @@ function onAction(button: HTMLButtonElement): void {
           sidebarToggle.title = sidebarCollapsed ? "Show sidebar" : "Collapse sidebar";
           sidebarToggle.textContent = sidebarCollapsed ? "›" : "‹";
         }
-      persistEditorSession();
       }
+      persistEditorSession();
       return;
     }
   }

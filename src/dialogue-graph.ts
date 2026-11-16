@@ -269,11 +269,86 @@ export function mountDialogueGraph(
     graphNode.querySelectorAll<HTMLElement>(".output").forEach((port, index) => {
       const route = dialogueActionsForNode(record.sequence, node)[index];
       port.setAttribute("role", "button");
-      port.setAttribute("aria-label", "Drag route plug for " + (route?.label || "Continue"));
-      port.title = "Drag to connect “" + (route?.label || "Continue") + "” to a moment or End dialogue";
+      port.setAttribute("tabindex", "0");
+      port.setAttribute("aria-pressed", "false");
+      port.setAttribute("aria-label", "Connect route “" + (route?.label || "Continue") + "”");
+      port.title = "Drag or tap to connect “" + (route?.label || "Continue") + "” to a moment or End dialogue";
+    });
+    graphNode.querySelectorAll<HTMLElement>(".input").forEach(port => {
+      port.setAttribute("tabindex", "0");
+      port.setAttribute("role", "button");
     });
   }
-  container.querySelector<HTMLElement>(".meow-dialogue-end .input")?.setAttribute("aria-label", "End dialogue input");
+  const endInput = container.querySelector<HTMLElement>(".meow-dialogue-end .input");
+  endInput?.setAttribute("aria-label", "Connect route to End dialogue");
+  endInput?.setAttribute("tabindex", "0");
+  endInput?.setAttribute("role", "button");
+
+  const tapConnectEnabled = window.innerWidth <= 900 ||
+    (typeof window.matchMedia === "function" && window.matchMedia("(pointer: coarse)").matches);
+  let pendingSource: { graphId: string; outputClass: string; port: HTMLElement } | null = null;
+  const connectStatus = container.parentElement?.querySelector<HTMLElement>("[data-dialogue-graph-connect-message]");
+  const clearPendingSource = (message = "Drag or tap plugs to connect"): void => {
+    pendingSource?.port.classList.remove("is-connect-source");
+    pendingSource?.port.setAttribute("aria-pressed", "false");
+    pendingSource = null;
+    container.classList.remove("is-connecting");
+    container.closest<HTMLElement>(".guided-moment-map")?.classList.remove("is-connecting");
+    for (const input of container.querySelectorAll<HTMLElement>(".input")) input.classList.remove("is-connect-target");
+    if (connectStatus) connectStatus.textContent = message;
+  };
+  const handlePortTap = (event: MouseEvent): void => {
+    if (!tapConnectEnabled || !(event.target instanceof Element)) return;
+    const output = event.target.closest<HTMLElement>(".drawflow-node .output");
+    if (output && container.contains(output)) {
+      event.preventDefault();
+      event.stopPropagation();
+      const graphNode = output.closest<HTMLElement>(".drawflow-node");
+      const graphId = graphNode?.id.replace(/^node-/, "") ?? graphNode?.dataset.id;
+      const outputClass = Array.from(output.classList).find(name => /^output_\d+$/.test(name));
+      if (!graphId || !outputClass) return;
+      if (pendingSource?.graphId === graphId && pendingSource.outputClass === outputClass) {
+        clearPendingSource();
+        return;
+      }
+      clearPendingSource("Tap a destination plug");
+      pendingSource = { graphId, outputClass, port: output };
+      output.classList.add("is-connect-source");
+      output.setAttribute("aria-pressed", "true");
+      container.classList.add("is-connecting");
+      container.closest<HTMLElement>(".guided-moment-map")?.classList.add("is-connecting");
+      for (const input of container.querySelectorAll<HTMLElement>(".input")) input.classList.add("is-connect-target");
+      if (connectStatus) connectStatus.textContent = "Tap a destination plug";
+      return;
+    }
+
+    const input = event.target.closest<HTMLElement>(".drawflow-node .input");
+    if (!input || !container.contains(input) || !pendingSource) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const graphNode = input.closest<HTMLElement>(".drawflow-node");
+    const targetGraphId = graphNode?.id.replace(/^node-/, "") ?? graphNode?.dataset.id;
+    const inputClass = Array.from(input.classList).find(name => /^input_\d+$/.test(name));
+    if (!targetGraphId || !inputClass) return;
+    if (targetGraphId === pendingSource.graphId) {
+      if (connectStatus) connectStatus.textContent = "Choose a different destination";
+      return;
+    }
+    const sourceGraphId = pendingSource.graphId;
+    const outputClass = pendingSource.outputClass;
+    editor.addConnection(Number(sourceGraphId), Number(targetGraphId), outputClass, inputClass);
+    clearPendingSource();
+  };
+  container.addEventListener("click", handlePortTap, true);
+  container.addEventListener("keydown", event => {
+    if (event.key === "Escape" && pendingSource) {
+      event.preventDefault();
+      clearPendingSource();
+    } else if ((event.key === "Enter" || event.key === " ") && event.target instanceof HTMLElement && event.target.matches(".output, .input")) {
+      event.preventDefault();
+      event.target.click();
+    }
+  }, true);
 
   container.addEventListener("keydown", event => {
     if ((event.key === "Delete" || event.key === "Backspace") && editor.node_selected) {

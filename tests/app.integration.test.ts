@@ -119,6 +119,46 @@ describe("browser application flow", () => {
     expect(document.querySelector(".topbar [data-action='export-package']")).toBeNull();
   });
 
+  it("opens and dismisses the mobile navigation with its toggle and backdrop", async () => {
+    const previousWidth = Object.getOwnPropertyDescriptor(window, "innerWidth");
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
+    try {
+      vi.resetModules();
+      localStorage.clear();
+      document.body.innerHTML = '<div id="app"></div>';
+      vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => ({
+        ok: true,
+        json: async () => String(input).includes("army-catalog") ? baseCatalog : rosterFixture
+      })));
+
+      await import("../src/main");
+      document.querySelector<HTMLButtonElement>('[data-action="new-dialogue"]')!.click();
+      document.querySelector<HTMLButtonElement>('[data-action="open-full-editor"]')!.click();
+
+      const toggle = document.querySelector<HTMLButtonElement>(".mobile-brand")!;
+      const sidebar = document.querySelector<HTMLElement>(".sidebar")!;
+      const layout = document.querySelector<HTMLElement>(".app-layout")!;
+      toggle.click();
+      expect(sidebar.classList.contains("is-open")).toBe(true);
+      expect(layout.classList.contains("is-sidebar-open")).toBe(true);
+      expect(toggle.getAttribute("aria-expanded")).toBe("true");
+      expect(toggle.querySelector(".mobile-menu-chevron")?.textContent).toBe("‹");
+
+      document.querySelector<HTMLButtonElement>(".sidebar-backdrop")!.click();
+      expect(sidebar.classList.contains("is-open")).toBe(false);
+      expect(layout.classList.contains("is-sidebar-open")).toBe(false);
+      expect(toggle.getAttribute("aria-expanded")).toBe("false");
+
+      toggle.click();
+      toggle.click();
+      expect(sidebar.classList.contains("is-open")).toBe(false);
+      expect(toggle.getAttribute("aria-label")).toBe("Open navigation menu");
+    } finally {
+      if (previousWidth) Object.defineProperty(window, "innerWidth", previousWidth);
+      else Reflect.deleteProperty(window, "innerWidth");
+    }
+  });
+
   it("toggles optional Help in Guided and Advanced and stores the choice", async () => {
     vi.resetModules();
     localStorage.clear();
