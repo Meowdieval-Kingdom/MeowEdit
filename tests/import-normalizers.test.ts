@@ -21,10 +21,10 @@ describe("army and campaign import normalization", () => {
       campaign: { id: "imported", floors: [{ mode: "mixed", nodes: [{ kind: "Shop", label: "Market", x: 2, y: -1 }], routes: [{ fromNodeId: "shop", toNodeId: "start" }] }], settings: { battleShopEnabled: false } }
     }, prefix => prefix + "-fixture");
     expect(campaign).toMatchObject({ key: "local-key", id: "imported", idAuto: true, name: "imported" });
-    expect(campaign.floors[0]).toMatchObject({ id: "floor-import-fixture", number: 1, mode: "mixed", questPoolMode: "campaign", randomSettings: { nodeCount: 12, questNodeCount: 2, shopNodeCount: 3 } });
-    expect(campaign.floors[0].nodes[0]).toMatchObject({ id: "node-import-fixture", label: "Market", kind: "Shop", x: 2, y: -1, rewardAmount: 10 });
+    expect(campaign.floors[0]).toMatchObject({ id: "floor-import-fixture", number: 1, mode: "mixed", questPoolMode: "campaign", shopPoolMode: "campaign", shopLevel: 1, randomSettings: { nodeCount: 12, questNodeCount: 2, shopNodeCount: 3 } });
+    expect(campaign.floors[0].nodes[0]).toMatchObject({ id: "node-import-fixture", label: "Market", kind: "Shop", x: 2, y: -1, rewardAmount: 10, shopOfferMode: "generated", shopOffers: [] });
     expect(campaign.floors[0].routes[0]).toMatchObject({ id: "route-import-fixture", fromNodeId: "shop", toNodeId: "start", oneWay: false });
-    expect(campaign.settings).toMatchObject({ startingLives: 3, battleShopEnabled: false, continueWithGeneratedFloors: false });
+    expect(campaign.settings).toMatchObject({ startingLives: 3, battleShopEnabled: false, shopPoolKinds: ["Unit", "Blessing", "Research", "SpellUnlock"], continueWithGeneratedFloors: false });
   });
 
   it("recognizes randomizer-only campaign imports and defaults omitted lists safely", () => {

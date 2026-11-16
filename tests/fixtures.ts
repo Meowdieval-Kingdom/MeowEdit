@@ -38,6 +38,7 @@ export function campaignFixture(): CampaignRecord {
     key: "campaign-key", id: "test-campaign", idAuto: false, name: "Test Campaign", description: "", designMode: "custom", questIds: [],
     floors: [createCampaignFloor(1, "authored", prefix => prefix + "-id")],
     settings: { startingLives: 3, startingSardines: 10, startingNodeCount: 12, playerFactionId: "", battleShopEnabled: true,
+      shopPoolKinds: ["Unit", "Blessing", "Research", "SpellUnlock"],
       questNodeCountPerRandomFloor: 2, shopNodeCountPerRandomFloor: 3, nodeGrowthPerFloor: 2, continueWithGeneratedFloors: false }
   };
 }

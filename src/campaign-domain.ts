@@ -6,14 +6,15 @@ export function createCampaignFloor(number: number, mode: CampaignFloorMode = "a
   const floor: CampaignFloor = {
     id: idFactory("floor"), number, mode,
     questPoolMode: "campaign", questPoolIds: [],
+    shopPoolMode: "campaign", shopPoolKinds: [], shopLevel: Math.min(number, 4),
     randomSettings: { nodeCount: 12, questNodeCount: 2, shopNodeCount: 3 },
     nodes: [], routes: []
   };
   if (mode !== "random") {
-    const start: CampaignNode = { id: "start", label: "Start", kind: "Start", x: 0, y: 0, armyId: "", questId: "", enemyFactionId: "", rewardKind: "Sardines", rewardAmount: 10, rewardContentId: "" };
-    const battleA: CampaignNode = { id: "battle-a-" + number, label: "Battle 1", kind: "Battle", x: -1, y: 1, armyId: "", questId: "", enemyFactionId: "", rewardKind: "Sardines", rewardAmount: 10, rewardContentId: "" };
-    const battleB: CampaignNode = { id: "battle-b-" + number, label: "Battle 2", kind: "Battle", x: 1, y: 1, armyId: "", questId: "", enemyFactionId: "", rewardKind: "Sardines", rewardAmount: 10, rewardContentId: "" };
-    const boss: CampaignNode = { id: "f" + number + "-boss", label: "Boss", kind: "Boss", x: 0, y: 2, armyId: "", questId: "", enemyFactionId: "", rewardKind: "Sardines", rewardAmount: 10, rewardContentId: "" };
+    const start: CampaignNode = { id: "start", label: "Start", kind: "Start", x: 0, y: 0, armyId: "", questId: "", enemyFactionId: "", rewardKind: "Sardines", rewardAmount: 10, rewardContentId: "", shopOfferMode: "generated", shopOffers: [] };
+    const battleA: CampaignNode = { id: "battle-a-" + number, label: "Battle 1", kind: "Battle", x: -1, y: 1, armyId: "", questId: "", enemyFactionId: "", rewardKind: "Sardines", rewardAmount: 10, rewardContentId: "", shopOfferMode: "generated", shopOffers: [] };
+    const battleB: CampaignNode = { id: "battle-b-" + number, label: "Battle 2", kind: "Battle", x: 1, y: 1, armyId: "", questId: "", enemyFactionId: "", rewardKind: "Sardines", rewardAmount: 10, rewardContentId: "", shopOfferMode: "generated", shopOffers: [] };
+    const boss: CampaignNode = { id: "f" + number + "-boss", label: "Boss", kind: "Boss", x: 0, y: 2, armyId: "", questId: "", enemyFactionId: "", rewardKind: "Sardines", rewardAmount: 10, rewardContentId: "", shopOfferMode: "generated", shopOffers: [] };
     floor.nodes = [start, battleA, battleB, boss];
     floor.routes = [
       { id: idFactory("route"), fromNodeId: start.id, toNodeId: battleA.id, oneWay: false },
@@ -50,7 +51,7 @@ export function addCampaignNode(floor: CampaignFloor, kind: AdventureNodeKind, x
     id,
     label: kind === "Start" ? "Start" : kind === "Boss" ? "Boss" : kind + " " + number,
     kind, x, y, armyId: "", questId: "", enemyFactionId: "",
-    rewardKind: "Sardines", rewardAmount: 10, rewardContentId: ""
+    rewardKind: "Sardines", rewardAmount: 10, rewardContentId: "", shopOfferMode: "generated", shopOffers: []
   };
   floor.nodes.push(node);
   return { ok: true, node };

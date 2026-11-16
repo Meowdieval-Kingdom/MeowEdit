@@ -362,12 +362,12 @@ describe("browser application flow", () => {
     expect(campaign.floors).toHaveLength(2);
     expect(campaign.floors.every((floor: { mode: string; nodes: unknown[] }) => floor.mode === "random" && floor.nodes.length === 0)).toBe(true);
 
-    goToCampaignStep(2);
+    goToCampaignStep(4);
     expect(document.querySelector(".campaign-guided-step-heading h1")?.textContent).toBe("Starting run");
-    goToCampaignStep(3);
+    goToCampaignStep(5);
     expect(document.querySelector(".campaign-guided-step-heading h1")?.textContent).toBe("Progression");
     expect(document.querySelector('[data-bind="settings.questNodeCountPerRandomFloor"]')).toBeNull();
-    goToCampaignStep(4);
+    goToCampaignStep(6);
     expect(document.querySelector(".campaign-review-summary")?.textContent).toContain("Randomizer only");
     expect(document.querySelector(".campaign-review-summary")?.textContent).not.toContain("Current board");
 
@@ -381,6 +381,73 @@ describe("browser application flow", () => {
     saved = JSON.parse(localStorage.getItem("meowedit.workspace.v1")!);
     campaign = saved.campaigns.find((item: { key: string }) => item.key === saved.selectedKey);
     expect(campaign.designMode).toBe("custom");
+  });
+
+  it("configures campaign shop pools, floor unlocks, and exact per-node prices", async () => {
+    vi.resetModules();
+    localStorage.clear();
+    document.body.innerHTML = '<div id="app"></div>';
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => ({
+      ok: true,
+      json: async () => String(input).includes("army-catalog") ? baseCatalog : rosterFixture
+    })));
+    await import("../src/main");
+    document.querySelector<HTMLButtonElement>('[aria-label="New campaign"]')!.click();
+    document.querySelector<HTMLButtonElement>('[data-action="campaign-design-choice"][data-mode="custom"]')!.click();
+    goToCampaignStep(2);
+    chooseCampaignNodeType("Shop");
+    clickCampaignCanvasAt(1, 0);
+    const before = JSON.parse(localStorage.getItem("meowedit.workspace.v1")!);
+    const shopIndex = before.campaigns[0].floors[0].nodes.findIndex((node: { kind: string }) => node.kind === "Shop");
+    const path = (suffix: string) => `[data-bind="floors.0.nodes.${shopIndex}.${suffix}"]`;
+    const stockMode = document.querySelector<HTMLSelectElement>(path("shopOfferMode"))!;
+    stockMode.value = "exact";
+    stockMode.dispatchEvent(new Event("change", { bubbles: true }));
+    for (let index = 0; index < 3; index++) document.querySelector<HTMLButtonElement>('[data-action="campaign-add-shop-offer"]')!.click();
+
+    const setSelect = (selector: string, value: string) => {
+      const element = document.querySelector<HTMLSelectElement>(selector)!;
+      element.value = value;
+      element.dispatchEvent(new Event("change", { bubbles: true }));
+    };
+    const offerPath = (index: number, field: string) => path(`shopOffers.${index}.${field}`);
+    const offerData = [
+      { kind: "SpellUnlock", id: "fireball", price: "7" },
+      { kind: "Blessing", id: "blessing", price: "9" },
+      { kind: "Unit", id: "", price: "15" }
+    ];
+    for (const [index, offer] of offerData.entries()) {
+      setSelect(offerPath(index, "kind"), offer.kind);
+      const item = document.querySelector<HTMLSelectElement>(offerPath(index, "contentId"))!;
+      const itemId = offer.id || Array.from(item.options).find(option => option.value)?.value || "";
+      setSelect(offerPath(index, "contentId"), itemId);
+      const price = document.querySelector<HTMLInputElement>(offerPath(index, "price"))!;
+      price.value = offer.price;
+      price.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+    let saved = JSON.parse(localStorage.getItem("meowedit.workspace.v1")!);
+    let campaign = saved.campaigns[0];
+    expect(campaign.floors[0].nodes[shopIndex]).toMatchObject({
+      kind: "Shop", shopOfferMode: "exact", shopOffers: [
+        { kind: "SpellUnlock", contentId: "fireball", price: 7 },
+        { kind: "Blessing", contentId: "blessing", price: 9 },
+        { kind: "Unit", price: 15 }
+      ]
+    });
+
+    goToCampaignStep(5);
+    document.querySelector<HTMLButtonElement>('[data-action="campaign-toggle-shop-pool"][data-scope="campaign"][data-kind="Blessing"]')!.click();
+    goToCampaignStep(6);
+    const shopTier = document.querySelector<HTMLSelectElement>('[data-bind="floors.0.shopLevel"]')!;
+    shopTier.value = "3";
+    shopTier.dispatchEvent(new Event("change", { bubbles: true }));
+    document.querySelector<HTMLButtonElement>('[data-action="campaign-toggle-floor-shop-mode"]')!.click();
+    document.querySelector<HTMLButtonElement>('[data-action="campaign-toggle-shop-pool"][data-scope="floor"][data-kind="Unit"]')!.click();
+    saved = JSON.parse(localStorage.getItem("meowedit.workspace.v1")!);
+    campaign = saved.campaigns[0];
+    expect(campaign.settings.shopPoolKinds).not.toContain("Blessing");
+    expect(campaign.floors[0]).toMatchObject({ shopLevel: 3, shopPoolMode: "custom" });
+    expect(campaign.floors[0].shopPoolKinds).not.toContain("Unit");
   });
 
   it("migrates older browser drafts and removes the unfinished bridge example", async () => {
@@ -1001,12 +1068,12 @@ describe("browser application flow", () => {
     const name = document.querySelector<HTMLInputElement>('[data-bind="name"]')!;
     name.value = "The Old Road";
     name.dispatchEvent(new Event("input", { bubbles: true }));
-    goToCampaignStep(6);
+    goToCampaignStep(8);
     const lives = document.querySelector<HTMLInputElement>('[data-bind="settings.startingLives"]')!;
     lives.value = "5";
     lives.dispatchEvent(new Event("input", { bubbles: true }));
 
-    goToCampaignStep(8);
+    goToCampaignStep(10);
     expect(document.querySelector(".campaign-review-summary")?.textContent).toContain("The Old Road");
     expect(document.querySelector(".campaign-review-summary")?.textContent).toContain("2");
     saved = JSON.parse(localStorage.getItem("meowedit.workspace.v1")!);

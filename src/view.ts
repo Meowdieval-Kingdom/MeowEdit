@@ -11,6 +11,7 @@ import type {
   CampaignFloor,
   CampaignRecord,
   CampaignFloorMode,
+  CampaignShopOfferKind,
   AdventureNodeKind,
   QuestRecord,
   UnitRoster,
@@ -1002,13 +1003,31 @@ function renderArmyEditor(record: ArmyRecord, catalog: ArmyCatalog, roster: Unit
     '<section class="army-data-note help-copy"><strong>Game loading pending</strong><p>Authored Armies are included in exports; the game does not load them yet.</p></section></main>';
 }
 
-function renderCampaignFloorReview(floor: CampaignFloor, workspace: Workspace): string {
+const CAMPAIGN_SHOP_KIND_LABELS: Array<[CampaignShopOfferKind, string]> = [
+  ["Unit", "Units"], ["Blessing", "Blessings"], ["Research", "Research"], ["SpellUnlock", "Spell unlocks"]
+];
+
+function campaignShopItemOptions(catalog: ArmyCatalog, kind: CampaignShopOfferKind): Array<[string, string]> {
+  if (kind === "Blessing") return catalog.blessings.map(item => [item.id, item.name]);
+  if (kind === "SpellUnlock") return catalog.spells.map(item => [item.id, item.name]);
+  return catalog.units.flatMap(unit => unit.levels.map(level => [level.id, unit.name + " · " + level.name] as [string, string]));
+}
+
+function campaignShopPoolChips(kinds: CampaignShopOfferKind[], scope: "campaign" | "floor"): string {
+  return '<div class="campaign-shop-pools" role="group" aria-label="Available shop pools">' + CAMPAIGN_SHOP_KIND_LABELS.map(([kind, label]) => {
+    const active = kinds.includes(kind);
+    return '<button type="button" class="campaign-shop-pool-chip' + (active ? " is-active" : "") + '" data-action="campaign-toggle-shop-pool" data-scope="' + scope + '" data-kind="' + kind + '" aria-pressed="' + String(active) + '"><span>' + (active ? "✓" : "+") + '</span>' + label + '</button>';
+  }).join("") + '</div>';
+}
+
+function renderCampaignFloorReview(floor: CampaignFloor, workspace: Workspace, campaign: CampaignRecord): string {
   const nodes = floor.mode === "random" ? [] : floor.nodes.map(node => {
       const quest = node.questId ? workspace.quests.find(item => item.definition.id === node.questId) : undefined;
       const army = node.armyId ? workspace.armies.find(item => item.id === node.armyId) : undefined;
       const reference = node.kind === "Quest" ? node.questId ? " · Quest " + (quest?.definition.title ? quest.definition.title + " (" + node.questId + ")" : node.questId) : " · Quest missing" :
         node.kind === "Battle" || node.kind === "Boss" ? node.armyId ? " · Army " + (army?.name ? army.name + " (" + node.armyId + ")" : node.armyId) : node.enemyFactionId ? " · " + node.enemyFactionId : "" :
-      node.kind === "Reward" ? " · " + node.rewardAmount + " " + node.rewardKind + (node.rewardContentId ? " · " + node.rewardContentId : "") : "";
+      node.kind === "Reward" ? " · " + node.rewardAmount + " " + node.rewardKind + (node.rewardContentId ? " · " + node.rewardContentId : "") :
+      node.kind === "Shop" && node.shopOfferMode === "exact" ? " · Exact stock: " + node.shopOffers.map(offer => offer.kind + " " + offer.contentId + " · " + offer.price + " Sardines").join(", ") : "";
     return (node.label || node.kind) + " · " + node.kind + reference;
   });
   const routes = floor.mode === "random" ? [] : floor.routes.map(route => {
@@ -1018,7 +1037,9 @@ function renderCampaignFloorReview(floor: CampaignFloor, workspace: Workspace): 
   });
   const generation = floor.mode === "authored" ? "" : floor.randomSettings.nodeCount + " generated nodes · " + floor.randomSettings.questNodeCount + " Quest " + (floor.randomSettings.questNodeCount === 1 ? "node" : "nodes") + " · " + floor.randomSettings.shopNodeCount + " " + (floor.randomSettings.shopNodeCount === 1 ? "Shop" : "Shops");
   const pool = floor.mode === "authored" ? "" : floor.questPoolMode === "campaign" ? "Quest pool: campaign pool" : "Quest pool: " + (floor.questPoolIds.map(id => workspace.quests.find(quest => quest.definition.id === id)?.definition.title || id).join(", ") || "empty");
-  const detail = [floor.mode === "random" ? "All nodes generated" : floor.mode === "mixed" ? "Mixed" : "Hand placed", ...(floor.mode === "random" ? [] : [floor.nodes.length + " placed nodes", floor.routes.length + " routes"]), generation, pool].filter(Boolean).join(" · ");
+  const shopKinds = floor.shopPoolMode === "custom" ? floor.shopPoolKinds : campaign.settings.shopPoolKinds;
+  const shop = "Shop tier " + floor.shopLevel + " · " + (shopKinds.length ? shopKinds.map(kind => CAMPAIGN_SHOP_KIND_LABELS.find(([value]) => value === kind)?.[1] ?? kind).join(", ") : "no generated stock pools");
+  const detail = [floor.mode === "random" ? "All nodes generated" : floor.mode === "mixed" ? "Mixed" : "Hand placed", ...(floor.mode === "random" ? [] : [floor.nodes.length + " placed nodes", floor.routes.length + " routes"]), generation, pool, shop].filter(Boolean).join(" · ");
   return '<section class="campaign-floor-review"><h3>Floor ' + floor.number + ' · ' + (floor.mode === "random" ? "Random" : floor.mode === "mixed" ? "Mixed" : "Hand placed") + '</h3><p>' + escapeHtml(detail) + '</p>' +
     (nodes.length ? reviewList("Nodes", nodes) : "") + (routes.length ? reviewList("Routes", routes) : "") + '</section>';
 }
@@ -1059,6 +1080,13 @@ function renderCampaignEditor(
       inputField("Node growth per floor", "settings.nodeGrowthPerFloor", campaign.settings.nodeGrowthPerFloor, { type: "number", min: 1, max: 10 }) +
       '</div>' : '<p class="campaign-progression-note help-copy">Generated floor rules are available when the campaign continues beyond these boards.</p>') + '</section>';
   const settings = startingSettings + generatedFloorSettings;
+  const campaignShopSettings = '<section class="campaign-shop-pools-settings"><h2>Generated shop pools</h2><p>Choose the offers generated shops may draw.</p>' + campaignShopPoolChips(campaign.settings.shopPoolKinds, "campaign") + '</section>';
+  const floorShopSettings = floor ? '<section class="campaign-shop-unlocks"><div class="campaign-floor-tabs campaign-shop-floor-tabs">' + floorTabs + '</div><div class="campaign-shop-floor-fields">' +
+    selectField("Floor " + floor.number + " shop tier", "floors." + floorIndex + ".shopLevel", floor.shopLevel, [["1", "Tier 1"], ["2", "Tier 2"], ["3", "Tier 3"], ["4", "Tier 4"]], "", true) +
+    '<div class="campaign-shop-floor-pool-mode"><span>Offer pools</span>' + actionButton("campaign-toggle-floor-shop-mode", floor.shopPoolMode === "custom" ? "Use campaign pools" : "Choose floor pools", "button button-small button-outline") + '</div>' +
+    (floor.shopPoolMode === "custom" ? campaignShopPoolChips(floor.shopPoolKinds, "floor") : '<p class="campaign-shop-inherited">Uses: ' + escapeHtml((campaign.settings.shopPoolKinds.length ? campaign.settings.shopPoolKinds.map(kind => CAMPAIGN_SHOP_KIND_LABELS.find(([value]) => value === kind)?.[1] ?? kind).join(", ") : "no offer pools")) + '</p>') +
+    '</div></section>' : '<div class="campaign-empty-state">Add a floor to configure shop unlocks.</div>';
+  const campaignShopAdvanced = '<details id="campaign-shops" class="campaign-shop-advanced"><summary>Shop pools and floor unlocks</summary><div class="campaign-shop-advanced-content">' + campaignShopSettings + floorShopSettings + '</div></details>';
 
   let board = "";
   let randomControls = "";
@@ -1146,6 +1174,20 @@ function renderCampaignEditor(
         inputField("Amount", path("rewardAmount"), selectedNode.rewardAmount, { type: "number", min: 0, max: 9999 }) +
         (selectedNode.rewardKind === "Blessing" || selectedNode.rewardKind === "UnitUnlock" || selectedNode.rewardKind === "SpellUnlock" ? inputField("Content ID", path("rewardContentId"), selectedNode.rewardContentId, { placeholder: "Catalog ID" }) : "") +
         '</div>' : "") +
+      (selectedNode.kind === "Shop" ? '<details class="campaign-shop-node-settings"' + (mode === "guided" ? " open" : "") + '><summary>Shop stock · ' + (selectedNode.shopOfferMode === "exact" ? selectedNode.shopOffers.length + " exact offers" : "uses floor pools") + '</summary><div class="campaign-shop-node-content">' +
+        selectField("Stock", path("shopOfferMode"), selectedNode.shopOfferMode, [["generated", "Use pools unlocked on this floor"], ["exact", "Set exact items and prices"]], "", true) +
+        (selectedNode.shopOfferMode === "exact" ? '<p class="campaign-shop-note">Adventure map shops show three offers. Exact stock replaces the generated offers for this node.</p>' +
+          '<div class="campaign-shop-offer-list">' + selectedNode.shopOffers.map((offer, offerIndex) => {
+            const offerPath = "shopOffers." + offerIndex;
+            const itemOptions = campaignShopItemOptions(catalog, offer.kind);
+            return '<div class="campaign-shop-offer-row"><div class="campaign-shop-offer-fields">' +
+              selectField("Pool", path(offerPath + ".kind"), offer.kind, CAMPAIGN_SHOP_KIND_LABELS, "", true) +
+              selectField("Item", path(offerPath + ".contentId"), offer.contentId, [["", "Choose item"], ...itemOptions], "", true) +
+              inputField("Price · Sardines", path(offerPath + ".price"), offer.price, { type: "number", min: 0, max: 9999 }) +
+              '</div>' + actionButton("campaign-remove-shop-offer", "×", "icon-button campaign-remove-shop-offer", ' data-index="' + offerIndex + '" aria-label="Remove shop offer ' + (offerIndex + 1) + '" title="Remove offer"') + '</div>';
+          }).join("") + '</div>' +
+          actionButton("campaign-add-shop-offer", "＋ Add offer", "button button-small button-outline", ' data-node-id="' + escapeHtml(selectedNode.id) + '"' + (selectedNode.shopOffers.length >= 3 ? " disabled" : "")) : "") +
+        '</div></details>' : "") +
       (mode === "full" ? '<details class="campaign-advanced-node" open><summary>Stable node ID</summary>' + inputField("Node ID", path("id"), selectedNode.id) + '</details>' : "") +
       '</div>' : '<div class="campaign-node-inspector campaign-inspector-empty"><p class="help-copy">Select a node on the board to edit it.</p></div>';
     selectedRoutes = selectedNode ? floor.routes.filter(route => route.fromNodeId === selectedNode.id || route.toNodeId === selectedNode.id) : [];
@@ -1204,6 +1246,7 @@ function renderCampaignEditor(
   const hasGeneratedQuestNodes = campaign.floors.some(item => (item.mode === "random" || item.mode === "mixed") && item.randomSettings.questNodeCount > 0) || (campaign.settings.continueWithGeneratedFloors && campaign.settings.questNodeCountPerRandomFloor > 0);
   const hasQuestContent = campaign.questIds.length > 0 || hasGeneratedQuestNodes || campaign.floors.some(item => item.nodes.some(node => node.kind === "Quest"));
   const hasFloorPoolChoices = campaign.questIds.length > 0 && campaign.floors.some(item => (item.mode === "random" || item.mode === "mixed") && item.randomSettings.questNodeCount > 0);
+  const hasShopContent = campaign.settings.shopNodeCountPerRandomFloor > 0 || campaign.floors.some(item => item.nodes.some(node => node.kind === "Shop") || (item.mode !== "authored" && item.randomSettings.shopNodeCount > 0));
   const hasAuthoredBoards = campaign.floors.some(item => item.mode !== "random");
   const floorSetup = '<section class="campaign-floor-section campaign-floor-setup' + (mode === "guided" && floor?.mode !== "authored" ? " campaign-randomizer-focus" : "") + '"><div class="campaign-floor-heading"><div><h2>' + (isSettingsOnly ? "Set generated floor rules" : "Choose the boards") + '</h2><p class="help-copy">' + (isSettingsOnly ? "Every floor is generated from these settings. Switch a floor to Hand placed to author its map." : "Each floor can be hand placed, generated, or mixed.") + '</p></div><div class="campaign-floor-actions">' +
     actionButton("campaign-remove-floor", "Remove floor", "text-button danger-text", campaign.floors.length > 1 ? "" : " disabled") +
@@ -1221,16 +1264,17 @@ function renderCampaignEditor(
     const sections = [
       { id: "campaign-basics", label: "Basics" }, { id: "campaign-floors", label: "Floors" },
       { id: "campaign-map", label: "Map" }, { id: "campaign-quests", label: "Quests" },
+      { id: "campaign-shops", label: "Shops" },
       { id: "campaign-starting-run", label: "Starting run" }, { id: "campaign-progression", label: "Progression" }
     ];
-    return '<main class="workspace-main campaign-editor">' + heading + renderAdvancedSectionNav(sections) + profile + boards + quests + exportNote +
+    return '<main class="workspace-main campaign-editor">' + heading + renderAdvancedSectionNav(sections) + profile + boards + quests + campaignShopAdvanced + exportNote +
       '<div class="guided-end-actions">' + actionButton("export-active", "Download campaign JSON", "button button-outline") + actionButton("export-package", "Export campaign ZIP", "button button-primary") + '</div>' +
       '</main>';
   }
 
   const steps = campaign.designMode === "choose" ? ["Approach"] : isSettingsOnly
-    ? ["Name", "Randomizer settings", ...(hasQuestContent ? ["Quests"] : []), ...(hasFloorPoolChoices ? ["Floor pools"] : []), "Starting run", "Progression", "Review"]
-    : ["Name", "Floors", ...(hasAuthoredBoards ? ["Map", "Node"] : []), "Quests", ...(hasFloorPoolChoices ? ["Floor pools"] : []), "Starting run", "Generated floors", "Review"];
+    ? ["Name", "Randomizer settings", ...(hasQuestContent ? ["Quests"] : []), ...(hasFloorPoolChoices ? ["Floor pools"] : []), ...(hasShopContent ? ["Shop pools", "Shop unlocks"] : []), "Starting run", "Progression", "Review"]
+    : ["Name", "Floors", ...(hasAuthoredBoards ? ["Map", "Node"] : []), "Quests", ...(hasFloorPoolChoices ? ["Floor pools"] : []), ...(hasShopContent ? ["Shop pools", "Shop unlocks"] : []), "Starting run", "Generated floors", "Review"];
   const step = Math.max(0, Math.min(steps.length - 1, activeStep));
   const stepName = steps[step];
   const focusedNodeStep = stepName === "Node";
@@ -1239,14 +1283,16 @@ function renderCampaignEditor(
     const quest = workspace.quests.find(item => item.definition.id === id);
     return (quest?.definition.title || id) + (quest && quest.definition.title !== id ? " (" + id + ")" : "");
   });
-  const floorReviews = campaign.floors.map(item => renderCampaignFloorReview(item, workspace)).join("");
+  const floorReviews = campaign.floors.map(item => renderCampaignFloorReview(item, workspace, campaign)).join("");
   const startingRunSummary = campaign.settings.startingLives + " lives · " + campaign.settings.startingSardines + " Sardines · " + (campaign.settings.playerFactionId || "game default faction") + " · battle shop " + (campaign.settings.battleShopEnabled ? "on" : "off");
   const progressionSummary = (campaign.settings.continueWithGeneratedFloors ? "continues with generated floors" : "ends after listed floors") + " · " + campaign.settings.startingNodeCount + " initial nodes · " + campaign.settings.questNodeCountPerRandomFloor + " Quest nodes · " + campaign.settings.shopNodeCountPerRandomFloor + " Shops · +" + campaign.settings.nodeGrowthPerFloor + " nodes per floor";
+  const campaignShopPoolSummary = campaign.settings.shopPoolKinds.length ? campaign.settings.shopPoolKinds.map(kind => CAMPAIGN_SHOP_KIND_LABELS.find(([value]) => value === kind)?.[1] ?? kind).join(", ") : "none";
   const reviewRows = [
     reviewField("Campaign", campaign.name || "Untitled campaign"),
     reviewField("Setup", isSettingsOnly ? "Randomizer only" : "Authored campaign"),
     reviewField("Floors", String(campaign.floors.length)),
     reviewField("Starting run", startingRunSummary),
+    reviewField("Generated shop pools", campaignShopPoolSummary),
     reviewField("Generated progression", progressionSummary)
   ].join("");
   const review = '<section class="campaign-review"><div class="campaign-review-heading"><h1>Review your campaign</h1><p class="help-copy">' + (isSettingsOnly ? "Check the randomizer and run settings before exporting." : "Check the board and quest references before exporting.") + '</p></div>' +
@@ -1280,6 +1326,10 @@ function renderCampaignEditor(
   } else if (stepName === "Floor pools") {
     screen = '<div class="campaign-floor-pool-step"><p class="campaign-step-prompt help-copy">Choose whether ' + (floor ? 'Floor ' + floor.number : 'this floor') + ' uses every campaign quest or a smaller pool.</p>' +
       (floorPoolDisclosure ? floorPoolDisclosure.replace('<details class="campaign-floor-pool">', '<details class="campaign-floor-pool" open>') : "") + '</div>';
+  } else if (stepName === "Shop pools") {
+    screen = '<section class="campaign-settings-step campaign-shop-pools-step"><p class="campaign-step-prompt help-copy">Choose what generated map shops can offer.</p>' + campaignShopSettings + '</section>';
+  } else if (stepName === "Shop unlocks") {
+    screen = '<section class="campaign-settings-step campaign-shop-unlocks-step"><p class="campaign-step-prompt help-copy">Set the shop tier and offer pools available on each floor.</p>' + floorShopSettings + '</section>';
   } else if (stepName === "Starting run") {
     screen = '<section class="campaign-settings-step"><p class="campaign-step-prompt help-copy">Set the player\'s starting resources and faction.</p>' + startingSettings + '</section>';
   } else if (stepName === "Progression" || stepName === "Generated floors") {
@@ -1287,7 +1337,7 @@ function renderCampaignEditor(
   } else {
     screen = review;
   }
-  return '<main class="workspace-main campaign-editor guided-editor' + (focusedNodeStep ? ' campaign-node-focus-mode' : '') + '">' + heading + (focusedNodeStep ? '' : progress) +
+  return '<main class="workspace-main campaign-editor guided-editor' + (focusedNodeStep ? ' campaign-node-focus-mode' : '') + ((stepName === "Shop pools" || stepName === "Shop unlocks") ? ' campaign-shop-focus-mode' : '') + '">' + heading + (focusedNodeStep ? '' : progress) +
     '<section class="campaign-guided-screen" aria-labelledby="campaign-step-title"><div class="campaign-guided-step-heading"><span>' + (stepName === "Approach" ? "Campaign setup" : "Step " + (step + 1) + " of " + steps.length + " · Campaign") + '</span><h1 id="campaign-step-title">' + stepName + '</h1></div>' +
     screen + '</section>' + (stepName === "Approach" ? "" : focusedNodeStep ? '<footer class="campaign-focus-footer"><span>Changes save as you type</span>' + actionButton("editor-next", "Next · Quests →", "button button-primary") + '</footer>' : renderWorkflowFooter(steps, step, "Campaign ready · export when you are ready")) +
     '</main>';

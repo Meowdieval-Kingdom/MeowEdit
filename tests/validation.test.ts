@@ -37,6 +37,31 @@ describe("content validation", () => {
     expect(validateCampaign(campaign, workspaceFixture(), catalog).some(issue => issue.message.includes("unreachable from Start"))).toBe(true);
   });
 
+  it("validates exact campaign shop inventory against the game catalog and price rules", () => {
+    const campaign = campaignFixture();
+    const floor = campaign.floors[0];
+    const shop = { ...floor.nodes[1], id: "market", label: "Market", kind: "Shop" as const, x: 2, y: 0,
+      shopOfferMode: "exact" as const,
+      shopOffers: [
+        { kind: "Unit" as const, contentId: "Cats/Fighter/1", price: 15 },
+        { kind: "Blessing" as const, contentId: "blessing", price: 9 },
+        { kind: "SpellUnlock" as const, contentId: "fireball", price: 7 }
+      ] };
+    floor.nodes.push(shop);
+    let messages = validateCampaign(campaign, workspaceFixture(), catalog).map(issue => issue.message);
+    expect(messages.some(message => message.includes("exact shop") || message.includes("shop prices"))).toBe(false);
+
+    shop.shopOffers[2].contentId = "missing-spell";
+    shop.shopOffers[1].price = -1;
+    shop.shopOffers.push({ kind: "Unit", contentId: "Cats/Fighter/2", price: 0 });
+    floor.shopLevel = 5;
+    messages = validateCampaign(campaign, workspaceFixture(), catalog).map(issue => issue.message);
+    expect(messages.some(message => message.includes("exact shop “Market” needs exactly three offers"))).toBe(true);
+    expect(messages.some(message => message.includes("unknown SpellUnlock item"))).toBe(true);
+    expect(messages.some(message => message.includes("prices must be whole numbers"))).toBe(true);
+    expect(messages.some(message => message.includes("shop tier must be a whole number from 1 to 4"))).toBe(true);
+  });
+
   it("reports invalid dialogue targets and warns when a dialogue has no branch", () => {
     const dialogue = dialogueFixture();
     expect(validateDialogue(dialogue).some(issue => issue.level === "warning")).toBe(true);

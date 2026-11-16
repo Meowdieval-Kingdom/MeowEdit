@@ -3,6 +3,7 @@ import type {
   ArmyRecord,
   CampaignRecord,
   CampaignFloor,
+  CampaignShopOfferKind,
   DialogueRecord,
   QuestRecord,
   Workspace
@@ -18,6 +19,7 @@ export interface ValidationIssue {
 const ALLOWED_OBJECTIVES = ["Escort", "Fetch", "Battle", "ClearFloor", "Timer", "KillCount"];
 const ALLOWED_SOURCES = ["QuestGiver", "Letter", "Item"];
 const ALLOWED_REWARDS = ["Sardines", "ExtraLife", "Blessing"];
+const CAMPAIGN_SHOP_KINDS: CampaignShopOfferKind[] = ["Unit", "Blessing", "Research", "SpellUnlock"];
 
 function nonEmpty(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
@@ -260,6 +262,9 @@ export function validateCampaign(
   if (campaign.settings.playerFactionId && !catalog.factions.some(item => item.id === campaign.settings.playerFactionId)) {
     issues.push({ level: "error", message: "Choose a player faction from the game catalog." });
   }
+  if (!uniqueValues(campaign.settings.shopPoolKinds) || campaign.settings.shopPoolKinds.some(kind => !CAMPAIGN_SHOP_KINDS.includes(kind))) {
+    issues.push({ level: "error", message: "Campaign shop pools must use unique, supported offer categories." });
+  }
 
   const questIds = campaign.questIds ?? [];
   if (!uniqueValues(questIds)) issues.push({ level: "error", message: "Campaign quest IDs must be unique." });
@@ -287,6 +292,14 @@ function validateCampaignFloor(
   const issues: ValidationIssue[] = [];
   const prefix = "Floor " + floor.number + ": ";
   if (!Number.isInteger(floor.number) || floor.number < 1) issues.push({ level: "error", message: prefix + "floor number must be a whole number of at least one." });
+  if (!Number.isInteger(floor.shopLevel) || floor.shopLevel < 1 || floor.shopLevel > 4) issues.push({ level: "error", message: prefix + "shop tier must be a whole number from 1 to 4." });
+  if (floor.shopPoolMode !== "campaign" && floor.shopPoolMode !== "custom") issues.push({ level: "error", message: prefix + "choose the campaign shop pools or a custom floor pool." });
+  if (!uniqueValues(floor.shopPoolKinds) || floor.shopPoolKinds.some(kind => !CAMPAIGN_SHOP_KINDS.includes(kind))) {
+    issues.push({ level: "error", message: prefix + "floor shop pools must use unique, supported offer categories." });
+  }
+  const activeShopKinds = floor.shopPoolMode === "custom" ? floor.shopPoolKinds : campaign.settings.shopPoolKinds;
+  const hasShopNodes = floor.nodes.some(node => node.kind === "Shop") || (floor.mode !== "authored" && floor.randomSettings.shopNodeCount > 0);
+  if (hasShopNodes && activeShopKinds.length === 0) issues.push({ level: "error", message: prefix + "generated shops need at least one enabled offer pool." });
   if (!["authored", "random", "mixed"].includes(floor.mode)) {
     issues.push({ level: "error", message: prefix + "choose an authored, random, or mixed board." });
     return issues;
@@ -365,6 +378,29 @@ function validateCampaignFloor(
       if (node.rewardAmount < 0) issues.push({ level: "error", message: prefix + "reward amounts cannot be negative." });
       if (["Blessing", "UnitUnlock", "SpellUnlock"].includes(node.rewardKind) && !nonEmpty(node.rewardContentId)) {
         issues.push({ level: "error", message: prefix + "node “" + node.label + "” needs a reward content ID." });
+      }
+    }
+    if (node.kind === "Shop") {
+      if (node.shopOfferMode !== "generated" && node.shopOfferMode !== "exact") {
+        issues.push({ level: "error", message: prefix + "choose generated stock or exact offers for shop “" + node.label + "”." });
+      }
+      if (node.shopOfferMode === "exact") {
+        if (node.shopOffers.length !== 3) issues.push({ level: "error", message: prefix + "exact shop “" + node.label + "” needs exactly three offers, matching the Adventure map shop." });
+        const offerKeys = node.shopOffers.map(offer => offer.kind + ":" + offer.contentId);
+        if (!uniqueValues(offerKeys)) issues.push({ level: "error", message: prefix + "exact shop offers must be unique." });
+        for (const offer of node.shopOffers) {
+          if (!CAMPAIGN_SHOP_KINDS.includes(offer.kind)) {
+            issues.push({ level: "error", message: prefix + "shop “" + node.label + "” has an unsupported offer category." });
+            continue;
+          }
+          const validId = offer.kind === "Blessing"
+            ? catalog.blessings.some(item => item.id === offer.contentId)
+            : offer.kind === "SpellUnlock"
+              ? catalog.spells.some(item => item.id === offer.contentId)
+              : catalog.units.some(unit => unit.id === offer.contentId || unit.levels.some(level => level.id === offer.contentId));
+          if (!validId) issues.push({ level: "error", message: prefix + "shop “" + node.label + "” has a missing or unknown " + offer.kind + " item." });
+          if (!Number.isInteger(offer.price) || offer.price < 0) issues.push({ level: "error", message: prefix + "shop prices must be whole numbers of zero or more." });
+        }
       }
     }
   }

@@ -174,6 +174,13 @@ export interface ArmyRecord {
 export type AdventureNodeKind = "Start" | "Battle" | "Reward" | "Boss" | "Quest" | "Shop";
 export type CampaignFloorMode = "authored" | "random" | "mixed";
 export type CampaignRewardKind = "Sardines" | "ExtraLife" | "Blessing" | "UnitUnlock" | "ShopLevelUnlock" | "SpellUnlock";
+export type CampaignShopOfferKind = "Unit" | "Blessing" | "Research" | "SpellUnlock";
+
+export interface CampaignShopOffer {
+  kind: CampaignShopOfferKind;
+  contentId: string;
+  price: number;
+}
 
 export interface CampaignNode {
   id: string;
@@ -187,6 +194,8 @@ export interface CampaignNode {
   rewardKind: CampaignRewardKind;
   rewardAmount: number;
   rewardContentId: string;
+  shopOfferMode: "generated" | "exact";
+  shopOffers: CampaignShopOffer[];
 }
 
 export interface CampaignRoute {
@@ -208,6 +217,11 @@ export interface CampaignFloor {
   mode: CampaignFloorMode;
   questPoolMode: "campaign" | "custom";
   questPoolIds: string[];
+  /** Pools available to generated shops on this floor, or inherited from campaign settings. */
+  shopPoolMode: "campaign" | "custom";
+  shopPoolKinds: CampaignShopOfferKind[];
+  /** Adventure shop tier available on this floor; capped by game progression at tier 4. */
+  shopLevel: number;
   randomSettings: CampaignRandomFloorSettings;
   /** Integer Adventure-map coordinates. Neighbouring nodes use the game's 8-direction grid. */
   nodes: CampaignNode[];
@@ -220,6 +234,8 @@ export interface CampaignSettings {
   startingNodeCount: number;
   playerFactionId: string;
   battleShopEnabled: boolean;
+  /** Offer categories used by generated Adventure map shops. */
+  shopPoolKinds: CampaignShopOfferKind[];
   questNodeCountPerRandomFloor: number;
   shopNodeCountPerRandomFloor: number;
   nodeGrowthPerFloor: number;

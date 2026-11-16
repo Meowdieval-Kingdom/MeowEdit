@@ -167,15 +167,24 @@ function loadWorkspace(): Workspace {
       const oldCampaignSettings = campaign.settings as Partial<CampaignRecord["settings"]> | undefined;
       campaign.settings = {
         startingLives: 3, startingSardines: 10, startingNodeCount: 12, playerFactionId: "", battleShopEnabled: true,
+        shopPoolKinds: ["Unit", "Blessing", "Research", "SpellUnlock"],
         questNodeCountPerRandomFloor: 2, shopNodeCountPerRandomFloor: 3, nodeGrowthPerFloor: 2, continueWithGeneratedFloors: false,
         ...oldCampaignSettings
       };
+      campaign.settings.shopPoolKinds ??= ["Unit", "Blessing", "Research", "SpellUnlock"];
       for (const floor of campaign.floors) {
         if (!floor.questPoolMode) { floor.questPoolMode = "campaign"; migrated = true; }
         if (!Array.isArray(floor.questPoolIds)) { floor.questPoolIds = []; migrated = true; }
+        if (!floor.shopPoolMode) { floor.shopPoolMode = "campaign"; migrated = true; }
+        if (!Array.isArray(floor.shopPoolKinds)) { floor.shopPoolKinds = []; migrated = true; }
+        if (!Number.isInteger(floor.shopLevel)) { floor.shopLevel = Math.min(floor.number, 4); migrated = true; }
         floor.randomSettings ??= { nodeCount: 12, questNodeCount: 2, shopNodeCount: 3 };
         floor.nodes ??= [];
         floor.routes ??= [];
+        for (const node of floor.nodes) {
+          if (!node.shopOfferMode) { node.shopOfferMode = "generated"; migrated = true; }
+          if (!Array.isArray(node.shopOffers)) { node.shopOffers = []; migrated = true; }
+        }
       }
     }
     for (const dialogue of parsed.dialogues) {
@@ -469,6 +478,12 @@ function bindField(element: HTMLInputElement | HTMLTextAreaElement | HTMLSelectE
   const previousRosterName = roster.units.find(unit => unit.id === previousSpeakerUnitId)?.displayName;
   const shouldFollowRosterName = !previousSpeakerDisplayName || previousSpeakerDisplayName === previousRosterName;
   setValue(documentValue, path, value);
+  const shopOfferKindPath = path.match(/^floors\.(\d+)\.nodes\.(\d+)\.shopOffers\.(\d+)\.kind$/);
+  const campaignDocument = currentCampaign();
+  if (shopOfferKindPath && campaignDocument) {
+    const offer = campaignDocument.floors[Number(shopOfferKindPath[1])]?.nodes[Number(shopOfferKindPath[2])]?.shopOffers[Number(shopOfferKindPath[3])];
+    if (offer) offer.contentId = "";
+  }
   if (dialogue && path === "sequenceId") dialogue.sequenceIdAuto = false;
   if (dialogue && automaticSequenceId) dialogue.sequence.sequenceId = automaticSequenceId;
   if (dialogue && ((path === "sequenceId" && typeof value === "string") || automaticSequenceId)) {
@@ -639,6 +654,7 @@ function addCampaign(): void {
     floors: [newCampaignFloor(1)],
     settings: {
       startingLives: 3, startingSardines: 10, startingNodeCount: 12, playerFactionId: "", battleShopEnabled: true,
+      shopPoolKinds: ["Unit", "Blessing", "Research", "SpellUnlock"],
       questNodeCountPerRandomFloor: 2, shopNodeCountPerRandomFloor: 3, nodeGrowthPerFloor: 2,
       continueWithGeneratedFloors: false
     }
@@ -1927,6 +1943,45 @@ function onAction(button: HTMLButtonElement): void {
       floor.questPoolIds = floor.questPoolIds.includes(questId)
         ? floor.questPoolIds.filter(id => id !== questId)
         : [...floor.questPoolIds, questId];
+      saveWorkspace(); render(); return;
+    }
+    case "campaign-toggle-shop-pool": {
+      const campaign = currentCampaign();
+      const floor = currentCampaignFloor(campaign);
+      const kind = button.dataset.kind as CampaignRecord["settings"]["shopPoolKinds"][number];
+      if (!campaign || !["Unit", "Blessing", "Research", "SpellUnlock"].includes(kind)) return;
+      const pools = button.dataset.scope === "floor" && floor ? floor.shopPoolKinds : campaign.settings.shopPoolKinds;
+      const next = pools.includes(kind) ? pools.filter(item => item !== kind) : [...pools, kind];
+      if (button.dataset.scope === "floor" && floor) floor.shopPoolKinds = next;
+      else campaign.settings.shopPoolKinds = next;
+      saveWorkspace(); render(); return;
+    }
+    case "campaign-toggle-floor-shop-mode": {
+      const campaign = currentCampaign();
+      const floor = currentCampaignFloor(campaign);
+      if (!campaign || !floor) return;
+      if (floor.shopPoolMode === "custom") {
+        floor.shopPoolMode = "campaign";
+        floor.shopPoolKinds = [];
+      } else {
+        floor.shopPoolMode = "custom";
+        floor.shopPoolKinds = [...campaign.settings.shopPoolKinds];
+      }
+      saveWorkspace(); render(); return;
+    }
+    case "campaign-add-shop-offer": {
+      const nodeId = button.dataset.nodeId ?? selectedCampaignNodeId;
+      const node = currentCampaignFloor()?.nodes.find(item => item.id === nodeId);
+      if (!node || node.kind !== "Shop" || node.shopOffers.length >= 3) return;
+      node.shopOffers.push({ kind: "Unit", contentId: "", price: 0 });
+      node.shopOfferMode = "exact";
+      saveWorkspace(); render(); return;
+    }
+    case "campaign-remove-shop-offer": {
+      const node = currentCampaignFloor()?.nodes.find(item => item.id === selectedCampaignNodeId);
+      const index = Number(button.dataset.index);
+      if (!node || node.kind !== "Shop" || !Number.isInteger(index) || index < 0 || index >= node.shopOffers.length) return;
+      node.shopOffers.splice(index, 1);
       saveWorkspace(); render(); return;
     }
     case "campaign-node-tool": {

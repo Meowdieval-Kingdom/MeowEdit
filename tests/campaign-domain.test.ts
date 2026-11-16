@@ -30,9 +30,9 @@ describe("campaign board operations", () => {
   it("avoids IDs already present on imported nodes and protects the Start cell", () => {
     const floor = createCampaignFloor(1, "random", prefix => prefix + "-test");
     floor.mode = "authored";
-    floor.nodes.push({ id: "imported-start", label: "Old node", kind: "Reward", x: 0, y: 0, armyId: "", questId: "", enemyFactionId: "", rewardKind: "Sardines", rewardAmount: 10, rewardContentId: "" });
+    floor.nodes.push({ id: "imported-start", label: "Old node", kind: "Reward", x: 0, y: 0, armyId: "", questId: "", enemyFactionId: "", rewardKind: "Sardines", rewardAmount: 10, rewardContentId: "", shopOfferMode: "generated", shopOffers: [] });
     expect(addCampaignNode(floor, "Start", 2, 2)).toMatchObject({ ok: false, message: "Move the node at (0, 0) first; Start must use that position." });
-    floor.nodes.push({ id: "battle-1", label: "Imported", kind: "Reward", x: 2, y: 0, armyId: "", questId: "", enemyFactionId: "", rewardKind: "Sardines", rewardAmount: 10, rewardContentId: "" });
+    floor.nodes.push({ id: "battle-1", label: "Imported", kind: "Reward", x: 2, y: 0, armyId: "", questId: "", enemyFactionId: "", rewardKind: "Sardines", rewardAmount: 10, rewardContentId: "", shopOfferMode: "generated", shopOffers: [] });
     expect(addCampaignNode(floor, "Battle", 1, 0)).toMatchObject({ ok: true, node: { id: "battle-1-2" } });
   });
 

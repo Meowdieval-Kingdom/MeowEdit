@@ -67,17 +67,20 @@ New campaigns first ask which job the author wants to do. **Randomizer settings 
 2. Set up floors one at a time: add/select a floor, then choose authored, random, or mixed layout. Random node totals appear only when that floor mode uses them.
 3. Use the Map step to place and connect the Adventure graph. A visible snap grid shows each node's coordinates and each route's distance in 8-direction map steps, including diagonal movement. Clicking a node or placing a new one opens a focused **Node** step; a compact, dimmed map stays above its active content form. Return to the map when done or continue to campaign quests.
 4. Add reusable Quests to the campaign pool. A separate Floor pools step chooses whether random Quest nodes use the campaign pool or a narrower per-floor set.
-5. Set player starting resources/faction, then set generated-floor counts and growth on their own steps. Advanced run settings and stable IDs remain available from Advanced mode.
-6. Review every floor, its authored nodes and routes or generated counts, node Quest/Army/reward references, campaign quest pool, starting run, progression rules, and validation; then export the campaign.
+5. Configure generated shops from the game's four offer pools—Units, Blessings, Research, and Spell unlocks—then set each floor's shop tier and inherited or restricted pools.
+6. For a hand-placed Shop node, keep generated stock or switch to exactly three catalog items and set each Sardines price. The Node step focuses this form; Advanced keeps the same controls inside a collapsed Shop stock section.
+7. Set player starting resources/faction, then set generated-floor counts and growth on their own steps. Advanced run settings and stable IDs remain available from Advanced mode.
+8. Review every floor, its authored nodes and routes or generated counts, node Quest/Army/reward/shop references, campaign quest and shop pools, floor shop unlocks, starting run, progression rules, and validation; then export the campaign.
 
 ## Campaign: configure a randomizer without authored content
 
 1. Create a Campaign and choose **Randomizer settings only**. The starter board becomes generated, campaign Quest counts are set to zero, and no authored nodes or Quest steps are shown.
 2. Name the campaign, then set the generated node and Shop totals for each random floor. Add more floors; they start as generated floors too.
-3. Set starting lives, Sardines, faction, and battle shop rules on the separate Starting run screen.
-4. Set whether generation continues and configure later floor growth on Progression. With continuation disabled, the detailed later-floor controls stay hidden.
-5. Review every generated floor's node/Quest/Shop counts, starting run, progression rules, and validation; then export. The optional authored Quest disclosure stays closed unless generated Quest nodes are needed.
-6. If the author changes a floor to Hand placed or Mixed, the workflow switches to the custom campaign path and exposes its map and node tasks.
+3. Choose the campaign-wide generated shop pools and set each floor's tier and pool overrides on separate focused screens.
+4. Set starting lives, Sardines, faction, and battle shop rules on the separate Starting run screen.
+5. Set whether generation continues and configure later floor growth on Progression. With continuation disabled, the detailed later-floor controls stay hidden.
+6. Review every generated floor's node/Quest/Shop counts, shop tier and offer pools, starting run, progression rules, and validation; then export. The optional authored Quest disclosure stays closed unless generated Quest nodes are needed.
+7. If the author changes a floor to Hand placed or Mixed, the workflow switches to the custom campaign path and exposes its map and node tasks.
 
 ### Build each floor
 
@@ -121,7 +124,7 @@ New campaigns first ask which job the author wants to do. **Randomizer settings 
 | Advanced quick edit: jump to any category's detailed fields without progressing a wizard | `tests/view.test.ts`, `tests/app.integration.test.ts` |
 | Quest multi-item Fetch, Battle targets, Kill Count, minimum distance, dialogue/Army links | `tests/app.integration.test.ts`, `tests/validation.test.ts` |
 | Army unit/building catalog, footprint collisions, guided steps, replacement, ability previews, and grid dragging | `tests/app.integration.test.ts`, `tests/army-domain.test.ts`, `tests/army-catalog.test.ts`, `tests/view.test.ts`, `tests/validation.test.ts` |
-| Campaign randomizer-only path, custom/mixed/random floors, graph routes, focused node editing, node references, quest pools, settings, review | `tests/app.integration.test.ts`, `tests/campaign-domain.test.ts`, `tests/validation.test.ts` |
+| Campaign randomizer-only path, custom/mixed/random floors, graph routes, focused node editing, node references, quest pools, shop pools, floor shop unlocks, exact shop prices, settings, review | `tests/app.integration.test.ts`, `tests/campaign-domain.test.ts`, `tests/validation.test.ts`, `tests/import-normalizers.test.ts`, `tests/view.test.ts` |
 | Guided review details for Quest objectives/links/effects, Army per-entry spells, and every Campaign floor/settings | `tests/view.test.ts` |
 | Direct plug connections, invalid/duplicate feedback, line and list disconnect, route direction, node movement, return context | `tests/app.integration.test.ts`, `tests/campaign-domain.test.ts`, `tests/editor-navigation.test.ts` |
 | Examples, import/export, persistence, deletion and validation | `tests/app.integration.test.ts`, `tests/export-zip.test.ts`, `tests/import-normalizers.test.ts` |
