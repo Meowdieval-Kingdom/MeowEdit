@@ -253,6 +253,7 @@ export interface CampaignSettings {
 
 export interface CampaignRecord {
   key: string;
+  isGameExample?: boolean;
   id: string;
   idAuto?: boolean;
   name: string;

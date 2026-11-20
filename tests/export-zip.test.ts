@@ -25,7 +25,7 @@ describe("content export and ZIP packages", () => {
     const armyEntry = entries.find(entry => entry.path.endsWith("ArmyConfigurations.json"));
     expect(JSON.parse(String(armyEntry?.content)).armies[0].units[0].spellIds).toEqual(["shield"]);
     const manifest = JSON.parse(String(entries.find(entry => entry.path.endsWith("manifest.json"))?.content));
-    expect(manifest.campaignRuntimeSupported).toBe(false);
+    expect(manifest.campaignRuntimeSupported).toBe(true);
   });
 
   it("round trips stored archives and reports unsupported or damaged ZIP data", async () => {
@@ -67,6 +67,7 @@ describe("content export and ZIP packages", () => {
     const extensions = JSON.parse(String(entries.find(entry => entry.path.endsWith("meowedit-v1.json"))?.content));
 
     expect(manifest.campaignsIncluded).toBe(false);
+    expect(manifest.campaignRuntimeSupported).toBe(false);
     expect(manifest.files).not.toHaveProperty("campaigns");
     expect(entries.some(entry => entry.path.endsWith("/campaigns/Campaigns.json"))).toBe(false);
     expect(extensions.dialogueDecisions).toEqual([{

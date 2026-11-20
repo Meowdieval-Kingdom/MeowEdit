@@ -1332,7 +1332,9 @@ describe("browser application flow", () => {
     const examples = {
       format: "meowedit-game-examples",
       dialogues: [{ sequenceId: "elder-greeting", startNodeId: "opening", nodes: [{ id: "opening", segments: [], actions: [] }] }],
-      quests: [{ definition: { id: "lost-supplies", title: "Lost Supplies", objectiveKind: "Fetch" } }]
+      quests: [{ definition: { id: "lost-supplies", title: "Lost Supplies", objectiveKind: "Fetch" } }],
+      armies: [{ id: "courier-guards", name: "Courier guards", units: [{ unitId: "Cats/Fighter/1", x: 0, y: 0 }] }],
+      campaigns: [{ id: "village-road", name: "Village Road", floors: [], settings: {} }]
     };
     vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => ({
       ok: true,
@@ -1344,6 +1346,13 @@ describe("browser application flow", () => {
     await vi.waitFor(() => expect(JSON.parse(localStorage.getItem("meowedit.workspace.v1")!).dialogues).toHaveLength(1));
     document.querySelector<HTMLButtonElement>('[data-action="import-game-examples"]')!.click();
     await vi.waitFor(() => expect(JSON.parse(localStorage.getItem("meowedit.workspace.v1")!).quests).toHaveLength(1));
+    await vi.waitFor(() => {
+      const imported = JSON.parse(localStorage.getItem("meowedit.workspace.v1")!);
+      expect(imported.armies).toHaveLength(1);
+      expect(imported.campaigns).toHaveLength(1);
+      expect(imported.armies[0].isGameExample).toBe(true);
+      expect(imported.campaigns[0].isGameExample).toBe(true);
+    });
     let saved = JSON.parse(localStorage.getItem("meowedit.workspace.v1")!);
     expect(saved.dialogues[0].isGameExample).toBeFalsy();
     expect(document.querySelector("#toast-region")?.textContent).toContain("Skipped 1 item");
@@ -1370,6 +1379,8 @@ describe("browser application flow", () => {
     saved = JSON.parse(localStorage.getItem("meowedit.workspace.v1")!);
     expect(saved.dialogues).toHaveLength(1);
     expect(saved.quests).toEqual([]);
+    expect(saved.armies).toEqual([]);
+    expect(saved.campaigns).toEqual([]);
     expect(saved.selectedType).toBe("dialogue");
     expect(saved.selectedKey).toBe(saved.dialogues[0].key);
     expect(saved.activeNodeId).toBe(saved.dialogues[0].sequence.startNodeId);

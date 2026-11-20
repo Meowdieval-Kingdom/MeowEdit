@@ -1,4 +1,13 @@
-import { createKey, type ArmyRecord, type CampaignRecord } from "./model";
+import {
+  createKey,
+  DEFAULT_QUEST,
+  emptyTimerLogic,
+  type ArmyRecord,
+  type CampaignRecord,
+  type AdventureQuestDefinition,
+  type KillCountTargetKind,
+  type QuestRecord
+} from "./model";
 
 type IdFactory = (prefix: string) => string;
 
@@ -8,6 +17,7 @@ export function normalizeArmy(value: unknown, idFactory: IdFactory = createKey):
   const unitSource = Array.isArray(workspaceMeta.units) ? workspaceMeta.units : Array.isArray(source.units) ? source.units : [];
   return {
     key: idFactory("army-import"),
+    isGameExample: workspaceMeta.isGameExample === true,
     id: String(source.id ?? "imported-army"),
     idAuto: workspaceMeta.idAuto === true,
     name: String(source.name ?? source.id ?? "Imported army"),
@@ -28,12 +38,84 @@ export function normalizeArmy(value: unknown, idFactory: IdFactory = createKey):
   };
 }
 
+export function normalizeQuest(value: unknown, idFactory: IdFactory = createKey): QuestRecord {
+  const source = value as Record<string, any>;
+  const workspaceMeta = source._meowEditWorkspace ?? {};
+  const definitionSource = source.definition ?? source;
+  const extensionSource = source.meowEdit ?? source.extension ?? {};
+  const timerSource = extensionSource.timer ?? {};
+  const definition: AdventureQuestDefinition = {
+    ...DEFAULT_QUEST,
+    ...definitionSource,
+    id: String(definitionSource.id ?? "imported-quest"),
+    title: String(definitionSource.title ?? ""),
+    sourceSlot: Number(definitionSource.sourceSlot ?? -1),
+    firstFloor: Number(definitionSource.firstFloor ?? 1),
+    repeatEveryFloors: Number(definitionSource.repeatEveryFloors ?? 1),
+    priority: Number(definitionSource.priority ?? 0),
+    targetFloorOffset: Number(definitionSource.targetFloorOffset ?? 0),
+    rewardAmount: Number(definitionSource.rewardAmount ?? 0)
+  };
+  const fetchItems = Array.isArray(extensionSource.fetchItems)
+    ? extensionSource.fetchItems.map((item: Record<string, any>) => ({
+      id: String(item.id ?? ""), displayName: String(item.displayName ?? ""), count: Number(item.count ?? 1)
+    }))
+    : definition.objectiveKind === "Fetch" && definition.itemId
+      ? [{ id: String(definition.itemId), displayName: String(workspaceMeta.itemDisplayName ?? definition.itemId).replace(/[-_]+/g, " "), count: 1 }]
+      : [];
+  const battleTargets = Array.isArray(extensionSource.battleTargets)
+    ? extensionSource.battleTargets.map((target: Record<string, any>, index: number) => ({
+      id: String(target.id ?? "battle-" + (index + 1)), label: String(target.label ?? "Battle " + (index + 1)),
+      nodeKind: String(target.nodeKind ?? definition.targetNodeKind), floorOffset: Number(target.floorOffset ?? definition.targetFloorOffset), armyId: String(target.armyId ?? "")
+    }))
+    : definition.objectiveKind === "Battle"
+      ? [{ id: "battle-1", label: "Battle 1", nodeKind: definition.targetNodeKind || "Battle", floorOffset: definition.targetFloorOffset, armyId: "" }]
+      : [];
+  const timer = {
+    ...emptyTimerLogic(),
+    ...timerSource,
+    counterTarget: Number(timerSource.counterTarget ?? 3),
+    paymentAmount: Number(timerSource.paymentAmount ?? 15),
+    completionEffects: Array.isArray(timerSource.completionEffects) ? timerSource.completionEffects : emptyTimerLogic().completionEffects
+  };
+  return {
+    key: idFactory("quest-import"),
+    isGameExample: workspaceMeta.isGameExample === true,
+    idAuto: workspaceMeta.idAuto === true,
+    itemDisplayName: String(workspaceMeta.itemDisplayName ?? definition.itemId.replace(/[-_]+/g, " ")),
+    definition,
+    extension: {
+      schemaVersion: 1,
+      dialogueLinks: {
+        offer: String(extensionSource.dialogueLinks?.offer ?? ""),
+        active: String(extensionSource.dialogueLinks?.active ?? ""),
+        completion: String(extensionSource.dialogueLinks?.completion ?? ""),
+        failure: String(extensionSource.dialogueLinks?.failure ?? "")
+      },
+      logicKind: extensionSource.logicKind === "timer-project" ? "timer-project" : "standard",
+      timer,
+      completionEffects: Array.isArray(extensionSource.completionEffects) ? extensionSource.completionEffects : [],
+      fetchItems,
+      battleTargets,
+      killCount: extensionSource.killCount ? {
+        targetKind: String(extensionSource.killCount.targetKind ?? "unit") as KillCountTargetKind,
+        targetId: String(extensionSource.killCount.targetId ?? ""),
+        count: Number(extensionSource.killCount.count ?? 1)
+      } : null,
+      minimumNodeDistances: Array.isArray(extensionSource.minimumNodeDistances) ? extensionSource.minimumNodeDistances.map((rule: Record<string, any>, index: number) => ({
+        id: String(rule.id ?? "distance-" + (index + 1)), fromNodeKind: String(rule.fromNodeKind ?? "QuestStart"), toNodeKind: String(rule.toNodeKind ?? "Battle"), minimumHops: Number(rule.minimumHops ?? 1)
+      })) : []
+    }
+  };
+}
+
 export function normalizeCampaign(value: unknown, idFactory: IdFactory = createKey): CampaignRecord {
   const source = value as Record<string, any>;
   const meta = source._meowEditWorkspace ?? {};
   const raw = source.campaign ?? source;
   return {
     key: String(meta.key ?? idFactory("campaign-import")),
+    isGameExample: meta.isGameExample === true,
     id: String(raw.id ?? "imported-campaign"), idAuto: meta.idAuto === true,
     name: String(raw.name ?? raw.id ?? "Imported campaign"),
     description: String(raw.description ?? ""),

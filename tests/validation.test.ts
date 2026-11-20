@@ -140,7 +140,7 @@ describe("content validation", () => {
       { id: "ore", displayName: "Ore", count: 1 }
     ];
     const issues = validateQuest(quest, workspace, catalog);
-    expect(issues.some(issue => issue.level === "warning" && issue.message.includes("one item ID"))).toBe(true);
+    expect(issues.some(issue => issue.level === "warning" && issue.message.includes("one item ID"))).toBe(false);
   });
 
   it("covers quest-specific setup errors for each objective and timer progress", () => {
@@ -204,7 +204,7 @@ describe("content validation", () => {
     quest.extension.timer.completionEffects = [{ kind: "unlock-path", targetId: "", label: "Bridge" }];
     quest.extension.dialogueLinks.offer = "test-dialogue";
     messages = validateQuest(quest, workspace, catalog).map(issue => issue.message);
-    expect(messages).toContain("Timer projects need the planned game-side handler before they can run in Adventure Mode.");
+    expect(messages.some(message => message.toLowerCase().includes("runtime support"))).toBe(false);
     expect(messages).toContain("Every completion effect needs a target ID.");
     expect(messages).toContain("The linked dialogue has no matching pay-now decision outcome.");
     expect(messages).toContain("The linked dialogue has no matching wait decision outcome.");

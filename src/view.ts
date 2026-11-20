@@ -787,7 +787,7 @@ function renderQuestReview(record: QuestRecord, workspace: Workspace, issues: Va
     (quest.description ? '<p class="review-description">' + escapeHtml(quest.description) + '</p>' : '') +
     '</div>' +
     '<div class="review-block review-supporting-details">' + reviewList("Linked dialogues", dialogueSlots) + reviewList("Minimum map distances", distances) + reviewList("Completion effects", effects) + '</div>' +
-    (timer ? '<p class="review-note help-copy">Timer projects use a MeowEdit extension. The export records the choices, counter, payment, and world effects for the planned game-side handler.</p>' : '') +
+    (timer ? '<p class="review-note help-copy">In game, the linked dialogue records the player’s pay-or-wait choice. Paying charges Sardines once; waiting counts the configured battle results until the project completes.</p>' : '') +
     '</div><div class="review-validation">' + renderIssues(issues) + '</div>';
 }
 
@@ -1441,7 +1441,7 @@ function renderCampaignEditor(
     (floor?.mode === "random" ? '<div class="campaign-random-preview"><div class="campaign-random-mark">✧</div><div><strong>This floor is generated in game</strong><p class="help-copy">Its layout settings are on the Floors step.</p></div></div>' : board) + '</section>';
   const boards = '<section class="campaign-boards-full" id="campaign-floors">' + floorSetup + (mode === "full" ? floorPoolDisclosure.replace('<details class="campaign-floor-pool">', '<details class="campaign-floor-pool" open>') + board : "") + '</section>';
   const quests = '<section class="campaign-quest-section" id="campaign-quests"><div><h2>Available quests</h2><p class="help-copy">Quest nodes on these floors can reference these quests.</p></div>' + poolDisclosure + '</section>';
-  const exportNote = '<div class="campaign-export-note"><strong>Campaign start is not supported by the game yet.</strong></div>';
+  const exportNote = '<div class="campaign-export-note"><strong>Campaigns are playable from an installed content package.</strong><span>Export the workspace ZIP and follow the manual install steps in the game integration guide.</span></div>';
 
   if (mode === "full") {
     const sections = [
@@ -1720,7 +1720,7 @@ function renderQuestEditor(
       const effects = timerMode ? extension.timer.completionEffects : extension.completionEffects;
       const path = timerMode ? "extension.timer.completionEffects" : "extension.completionEffects";
       const scope = timerMode ? "timer" : "standard";
-      screen = '<div class="form-block"><div class="section-heading"><div><h2>What changes when it is done?</h2><p class="help-copy">Each target needs a matching game-side handler.</p></div>' +
+      screen = '<div class="form-block"><div class="section-heading"><div><h2>What changes when it is done?</h2><p class="help-copy">Use a route ID or shop item ID from this campaign. Event IDs are recorded on the run for game systems to consume.</p></div>' +
       actionButton("add-effect", "＋ Add effect", "button button-small", ' data-scope="' + scope + '"') + '</div>' +
       (effects.length ? renderEffects(effects, path, scope) : '<div class="soft-empty">No additional effects. The normal quest reward still applies.</div>') +
       '</div>';
@@ -1786,7 +1786,10 @@ export function renderApp(
   const guidedCompact = editorMode === "guided" && item !== null;
   const focusedDialogueTitle = editorMode === "guided" && item !== null && "sequence" in item && activeEditorStep === 0;
   const hasErrors = allIssues.some(issue => issue.level === "error");
-  const hasGameExamples = workspace.dialogues.some(record => record.isGameExample) || workspace.quests.some(record => record.isGameExample) || workspace.armies.some(record => record.isGameExample);
+  const hasGameExamples = workspace.dialogues.some(record => record.isGameExample)
+    || workspace.quests.some(record => record.isGameExample)
+    || workspace.armies.some(record => record.isGameExample)
+    || workspace.campaigns.some(record => record.isGameExample);
   const toolbar = '<div class="topbar-actions">' +
     (relatedReturnState ? actionButton("return-to-parent", "← " + relatedReturnState.label, "text-button return-to-parent", ' aria-label="Return to ' + escapeHtml(relatedReturnState.parent) + '" title="Return to ' + escapeHtml(relatedReturnState.parent) + '"') : "") +
     (item && !guidedCompact ? helpToggleButton(helpVisible) : "") +

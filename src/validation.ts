@@ -124,13 +124,9 @@ export function validateQuest(
       if (!nonEmpty(item.displayName) || !nonEmpty(item.id)) issues.push({ level: "error", message: "Each fetched item needs a name and generated ID." });
       if (!(item.count >= 1)) issues.push({ level: "error", message: "Fetched item quantities must be at least 1." });
     }
-    if (fetchItems.length > 1) issues.push({ level: "warning", message: "The current game objective accepts one item ID. Additional items are saved in the MeowEdit extension for future runtime support." });
   }
   if (quest.objectiveKind !== "Timer" && !nonEmpty(quest.targetNodeKind)) {
     issues.push({ level: "error", message: "Choose the target node type." });
-  }
-  if (quest.objectiveKind === "Timer") {
-    issues.push({ level: "warning", message: "Timer projects need the planned game-side handler before they can run in Adventure Mode." });
   }
   if (quest.objectiveKind === "Battle") {
     const targets = record.extension.battleTargets ?? [];
@@ -144,7 +140,6 @@ export function validateQuest(
         issues.push({ level: "error", message: "Battle “" + target.label + "” refers to a missing army configuration." });
       }
     }
-    if (targets.some(target => target.armyId)) issues.push({ level: "warning", message: "The current game runtime does not load authored army configurations yet." });
   }
   if (quest.objectiveKind === "KillCount") {
     const objective = record.extension.killCount;
@@ -155,14 +150,10 @@ export function validateQuest(
         ? catalog.units.map(unit => unit.id)
         : catalog.factions.map(faction => faction.id);
       if (!allowedIds.includes(objective.targetId)) issues.push({ level: "error", message: "Choose a target from the game unit catalog." });
-      issues.push({ level: "warning", message: "KillCount is saved in the MeowEdit extension; the current game runtime does not track it yet." });
     }
   }
   for (const rule of record.extension.minimumNodeDistances ?? []) {
     if (!(rule.minimumHops >= 1)) issues.push({ level: "error", message: "Minimum node distance must be at least 1 hop." });
-  }
-  if ((record.extension.minimumNodeDistances?.length ?? 0) > 0) {
-    issues.push({ level: "warning", message: "Minimum node distance rules are exported for future map-generation support." });
   }
 
   const dialogueIds = new Set(workspace.dialogues.map(item => item.sequence.sequenceId));
@@ -279,7 +270,6 @@ export function validateCampaign(
   for (const floor of campaign.floors) {
     issues.push(...validateCampaignFloor(floor, campaign, workspace, catalog));
   }
-  issues.push({ level: "warning", message: "Campaign packages need a game-side loader before they can start in Adventure Mode." });
   return issues;
 }
 
@@ -308,6 +298,12 @@ function validateCampaignFloor(
   const random = floor.randomSettings;
   if (floor.questPoolMode !== "campaign" && floor.questPoolMode !== "custom") issues.push({ level: "error", message: prefix + "choose a campaign or custom quest pool." });
   const randomQuestPool = floor.questPoolMode === "custom" ? floor.questPoolIds : campaign.questIds;
+  if (floor.mode !== "authored" && randomQuestPool.some(questId => {
+    const quest = workspace.quests.find(item => item.definition.id === questId);
+    return (quest?.extension.minimumNodeDistances?.length ?? 0) > 0;
+  })) {
+    issues.push({ level: "error", message: prefix + "minimum node-distance quest rules require a fully authored floor so the game can guarantee them." });
+  }
   if (!uniqueValues(floor.questPoolIds)) issues.push({ level: "error", message: prefix + "floor Quest pool IDs must be unique." });
   for (const questId of floor.questPoolIds) {
     if (!campaign.questIds.includes(questId)) issues.push({ level: "error", message: prefix + "floor Quest pool contains “" + questId + "” outside the campaign Quest pool." });

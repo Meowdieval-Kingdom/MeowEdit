@@ -4,7 +4,9 @@
   "sourceProject": "MeowdievalKingdom",
   "sourceFiles": {
     "dialogues": "Assets/Meowdieval/Resources/DialogueSequences",
-    "quests": "Assets/Meowdieval/Resources/AdventureQuests/Definitions.json"
+    "quests": "Assets/Meowdieval/Resources/AdventureQuests/Definitions.json",
+    "armies": "Assets/Meowdieval/Resources/AdventureContent/*/armies/ArmyConfigurations.json",
+    "campaigns": "Assets/Meowdieval/Resources/AdventureContent/*/campaigns/Campaigns.json"
   },
   "dialogues": [
     {
@@ -552,6 +554,56 @@
         }
       ],
       "exampleTitle": "Village Council Example"
+    },
+    {
+      "schemaVersion": 1,
+      "sequenceId": "bridge-project-offer",
+      "startNodeId": "offer",
+      "pauseMode": "pause",
+      "defaultCharactersPerSecond": 34,
+      "nodes": [
+        {
+          "id": "offer",
+          "headline": "Bridge Keeper",
+          "speakers": [
+            { "id": "keeper", "unitId": "Peasants/Village Elder/1", "displayName": "Bridge Keeper", "side": "left", "mood": "Confused" }
+          ],
+          "segments": [
+            { "speakerIds": ["keeper"], "text": "The old bridge needs repairs. I can finish them now for 15 Sardines, or I can work between our next three battles." }
+          ],
+          "actions": [
+            {
+              "label": "Pay 15 Sardines",
+              "targetNodeId": "paid",
+              "meowEdit": { "decision": { "id": "bridge-repair-choice", "label": "Repair plan", "outcomeId": "pay-now", "outcomeLabel": "Pay 15 Sardines" } }
+            },
+            {
+              "label": "Wait for three battles",
+              "targetNodeId": "waiting",
+              "meowEdit": { "decision": { "id": "bridge-repair-choice", "label": "Repair plan", "outcomeId": "wait", "outcomeLabel": "Wait for three battles" } }
+            }
+          ]
+        },
+        {
+          "id": "paid",
+          "headline": "Bridge Keeper",
+          "speakers": [
+            { "id": "keeper", "unitId": "Peasants/Village Elder/1", "displayName": "Bridge Keeper", "side": "left", "mood": "Normal" }
+          ],
+          "segments": [{ "speakerIds": ["keeper"], "text": "Thank you. I will get started right away." }],
+          "actions": [{ "label": "Continue" }]
+        },
+        {
+          "id": "waiting",
+          "headline": "Bridge Keeper",
+          "speakers": [
+            { "id": "keeper", "unitId": "Peasants/Village Elder/1", "displayName": "Bridge Keeper", "side": "left", "mood": "Normal" }
+          ],
+          "segments": [{ "speakerIds": ["keeper"], "text": "All right. I will keep working while you handle the next three battles." }],
+          "actions": [{ "label": "Continue" }]
+        }
+      ],
+      "exampleTitle": "Timer Project With Saved Choices"
     }
   ],
   "quests": [
@@ -596,7 +648,20 @@
       "acceptLabel": "Accept",
       "declineLabel": "Decline",
       "rewardKind": "Sardines",
-      "rewardAmount": 16
+      "rewardAmount": 16,
+      "meowEdit": {
+        "schemaVersion": 1,
+        "dialogueLinks": { "offer": "village-council-example", "active": "", "completion": "", "failure": "" },
+        "logicKind": "standard",
+        "completionEffects": [{ "kind": "play-event", "targetId": "ambush-cleared", "label": "Remember the cleared ambush" }],
+        "fetchItems": [],
+        "battleTargets": [
+          { "id": "east-ambush", "label": "Eastern ambush", "nodeKind": "Battle", "floorOffset": 0, "armyId": "road-guards" },
+          { "id": "west-ambush", "label": "Western ambush", "nodeKind": "Battle", "floorOffset": 0, "armyId": "road-guards" }
+        ],
+        "killCount": null,
+        "minimumNodeDistances": []
+      }
     },
     {
       "id": "fetch-sealed-letter",
@@ -618,7 +683,22 @@
       "acceptLabel": "Accept",
       "declineLabel": "Decline",
       "rewardKind": "Sardines",
-      "rewardAmount": 10
+      "rewardAmount": 10,
+      "meowEdit": {
+        "schemaVersion": 1,
+        "dialogueLinks": { "offer": "village-council-example", "active": "", "completion": "", "failure": "" },
+        "logicKind": "standard",
+        "completionEffects": [],
+        "fetchItems": [
+          { "id": "sealed-letter", "displayName": "Sealed letter", "count": 2 },
+          { "id": "wax-seal", "displayName": "Wax seal", "count": 1 }
+        ],
+        "battleTargets": [],
+        "killCount": null,
+        "minimumNodeDistances": [
+          { "id": "fetch-path-spacing", "fromNodeKind": "QuestStart", "toNodeKind": "Battle", "minimumHops": 2 }
+        ]
+      }
     },
     {
       "id": "floor-blessing-letter",
@@ -642,6 +722,214 @@
       "rewardKind": "Blessing",
       "rewardAmount": 1,
       "rewardContentId": "choice"
+    },
+    {
+      "id": "bridge-repair-project",
+      "title": "Repair the Old Bridge",
+      "description": "Pay now or let the keeper work through three battles.",
+      "sourceKind": "QuestGiver",
+      "sourceSlot": -1,
+      "firstFloor": 1,
+      "repeatEveryFloors": 1,
+      "priority": 0,
+      "objectiveKind": "Timer",
+      "targetNodeKind": "",
+      "targetFloorOffset": 0,
+      "speakerUnitId": "Peasants/Village Elder/1",
+      "speakerName": "Bridge Keeper",
+      "offerText": "The old bridge needs repairs.",
+      "activeText": "The keeper is working on the bridge.",
+      "acceptLabel": "Accept",
+      "declineLabel": "Decline",
+      "rewardKind": "Sardines",
+      "rewardAmount": 8,
+      "meowEdit": {
+        "schemaVersion": 1,
+        "dialogueLinks": { "offer": "bridge-project-offer", "active": "", "completion": "", "failure": "" },
+        "logicKind": "timer-project",
+        "timer": {
+          "decisionId": "bridge-repair-choice",
+          "payOutcomeId": "pay-now",
+          "waitOutcomeId": "wait",
+          "counterId": "bridge-battles",
+          "counterTarget": 3,
+          "counterLabel": "Battles until repair",
+          "countEvent": "any-battle-completed",
+          "paymentResource": "Sardines",
+          "paymentAmount": 15,
+          "paymentCompletesImmediately": true,
+          "completionEffects": [
+            { "kind": "play-event", "targetId": "bridge-repaired", "label": "Bridge repaired" },
+            { "kind": "unlock-path", "targetId": "locked-shortcut", "label": "Open the shortcut" },
+            { "kind": "unlock-shop-item", "targetId": "Blessing:Blessing - Scrounger [Economy]", "label": "Add a blessing to shop stock" }
+          ]
+        },
+        "completionEffects": [],
+        "fetchItems": [],
+        "battleTargets": [],
+        "killCount": null,
+        "minimumNodeDistances": []
+      }
+    },
+    {
+      "id": "clear-the-ranks",
+      "title": "Clear the Ranks",
+      "description": "Defeat three Peasants fighters in battle.",
+      "sourceKind": "QuestGiver",
+      "sourceSlot": -1,
+      "firstFloor": 1,
+      "repeatEveryFloors": 1,
+      "priority": 0,
+      "objectiveKind": "KillCount",
+      "targetNodeKind": "Battle",
+      "targetFloorOffset": 0,
+      "speakerUnitId": "Peasants/Village Elder/1",
+      "speakerName": "Village Elder",
+      "offerText": "Defeat three enemy fighters and I will reward you.",
+      "activeText": "Three fighters must fall before the job is done.",
+      "acceptLabel": "Accept",
+      "declineLabel": "Decline",
+      "rewardKind": "ExtraLife",
+      "rewardAmount": 1,
+      "meowEdit": {
+        "schemaVersion": 1,
+        "dialogueLinks": { "offer": "", "active": "", "completion": "", "failure": "" },
+        "logicKind": "standard",
+        "completionEffects": [],
+        "fetchItems": [],
+        "battleTargets": [],
+        "killCount": { "targetKind": "unit", "targetId": "Peasants/Fighter/1", "count": 3 },
+        "minimumNodeDistances": []
+      }
+    }
+  ],
+  "armies": [
+    {
+      "id": "road-guards",
+      "name": "Road Guards",
+      "units": [
+        { "unitId": "Peasants/Fighter/1", "x": 0, "y": 0, "spellIds": [] },
+        { "unitId": "Nobles/Knight/1", "x": 1, "y": 0, "spellIds": [] }
+      ],
+      "spellIds": ["Catnip Rally [GrantAbility]"],
+      "blessingIds": ["Blessing - Scrounger [Economy]"],
+      "CellBlessingPicks": []
+    }
+  ],
+  "campaigns": [
+    {
+      "id": "roads-and-rumors",
+      "name": "Roads and Rumors",
+      "description": "A feature tour: authored encounters, quests, shops, rewards, and later generated boards.",
+      "questIds": ["escort-courier", "battle-bounty", "fetch-sealed-letter", "floor-blessing-letter", "bridge-repair-project", "clear-the-ranks"],
+      "settings": {
+        "startingLives": 3,
+        "startingSardines": 20,
+        "startingNodeCount": 12,
+        "playerFactionId": "Peasants",
+        "battleShopEnabled": false,
+        "shopPoolKinds": ["Unit", "Blessing", "Research", "SpellUnlock"],
+        "questNodeCountPerRandomFloor": 2,
+        "shopNodeCountPerRandomFloor": 2,
+        "nodeGrowthPerFloor": 2,
+        "continueWithGeneratedFloors": false
+      },
+      "floors": [
+        {
+          "id": "roads-floor-one",
+          "number": 1,
+          "mode": "authored",
+          "questPoolMode": "campaign",
+          "questPoolIds": [],
+          "shopPoolMode": "campaign",
+          "shopPoolKinds": [],
+          "shopLevel": 1,
+          "randomSettings": { "nodeCount": 12, "questNodeCount": 2, "shopNodeCount": 2 },
+          "nodes": [
+            { "id": "start", "label": "Village Gate", "kind": "Start", "x": 0, "y": 0 },
+            { "id": "quest-escort", "label": "Courier", "kind": "Quest", "x": -1, "y": 0, "questId": "escort-courier" },
+            { "id": "quest-timer", "label": "Bridge Keeper", "kind": "Quest", "x": 1, "y": 0, "questId": "bridge-repair-project" },
+            { "id": "quest-fetch", "label": "Sealed Letter", "kind": "Quest", "x": 0, "y": 1, "questId": "fetch-sealed-letter" },
+            { "id": "quest-clear", "label": "Floor Pledge", "kind": "Quest", "x": -1, "y": 1, "questId": "floor-blessing-letter" },
+            { "id": "quest-kill", "label": "Clear the Ranks", "kind": "Quest", "x": 1, "y": 1, "questId": "clear-the-ranks" },
+            { "id": "quest-battle", "label": "Ambush Contract", "kind": "Quest", "x": 2, "y": 0, "questId": "battle-bounty" },
+            { "id": "crossroads", "label": "Crossroads", "kind": "Reward", "x": 0, "y": 2, "rewardKind": "Sardines", "rewardAmount": 6 },
+            { "id": "battle-one", "label": "Old Road", "kind": "Battle", "x": 0, "y": 3, "armyId": "road-guards", "enemyFactionId": "Nobles" },
+            { "id": "battle-two", "label": "Stone Bridge", "kind": "Battle", "x": 0, "y": 4, "enemyFactionId": "Nobles" },
+            { "id": "shop-exact", "label": "Supply Cart", "kind": "Shop", "x": 1, "y": 4, "shopOfferMode": "exact", "shopOffers": [
+              { "kind": "Unit", "contentId": "Peasants/Fighter/1", "price": 3 },
+              { "kind": "Blessing", "contentId": "Blessing - Scrounger [Economy]", "price": 3 },
+              { "kind": "SpellUnlock", "contentId": "Catnip Rally [GrantAbility]", "price": 2 }
+            ] },
+            { "id": "shop-generated", "label": "Traveling Merchant", "kind": "Shop", "x": -1, "y": 3 },
+            { "id": "reward-sardines", "label": "Coin Cache", "kind": "Reward", "x": 1, "y": 5, "rewardKind": "Sardines", "rewardAmount": 8 },
+            { "id": "reward-blessing", "label": "Blessing Shrine", "kind": "Reward", "x": 2, "y": 5, "rewardKind": "Blessing", "rewardAmount": 1, "rewardContentId": "Blessing - Scrounger [Economy]" },
+            { "id": "reward-unit", "label": "Recruit's Token", "kind": "Reward", "x": 2, "y": 4, "rewardKind": "UnitUnlock", "rewardAmount": 1, "rewardContentId": "Peasants/Fighter/1" },
+            { "id": "reward-spell", "label": "Spell Scroll", "kind": "Reward", "x": 2, "y": 3, "rewardKind": "SpellUnlock", "rewardAmount": 1, "rewardContentId": "Catnip Rally [GrantAbility]" },
+            { "id": "reward-life", "label": "Extra Heart", "kind": "Reward", "x": -1, "y": 4, "rewardKind": "ExtraLife", "rewardAmount": 1 },
+            { "id": "reward-shop-tier", "label": "Merchant's Ledger", "kind": "Reward", "x": -2, "y": 4, "rewardKind": "ShopLevelUnlock", "rewardAmount": 2 },
+            { "id": "boss-one", "label": "Road Captain", "kind": "Boss", "x": 0, "y": 5, "enemyFactionId": "Nobles" }
+          ],
+          "routes": [
+            { "id": "road-start-escort", "fromNodeId": "start", "toNodeId": "quest-escort" },
+            { "id": "road-start-timer", "fromNodeId": "start", "toNodeId": "quest-timer" },
+            { "id": "road-start-fetch", "fromNodeId": "start", "toNodeId": "quest-fetch" },
+            { "id": "escort-clear", "fromNodeId": "quest-escort", "toNodeId": "quest-clear" },
+            { "id": "clear-fetch", "fromNodeId": "quest-clear", "toNodeId": "quest-fetch" },
+            { "id": "timer-kill", "fromNodeId": "quest-timer", "toNodeId": "quest-kill" },
+            { "id": "timer-bounty", "fromNodeId": "quest-timer", "toNodeId": "quest-battle" },
+            { "id": "kill-crossroads", "fromNodeId": "quest-kill", "toNodeId": "crossroads" },
+            { "id": "fetch-crossroads", "fromNodeId": "quest-fetch", "toNodeId": "crossroads" },
+            { "id": "crossroads-battle-one", "fromNodeId": "crossroads", "toNodeId": "battle-one" },
+            { "id": "battle-one-battle-two", "fromNodeId": "battle-one", "toNodeId": "battle-two" },
+            { "id": "battle-two-shop", "fromNodeId": "battle-two", "toNodeId": "shop-exact" },
+            { "id": "battle-one-shop-generated", "fromNodeId": "battle-one", "toNodeId": "shop-generated" },
+            { "id": "battle-two-boss", "fromNodeId": "battle-two", "toNodeId": "boss-one" },
+            { "id": "shop-reward-sardines", "fromNodeId": "shop-exact", "toNodeId": "reward-sardines" },
+            { "id": "reward-sardines-blessing", "fromNodeId": "reward-sardines", "toNodeId": "reward-blessing" },
+            { "id": "shop-reward-unit", "fromNodeId": "shop-exact", "toNodeId": "reward-unit" },
+            { "id": "unit-reward-spell", "fromNodeId": "reward-unit", "toNodeId": "reward-spell" },
+            { "id": "shop-generated-life", "fromNodeId": "shop-generated", "toNodeId": "reward-life" },
+            { "id": "life-reward-tier", "fromNodeId": "reward-life", "toNodeId": "reward-shop-tier" },
+            { "id": "reward-boss", "fromNodeId": "reward-sardines", "toNodeId": "boss-one" },
+            { "id": "locked-shortcut", "fromNodeId": "shop-exact", "toNodeId": "boss-one", "oneWay": true }
+          ]
+        },
+        {
+          "id": "roads-floor-two",
+          "number": 2,
+          "mode": "random",
+          "questPoolMode": "custom",
+          "questPoolIds": ["escort-courier", "floor-blessing-letter", "bridge-repair-project", "clear-the-ranks"],
+          "shopPoolMode": "campaign",
+          "shopLevel": 2,
+          "randomSettings": { "nodeCount": 14, "questNodeCount": 2, "shopNodeCount": 1 },
+          "nodes": [],
+          "routes": []
+        },
+        {
+          "id": "roads-floor-three",
+          "number": 3,
+          "mode": "mixed",
+          "questPoolMode": "custom",
+          "questPoolIds": ["escort-courier", "floor-blessing-letter", "bridge-repair-project", "clear-the-ranks"],
+          "shopPoolMode": "custom",
+          "shopPoolKinds": ["Unit", "Blessing", "Research"],
+          "shopLevel": 3,
+          "randomSettings": { "nodeCount": 3, "questNodeCount": 1, "shopNodeCount": 1 },
+          "nodes": [
+            { "id": "third-start", "label": "Forest Edge", "kind": "Start", "x": 0, "y": 0 },
+            { "id": "third-battle-one", "label": "Forest Path", "kind": "Battle", "x": 0, "y": 1, "enemyFactionId": "CrystalCats" },
+            { "id": "third-battle-two", "label": "Forest Clearing", "kind": "Battle", "x": 0, "y": 2, "enemyFactionId": "CrystalCats" },
+            { "id": "third-boss", "label": "Forest Guardian", "kind": "Boss", "x": 0, "y": 3, "enemyFactionId": "CrystalCats" }
+          ],
+          "routes": [
+            { "id": "third-route-a", "fromNodeId": "third-start", "toNodeId": "third-battle-one" },
+            { "id": "third-route-b", "fromNodeId": "third-battle-one", "toNodeId": "third-battle-two" },
+            { "id": "third-route-c", "fromNodeId": "third-battle-two", "toNodeId": "third-boss" }
+          ]
+        }
+      ]
     }
   ]
 }

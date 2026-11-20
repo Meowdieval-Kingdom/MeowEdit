@@ -14,12 +14,10 @@ import {
   type CampaignFloor,
   type AdventureNodeKind as CampaignNodeKind,
   type CampaignFloorMode,
-  type AdventureQuestDefinition,
   type CompletionEffect,
   type DialogueNode,
   type DialogueRecord,
   type FaceMood,
-  type KillCountTargetKind,
   type QuestRecord,
   type UnitRoster,
   type Workspace
@@ -41,7 +39,7 @@ import { compactDialogueGraph, mountDialogueGraph } from "./dialogue-graph";
 import { addArmyUnit as addArmyUnitToArmy, addArmyUnitSpell, moveArmyUnit, replaceArmyUnit, removeArmyUnitSpell, type ArmyPlacementMove } from "./army-domain";
 import { armyFootprint, armyFootprintsOverlap, armyGridSize, canPlaceArmyLevel, firstAvailableArmyCell, resolveArmyLevel, type ArmyCatalogKind } from "./army-catalog";
 import { addCampaignNode, connectCampaignNodes, createCampaignFloor, moveCampaignNode, removeCampaignFloor, removeCampaignNode } from "./campaign-domain";
-import { normalizeArmy, normalizeCampaign } from "./import-normalizers";
+import { normalizeArmy, normalizeCampaign, normalizeQuest } from "./import-normalizers";
 import { EditorNavigationHistory, type RelatedEditorReturnContext } from "./editor-navigation";
 import { defaultEditorSession, loadEditorSession, saveEditorSession } from "./editor-session";
 import { includeArmyUnitsInRoster } from "./roster";
@@ -1441,77 +1439,6 @@ function normalizeDialogue(value: unknown): DialogueRecord {
   };
 }
 
-function normalizeQuest(value: unknown): QuestRecord {
-  const source = value as Record<string, any>;
-  const workspaceMeta = source._meowEditWorkspace ?? {};
-  const definitionSource = source.definition ?? source;
-  const extensionSource = source.meowEdit ?? source.extension ?? {};
-  const timerSource = extensionSource.timer ?? {};
-  const definition: AdventureQuestDefinition = {
-    ...DEFAULT_QUEST,
-    ...definitionSource,
-    id: String(definitionSource.id ?? "imported-quest"),
-    title: String(definitionSource.title ?? ""),
-    sourceSlot: Number(definitionSource.sourceSlot ?? -1),
-    firstFloor: Number(definitionSource.firstFloor ?? 1),
-    repeatEveryFloors: Number(definitionSource.repeatEveryFloors ?? 1),
-    priority: Number(definitionSource.priority ?? 0),
-    targetFloorOffset: Number(definitionSource.targetFloorOffset ?? 0),
-    rewardAmount: Number(definitionSource.rewardAmount ?? 0)
-  };
-  const fetchItems = Array.isArray(extensionSource.fetchItems)
-    ? extensionSource.fetchItems.map((item: Record<string, any>) => ({
-      id: String(item.id ?? ""), displayName: String(item.displayName ?? ""), count: Number(item.count ?? 1)
-    }))
-    : definition.objectiveKind === "Fetch" && definition.itemId
-      ? [{ id: String(definition.itemId), displayName: String(workspaceMeta.itemDisplayName ?? definition.itemId).replace(/[-_]+/g, " "), count: 1 }]
-      : [];
-  const battleTargets = Array.isArray(extensionSource.battleTargets)
-    ? extensionSource.battleTargets.map((target: Record<string, any>, index: number) => ({
-      id: String(target.id ?? "battle-" + (index + 1)), label: String(target.label ?? "Battle " + (index + 1)),
-      nodeKind: String(target.nodeKind ?? definition.targetNodeKind), floorOffset: Number(target.floorOffset ?? definition.targetFloorOffset), armyId: String(target.armyId ?? "")
-    }))
-    : definition.objectiveKind === "Battle"
-      ? [{ id: "battle-1", label: "Battle 1", nodeKind: definition.targetNodeKind || "Battle", floorOffset: definition.targetFloorOffset, armyId: "" }]
-      : [];
-  const timer = {
-    ...emptyTimerLogic(),
-    ...timerSource,
-    counterTarget: Number(timerSource.counterTarget ?? 3),
-    paymentAmount: Number(timerSource.paymentAmount ?? 15),
-    completionEffects: Array.isArray(timerSource.completionEffects) ? timerSource.completionEffects : emptyTimerLogic().completionEffects
-  };
-  return {
-    key: createKey("quest-import"),
-    isGameExample: workspaceMeta.isGameExample === true,
-    idAuto: workspaceMeta.idAuto === true,
-    itemDisplayName: String(workspaceMeta.itemDisplayName ?? definition.itemId.replace(/[-_]+/g, " ")),
-    definition,
-    extension: {
-      schemaVersion: 1,
-      dialogueLinks: {
-        offer: String(extensionSource.dialogueLinks?.offer ?? ""),
-        active: String(extensionSource.dialogueLinks?.active ?? ""),
-        completion: String(extensionSource.dialogueLinks?.completion ?? ""),
-        failure: String(extensionSource.dialogueLinks?.failure ?? "")
-      },
-      logicKind: extensionSource.logicKind === "timer-project" ? "timer-project" : "standard",
-      timer,
-      completionEffects: Array.isArray(extensionSource.completionEffects) ? extensionSource.completionEffects : [],
-      fetchItems,
-      battleTargets,
-      killCount: extensionSource.killCount ? {
-        targetKind: String(extensionSource.killCount.targetKind ?? "unit") as KillCountTargetKind,
-        targetId: String(extensionSource.killCount.targetId ?? ""),
-        count: Number(extensionSource.killCount.count ?? 1)
-      } : null,
-      minimumNodeDistances: Array.isArray(extensionSource.minimumNodeDistances) ? extensionSource.minimumNodeDistances.map((rule: Record<string, any>, index: number) => ({
-        id: String(rule.id ?? "distance-" + (index + 1)), fromNodeKind: String(rule.fromNodeKind ?? "QuestStart"), toNodeKind: String(rule.toNodeKind ?? "Battle"), minimumHops: Number(rule.minimumHops ?? 1)
-      })) : []
-    }
-  };
-}
-
 function mergeDialogue(record: DialogueRecord): void {
   const index = workspace.dialogues.findIndex(item => item.sequence.sequenceId === record.sequence.sequenceId);
   if (index >= 0) workspace.dialogues[index] = { ...record, key: workspace.dialogues[index].key };
@@ -1657,15 +1584,21 @@ async function importGameExamples(): Promise<void> {
     const response = await fetch("./game-examples.json", { cache: "no-cache" });
     if (!response.ok) throw new Error("The game examples could not be loaded.");
     const source = await response.json() as Record<string, any>;
-    if (source.format !== "meowedit-game-examples" || !Array.isArray(source.dialogues) || !Array.isArray(source.quests)) {
+    if (source.format !== "meowedit-game-examples" || !Array.isArray(source.dialogues) || !Array.isArray(source.quests)
+      || (source.armies !== undefined && !Array.isArray(source.armies))
+      || (source.campaigns !== undefined && !Array.isArray(source.campaigns))) {
       throw new Error("The game examples file has an unsupported format.");
     }
 
     let dialoguesAdded = 0;
     let questsAdded = 0;
+    let armiesAdded = 0;
+    let campaignsAdded = 0;
     let skipped = 0;
     const existingDialogueIds = new Set(workspace.dialogues.map(record => record.sequence.sequenceId));
     const existingQuestIds = new Set(workspace.quests.map(record => record.definition.id));
+    const existingArmyIds = new Set(workspace.armies.map(record => record.id));
+    const existingCampaignIds = new Set(workspace.campaigns.map(record => record.id));
     for (const raw of source.dialogues) {
       const record = normalizeDialogue(raw);
       if (existingDialogueIds.has(record.sequence.sequenceId)) {
@@ -1688,8 +1621,30 @@ async function importGameExamples(): Promise<void> {
       workspace.quests.push(record);
       questsAdded += 1;
     }
+    for (const raw of source.armies ?? []) {
+      const record = normalizeArmy(raw);
+      if (existingArmyIds.has(record.id)) {
+        skipped += 1;
+        continue;
+      }
+      record.isGameExample = true;
+      existingArmyIds.add(record.id);
+      workspace.armies.push(record);
+      armiesAdded += 1;
+    }
+    for (const raw of source.campaigns ?? []) {
+      const record = normalizeCampaign(raw);
+      if (existingCampaignIds.has(record.id)) {
+        skipped += 1;
+        continue;
+      }
+      record.isGameExample = true;
+      existingCampaignIds.add(record.id);
+      workspace.campaigns.push(record);
+      campaignsAdded += 1;
+    }
 
-    if (dialoguesAdded + questsAdded === 0) {
+    if (dialoguesAdded + questsAdded + armiesAdded + campaignsAdded === 0) {
       showToast(skipped ? "All game examples already exist here or have conflicting IDs." : "There are no game examples to import.");
       return;
     }
@@ -1697,7 +1652,9 @@ async function importGameExamples(): Promise<void> {
     render();
     const added = [
       dialoguesAdded ? dialoguesAdded + " dialogue example" + (dialoguesAdded === 1 ? "" : "s") : "",
-      questsAdded ? questsAdded + " quest example" + (questsAdded === 1 ? "" : "s") : ""
+      questsAdded ? questsAdded + " quest example" + (questsAdded === 1 ? "" : "s") : "",
+      armiesAdded ? armiesAdded + " army example" + (armiesAdded === 1 ? "" : "s") : "",
+      campaignsAdded ? campaignsAdded + " campaign example" + (campaignsAdded === 1 ? "" : "s") : ""
     ].filter(Boolean).join(" and ");
     showToast("Added " + added + (skipped ? ". Skipped " + skipped + " item" + (skipped === 1 ? "" : "s") + " with IDs already in use." : "."));
   } catch (error) {
@@ -1709,13 +1666,17 @@ function removeGameExamples(): void {
   const selectedDialogue = currentDialogue();
   const selectedQuest = currentQuest();
   const selectedArmy = currentArmy();
-  const selectionWasRemoved = selectedDialogue?.isGameExample === true || selectedQuest?.isGameExample === true || selectedArmy?.isGameExample === true;
+  const selectedCampaign = currentCampaign();
+  const selectionWasRemoved = selectedDialogue?.isGameExample === true || selectedQuest?.isGameExample === true
+    || selectedArmy?.isGameExample === true || selectedCampaign?.isGameExample === true;
   const dialogueCount = workspace.dialogues.filter(record => record.isGameExample).length;
   const questCount = workspace.quests.filter(record => record.isGameExample).length;
   const armyCount = workspace.armies.filter(record => record.isGameExample).length;
+  const campaignCount = workspace.campaigns.filter(record => record.isGameExample).length;
   workspace.dialogues = workspace.dialogues.filter(record => !record.isGameExample);
   workspace.quests = workspace.quests.filter(record => !record.isGameExample);
   workspace.armies = workspace.armies.filter(record => !record.isGameExample);
+  workspace.campaigns = workspace.campaigns.filter(record => !record.isGameExample);
   if (selectionWasRemoved) {
     const nextDialogue = workspace.dialogues[0];
     const nextQuest = workspace.quests[0];
@@ -1731,6 +1692,12 @@ function removeGameExamples(): void {
       workspace.selectedType = "army";
       workspace.selectedKey = workspace.armies[0].key;
       workspace.activeNodeId = null;
+    } else if (workspace.campaigns[0]) {
+      workspace.selectedType = "campaign";
+      workspace.selectedKey = workspace.campaigns[0].key;
+      workspace.activeNodeId = null;
+      selectedCampaignFloorId = workspace.campaigns[0].floors[0]?.id ?? null;
+      selectedCampaignNodeId = workspace.campaigns[0].floors[0]?.nodes[0]?.id ?? null;
     } else {
       workspace.selectedType = null;
       workspace.selectedKey = null;
@@ -1740,7 +1707,7 @@ function removeGameExamples(): void {
   }
   saveWorkspace();
   render();
-  const removedCount = dialogueCount + questCount + armyCount;
+  const removedCount = dialogueCount + questCount + armyCount + campaignCount;
   showToast("Removed " + removedCount + " imported game example" + (removedCount === 1 ? "" : "s") + ".");
 }
 

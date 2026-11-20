@@ -112,12 +112,18 @@ export function workspaceJson(workspace: Workspace): string {
       _meowEditWorkspace: {
         idAuto: record.idAuto === true,
         previewFloor: record.previewFloor,
-        units: record.units
+        units: record.units,
+        ...(record.isGameExample ? { isGameExample: true } : {})
       }
     })),
     campaigns: workspace.campaigns.map(record => ({
       ...campaignDocument(record),
-      _meowEditWorkspace: { key: record.key, idAuto: record.idAuto === true, ...(record.designMode ? { designMode: record.designMode } : {}) }
+      _meowEditWorkspace: {
+        key: record.key,
+        idAuto: record.idAuto === true,
+        ...(record.designMode ? { designMode: record.designMode } : {}),
+        ...(record.isGameExample ? { isGameExample: true } : {})
+      }
     })),
     dialogues: workspace.dialogues.map(record => ({
       ...dialogueWithExtensions(record),
@@ -163,9 +169,9 @@ export function createPackageEntries(workspace: Workspace, roster: UnitRoster): 
   const manifest = {
     format: "meowdieval-content-package",
     packageVersion: 1,
-    editorVersion: "0.1.0",
+    editorVersion: "0.1.5",
     campaignsIncluded: workspace.campaigns.length > 0,
-    campaignRuntimeSupported: false,
+    campaignRuntimeSupported: workspace.campaigns.length > 0,
     files: {
       quests: "quests/Definitions.json",
       armies: "armies/ArmyConfigurations.json",
@@ -184,13 +190,12 @@ export function createPackageEntries(workspace: Workspace, roster: UnitRoster): 
       content: [
         "Meowdieval content package",
         "",
-        "The quest and dialogue JSON files preserve the game’s current fields.",
-        "Timer-project logic, kill counts, multiple fetch items, battle army references, and saved dialogue decisions use the versioned MeowEdit extension.",
-        "The current game does not execute those extension fields yet; see docs/game-integration-handoff.md in the MeowEdit repository.",
-        "Authored army configurations are stored as MeowEdit content and referenced from quest extensions; the current game runtime does not load them yet.",
+        "This package uses schema version 1 for quests, dialogues, armies, campaign floors, routes, shops, and supported MeowEdit quest extensions.",
+        "The game validates all package references before offering a campaign. Invalid or unsupported content is rejected as a whole.",
+        "Continuing runs stay pinned to the exact immutable package revision they started with; new runs use the latest registered revision.",
         workspace.campaigns.length > 0
-          ? "This package contains campaign boards, quest and dialogue content, and referenced army configurations. The current game still needs a campaign loader and start screen before the campaign can be played."
-          : "This package contains quests, dialogues, and army configurations. It has no campaign definition.",
+          ? "This package contains playable campaign boards, reusable quests, dialogues, army configurations, and shop offers. Extract it under Resources/AdventureContent/<revision>/ and register its manifest in PackageIndex.json."
+          : "This package contains quests, dialogues, and army configurations but no campaign, so it is not offered as a playable campaign.",
         ""
       ].join("\n")
     }

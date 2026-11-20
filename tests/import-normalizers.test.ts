@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { normalizeArmy, normalizeCampaign } from "../src/import-normalizers";
+import { normalizeArmy, normalizeCampaign, normalizeQuest } from "../src/import-normalizers";
 
-describe("army and campaign import normalization", () => {
+describe("content import normalization", () => {
   it("upgrades old army files and preserves per-placement spell IDs", () => {
     let id = 0;
     const makeId = (prefix: string) => prefix + "-" + ++id;
@@ -20,6 +20,32 @@ describe("army and campaign import normalization", () => {
       { RootId: "root-id", Lane: 2, Cells: [{ x: 1, y: 2 }], Locked: true, BaneCells: [{ x: 0, y: 0 }] }
     ] });
     expect(army.cellBlessingPicks).toEqual([{ rootId: "root-id", lane: 2, cells: [{ x: 1, y: 2 }], locked: true, baneCells: [{ x: 0, y: 0 }] }]);
+  });
+
+  it("preserves current quest extension fields when importing package definitions", () => {
+    const quest = normalizeQuest({
+      id: "timer-project",
+      title: "Repair the bridge",
+      objectiveKind: "Timer",
+      meowEdit: {
+        logicKind: "timer-project",
+        dialogueLinks: { offer: "repair-offer", active: "", completion: "", failure: "" },
+        timer: {
+          decisionId: "repair-choice", payOutcomeId: "pay-now", waitOutcomeId: "wait",
+          counterId: "battle-count", counterTarget: 3, paymentAmount: 15,
+          paymentResource: "Sardines", countEvent: "any-battle-completed",
+          completionEffects: [{ kind: "unlock-path", targetId: "shortcut", label: "Open shortcut" }]
+        }
+      }
+    });
+    expect(quest.extension).toMatchObject({
+      logicKind: "timer-project",
+      dialogueLinks: { offer: "repair-offer" },
+      timer: {
+        decisionId: "repair-choice", counterTarget: 3, paymentAmount: 15,
+        completionEffects: [{ kind: "unlock-path", targetId: "shortcut" }]
+      }
+    });
   });
 
   it("normalizes standalone campaign envelopes and fills missing board settings", () => {
