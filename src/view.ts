@@ -1048,6 +1048,12 @@ function renderArmyCellTargetFocus(record: ArmyRecord, catalog: ArmyCatalog, ros
   const boonRule = String(mechanics.rule ?? "None"), baneRule = String(mechanics.baneRule ?? "None");
   const boonCells = new Set(pick.cells.map(cell => cell.x + "," + cell.y));
   const baneCells = new Set(pick.baneCells.map(cell => cell.x + "," + cell.y));
+  const laneUnitNames = Array.from({ length: size.height }, (_, lane) => record.units
+    .filter(unit => {
+      const footprint = armyFootprint(catalog, unit.unitId);
+      return lane >= unit.y && lane < unit.y + footprint.height;
+    })
+    .map(unit => resolveArmyLevel(catalog, unit.unitId)?.entity.name ?? unit.unitId));
   const isolatedCells = new Set<string>();
   for (const unit of record.units) {
     const footprint = armyFootprint(catalog, unit.unitId);
@@ -1085,7 +1091,12 @@ function renderArmyCellTargetFocus(record: ArmyRecord, catalog: ArmyCatalog, ros
       (isSelected ? ' is-current-target' : '') + (laneSelected ? ' is-lane-selected' : '');
     const content = hasBoon ? '<span>✦</span>' : hasBane ? '<span>⌁</span>' : '<small>' + (x + 1) + ',' + (y + 1) + '</small>';
     if (rule === "PickedColumn") {
-      return '<div class="' + cellClass + '" aria-hidden="true" style="grid-column:' + (x + 1) + ';grid-row:' + (y + 1) + '">' + content + '</div>';
+      const unitNames = laneUnitNames[y];
+      const details = unitNames.length ? "; affects " + unitNames.join(", ") : "; no units in this lane yet";
+      const laneLabel = x === 0 ? ' data-lane-label="Lane ' + (y + 1) + '"' : '';
+      return '<button type="button" class="' + cellClass + ' army-lane-cell" data-action="pick-cell-blessing-lane" data-y="' + y + '"' + laneLabel +
+        ' tabindex="' + (x === 0 ? "0" : "-1") + '" style="grid-column:' + (x + 1) + ';grid-row:' + (y + 1) + '" aria-pressed="' + laneSelected +
+        '" aria-label="Choose lane ' + (y + 1) + ' from field ' + (x + 1) + ', ' + (y + 1) + escapeHtml(details) + '" title="Choose lane ' + (y + 1) + escapeHtml(details) + '">' + content + '</button>';
     }
     const disabled = !isEditable || region === "bane" && rule === "RandomCells" && boonCells.has(key) && !isSelected ||
       rule === "RandomCells" && !isSelected && targetCells.length >= count;
@@ -1094,15 +1105,6 @@ function renderArmyCellTargetFocus(record: ArmyRecord, catalog: ArmyCatalog, ros
       ' aria-pressed="' + isSelected + '" aria-label="Field ' + (x + 1) + ', ' + (y + 1) +
       (hasBoon ? ", blessed" : "") + (hasBane ? ", cursed" : "") + '">' + content + '</button>';
   }).join("");
-  const laneButtons = rule === "PickedColumn" ? Array.from({ length: size.height }, (_, lane) => {
-    const affectedUnits = record.units.filter(unit => {
-      const footprint = armyFootprint(catalog, unit.unitId);
-      return lane >= unit.y && lane < unit.y + footprint.height;
-    });
-    const unitNames = affectedUnits.map(unit => resolveArmyLevel(catalog, unit.unitId)?.entity.name ?? unit.unitId);
-    const details = unitNames.length ? "; affects " + unitNames.join(", ") : "; no units in this lane yet";
-    return '<button type="button" class="army-lane-target' + (pick.lane === lane ? ' is-selected' : '') + '" data-action="pick-cell-blessing-lane" data-y="' + lane + '" data-lane-label="Lane ' + (lane + 1) + '" style="grid-column:1 / -1;grid-row:' + (lane + 1) + '" aria-pressed="' + (pick.lane === lane) + '" aria-label="Choose lane ' + (lane + 1) + escapeHtml(details) + '" title="Choose lane ' + (lane + 1) + escapeHtml(details) + '"></button>';
-  }).join("") : "";
   const selectedLaneUnits = rule === "PickedColumn" && pick.lane >= 0 ? record.units.filter(unit => {
     const footprint = armyFootprint(catalog, unit.unitId);
     return pick.lane >= unit.y && pick.lane < unit.y + footprint.height;
@@ -1129,7 +1131,7 @@ function renderArmyCellTargetFocus(record: ArmyRecord, catalog: ArmyCatalog, ros
     (hasBane ? '<div class="army-cell-region-tabs">' + actionButton("cell-blessing-region", "Blessing · " + escapeHtml(cellRuleLabel(mechanics.rule)), "button button-small" + (region === "boon" ? " is-active" : ""), ' data-region="boon"') +
       actionButton("cell-blessing-region", "Bane · " + escapeHtml(cellRuleLabel(mechanics.baneRule)), "button button-small" + (region === "bane" ? " is-active" : ""), ' data-region="bane"') + '</div>' : '<div class="army-cell-region-tabs"><strong>' + escapeHtml(title) + ' · ' + escapeHtml(cellRuleLabel(mechanics.rule)) + '</strong></div>') +
     '<p class="army-cell-instruction">' + escapeHtml(required) + ' <span>Enemy side →</span></p>' +
-    '<div class="army-cell-target-grid" role="group" aria-label="Battlefield fields" style="--army-grid-columns:' + size.width + ';--army-grid-rows:' + size.height + '">' + cells + laneButtons + units + '</div>' +
+    '<div class="army-cell-target-grid" role="group" aria-label="Battlefield fields" style="--army-grid-columns:' + size.width + ';--army-grid-rows:' + size.height + '">' + cells + units + '</div>' +
     (rule === "PickedColumn" ? '<p class="section-note">' + (pick.lane >= 0 ? 'Lane ' + (pick.lane + 1) + ' selected · affects ' + selectedLaneUnits.length + (selectedLaneUnits.length === 1 ? ' lineup entry.' : ' lineup entries.') : 'Choose one lane. Each lane runs from the rear edge toward the enemy.') + '</p>' :
       isEditable ? '<p class="section-note">' + targetCells.length + ' of ' + count + ' selected</p>' : '') +
     '</section></div>';

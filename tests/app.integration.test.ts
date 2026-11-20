@@ -354,11 +354,18 @@ describe("browser application flow", () => {
     document.querySelector<HTMLButtonElement>('[data-action="add-configure-battlefield-effect"]')!.click();
     expect(document.querySelector('[role="dialog"][aria-label="Configure battlefield fields"]')?.textContent).toContain("Blessing field");
     expect(JSON.parse(localStorage.getItem("meowedit.workspace.v1")!).armies[0].blessingIds).toEqual(["picked-column"]);
+    const targetGrid = document.querySelector<HTMLElement>(".army-cell-target-grid")!;
+    expect(targetGrid.querySelectorAll(".army-lane-cell")).toHaveLength(9);
+    expect(targetGrid.querySelectorAll('.army-lane-cell[tabindex="0"]')).toHaveLength(3);
+    expect(targetGrid.querySelectorAll(".army-cell-target-unit")).toHaveLength(1);
+    expect(targetGrid.querySelectorAll(":scope > *")).toHaveLength(10);
+    expect(targetGrid.querySelectorAll(".army-lane-target")).toHaveLength(0);
     expect(document.querySelector('[data-action="pick-cell-blessing-lane"][data-y="0"]')?.getAttribute("aria-label")).toContain("affects Fighter");
     document.querySelector<HTMLButtonElement>('[data-action="pick-cell-blessing-lane"][data-y="0"]')!.click();
     let saved = JSON.parse(localStorage.getItem("meowedit.workspace.v1")!);
     expect(saved.armies[0].cellBlessingPicks[0]).toMatchObject({ rootId: "lane-root", lane: 0, cells: [], locked: true });
     expect(saved.armies[0].units).toHaveLength(1);
+    expect(document.querySelectorAll(".army-cell-target-grid > *")).toHaveLength(10);
     expect(document.querySelector('[role="dialog"][aria-label="Configure battlefield fields"]')?.textContent).toContain("Lane 1 selected · affects 1 lineup entry.");
     document.querySelector<HTMLButtonElement>('[data-action="close-cell-blessing-focus"]')!.click();
 
