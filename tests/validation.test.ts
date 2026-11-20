@@ -69,6 +69,28 @@ describe("content validation", () => {
     expect(validateCampaign(campaign, workspaceFixture(), catalog).some(issue => issue.message.includes("unreachable from Start"))).toBe(true);
   });
 
+  it("validates campaign event scopes and Army references while preserving unknown actions", () => {
+    const workspace = workspaceFixture();
+    const campaign = workspace.campaigns[0];
+    const battle = campaign.floors[0].nodes.find(node => node.kind === "Battle")!;
+    campaign.events = [{
+      id: "boss-party", trigger: "before-battle", floorNumber: 1, nodeId: battle.id,
+      actions: [{ kind: "replace-player-army", armyId: workspace.armies[0].id }]
+    }];
+    expect(validateCampaign(campaign, workspace, catalog).filter(issue => issue.level === "error")).toEqual([]);
+
+    campaign.events[0].actions[0] = { kind: "replace-player-army", armyId: "missing-army" };
+    campaign.events[0].nodeId = "start";
+    const messages = validateCampaign(campaign, workspace, catalog).map(issue => issue.message);
+    expect(messages).toContain("Campaign event “boss-party”: battle triggers must target a Battle or Boss node.");
+    expect(messages).toContain("Campaign event “boss-party”: replace-player-army must reference an Army Editor army.");
+
+    campaign.events[0].nodeId = battle.id;
+    campaign.events[0].actions = [{ kind: "grant-token", tokenId: "future-content" }];
+    const issues = validateCampaign(campaign, workspace, catalog);
+    expect(issues.some(issue => issue.level === "warning" && issue.message.includes("grant-token") && issue.message.includes("preserved in export"))).toBe(true);
+  });
+
   it("validates exact campaign shop inventory against the game catalog and price rules", () => {
     const campaign = campaignFixture();
     const floor = campaign.floors[0];

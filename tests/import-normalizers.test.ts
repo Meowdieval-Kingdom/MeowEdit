@@ -58,6 +58,28 @@ describe("content import normalization", () => {
     expect(campaign.floors[0].nodes[0]).toMatchObject({ id: "node-import-fixture", label: "Market", kind: "Shop", x: 2, y: -1, rewardAmount: 10, shopOfferMode: "generated", shopOffers: [] });
     expect(campaign.floors[0].routes[0]).toMatchObject({ id: "route-import-fixture", fromNodeId: "shop", toNodeId: "start", oneWay: false });
     expect(campaign.settings).toMatchObject({ startingLives: 3, battleShopEnabled: false, shopPoolKinds: ["Unit", "Blessing", "Research", "SpellUnlock"], continueWithGeneratedFloors: false });
+    expect(campaign.events).toEqual([]);
+  });
+
+  it("normalizes campaign event scopes while preserving unknown action data", () => {
+    const campaign = normalizeCampaign({
+      id: "event-import",
+      events: [{
+        id: "battle-lineup", trigger: "before-battle", floorNumber: "2", nodeId: "boss-two",
+        actions: [
+          { kind: "replace-player-army", armyId: "boss-party" },
+          { kind: "grant-token", tokenId: "north-route", payload: { amount: 1 } }
+        ]
+      }],
+      floors: [], settings: {}
+    });
+    expect(campaign.events).toEqual([{
+      id: "battle-lineup", trigger: "before-battle", floorNumber: 2, nodeId: "boss-two",
+      actions: [
+        { kind: "replace-player-army", armyId: "boss-party" },
+        { kind: "grant-token", tokenId: "north-route", payload: { amount: 1 } }
+      ]
+    }]);
   });
 
   it("recognizes randomizer-only campaign imports and defaults omitted lists safely", () => {

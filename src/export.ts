@@ -72,6 +72,7 @@ function campaignDocument(record: CampaignRecord): object {
     description: record.description,
     questIds: record.questIds,
     floors: record.floors,
+    events: record.events ?? [],
     settings: record.settings
   };
 }

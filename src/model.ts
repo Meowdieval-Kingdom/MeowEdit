@@ -251,6 +251,29 @@ export interface CampaignSettings {
   continueWithGeneratedFloors: boolean;
 }
 
+export type CampaignEventTrigger = "campaign-start" | "before-battle" | "after-battle" | "node-cleared";
+
+/** Unknown action fields are retained so the campaign action list can grow without losing imported data. */
+export interface CampaignEventAction {
+  kind: string;
+  [field: string]: unknown;
+}
+
+export interface ReplacePlayerArmyCampaignEventAction extends CampaignEventAction {
+  kind: "replace-player-army";
+  armyId: string;
+}
+
+export interface CampaignEvent {
+  id: string;
+  trigger: CampaignEventTrigger;
+  /** Omit to apply a node/battle trigger to matching nodes on every floor. */
+  floorNumber?: number;
+  /** Omit to apply a node/battle trigger to all matching nodes on the selected floor scope. */
+  nodeId?: string;
+  actions: CampaignEventAction[];
+}
+
 export interface CampaignRecord {
   key: string;
   isGameExample?: boolean;
@@ -263,6 +286,7 @@ export interface CampaignRecord {
   /** Selected reusable quest definitions available to Quest nodes in this campaign. */
   questIds: string[];
   floors: CampaignFloor[];
+  events: CampaignEvent[];
   settings: CampaignSettings;
 }
 

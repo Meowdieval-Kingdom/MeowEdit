@@ -24,6 +24,7 @@ To refresh demo copies after changing local originals, put them under `.local-as
 - Quest authoring for Escort, Fetch, Battle, Clear Floor, Timer, and Kill Count objectives, including multi-item Fetch and ordered Battle targets.
 - An Army library with game-sized floor grids, unit level selection, spells, blessings, and reusable army IDs for battle targets.
 - A Campaign editor for hand-placed, random, and mixed Adventure floors; integer map-coordinate snapping; connected node routes; per-node quest, army, faction, and reward assignments; and campaign run settings.
+- Campaign events for campaign start, battle timing, or cleared nodes, with a `replace-player-army` action linked to an Army Editor configuration.
 - MeowEdit extensions for multiple fetch items, KillCount objectives, minimum node distances, quest-to-dialogue links, timer-project logic, and dialogue decisions.
 - Guided and advanced editing modes, import, JSON export, and ZIP package export.
 

@@ -125,6 +125,18 @@ export function normalizeCampaign(value: unknown, idFactory: IdFactory = createK
         raw.floors.every((floor: Record<string, any>) => floor.mode === "random" && !(floor.nodes?.length) && !(floor.routes?.length) && Number(floor.randomSettings?.questNodeCount ?? 2) === 0) &&
         Number(raw.settings?.questNodeCountPerRandomFloor ?? 2) === 0 ? "settings-only" : "custom",
     questIds: Array.isArray(raw.questIds) ? raw.questIds.map(String) : [],
+    events: Array.isArray(raw.events) ? raw.events
+      .filter((event: unknown) => !!event && typeof event === "object" && !Array.isArray(event))
+      .map((event: Record<string, any>) => ({
+        ...event,
+        id: String(event.id ?? idFactory("campaign-event-import")),
+        trigger: String(event.trigger ?? "campaign-start") as CampaignRecord["events"][number]["trigger"],
+        ...(event.floorNumber !== undefined && event.floorNumber !== null ? { floorNumber: Number(event.floorNumber) } : {}),
+        ...(event.nodeId !== undefined && event.nodeId !== null && event.nodeId !== "" ? { nodeId: String(event.nodeId) } : {}),
+        actions: Array.isArray(event.actions) ? event.actions
+          .filter((action: unknown) => !!action && typeof action === "object" && !Array.isArray(action))
+          .map((action: Record<string, unknown>) => ({ ...action, kind: String(action.kind ?? "") })) : []
+      })) : [],
     floors: Array.isArray(raw.floors) ? raw.floors.map((floor: Record<string, any>, index: number) => ({
       id: String(floor.id ?? idFactory("floor-import")), number: Number(floor.number ?? index + 1),
       mode: floor.mode === "random" || floor.mode === "mixed" ? floor.mode : "authored",

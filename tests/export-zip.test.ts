@@ -54,6 +54,26 @@ describe("content export and ZIP packages", () => {
     expect(zipFiles.has("meowdieval-content/dialogues/test-dialogue.json")).toBe(true);
   });
 
+  it("exports campaign event triggers and Army references in standalone JSON and packages", async () => {
+    const workspace = workspaceFixture();
+    const battleId = workspace.campaigns[0].floors[0].nodes.find(node => node.kind === "Battle")!.id;
+    const events = [
+      { id: "opening-lineup", trigger: "campaign-start" as const, actions: [{ kind: "replace-player-army", armyId: workspace.armies[0].id }] },
+      { id: "boss-lineup", trigger: "before-battle" as const, floorNumber: 1, nodeId: battleId,
+        actions: [{ kind: "replace-player-army", armyId: workspace.armies[0].id }] }
+    ];
+    workspace.campaigns[0].events = events;
+
+    expect(JSON.parse(activeCampaignJson(workspace.campaigns[0])).campaign.events).toEqual(events);
+    const entries = createPackageEntries(workspace, rosterFixture);
+    const packageCampaigns = JSON.parse(String(entries.find(entry => entry.path.endsWith("campaigns/Campaigns.json"))?.content));
+    expect(packageCampaigns.campaigns[0].events).toEqual(events);
+
+    const archive = readStoredZip(new Uint8Array(await workspacePackage(workspace, rosterFixture).arrayBuffer()));
+    const packagedJson = JSON.parse(new TextDecoder().decode(archive.get("meowdieval-content/campaigns/Campaigns.json")));
+    expect(packagedJson.campaigns[0].events).toEqual(events);
+  });
+
   it("exports saved dialogue decisions without inventing an empty campaign file", () => {
     const workspace = workspaceFixture();
     workspace.campaigns = [];

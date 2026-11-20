@@ -78,6 +78,20 @@ A campaign groups reusable quests, authored floor graphs, random-floor rules, an
     "description": "A short example campaign.",
     "questIds": ["lost-supplies"],
     "floors": [],
+    "events": [
+      {
+        "id": "campaign-opening-army",
+        "trigger": "campaign-start",
+        "actions": [{ "kind": "replace-player-army", "armyId": "trail-guard" }]
+      },
+      {
+        "id": "boss-preparation",
+        "trigger": "before-battle",
+        "floorNumber": 2,
+        "nodeId": "f2-boss",
+        "actions": [{ "kind": "replace-player-army", "armyId": "boss-party" }]
+      }
+    ],
     "settings": {}
   }
 }
@@ -90,6 +104,8 @@ Each floor independently uses `authored`, `random`, or `mixed` mode. Authored an
 Node `x` and `y` are signed integer Adventure grid coordinates, matching the game's `Vector2Int` positions. Start is at `(0, 0)`. A route may join any of the eight neighboring cells, including diagonals, and `oneWay: true` preserves direction. Graph validation checks unique occupied coordinates, reachable nodes, and a Boss beyond the Battle path. The visual editor is an open node canvas with a dotted snap lattice; it does not constrain a floor to a fixed tile board.
 
 Node types are Start, Battle, Reward, Boss, Quest, and Shop. Battle/Boss nodes can reference an Army ID and enemy faction. Quest nodes reference a campaign quest ID. Reward nodes specify a reward kind, amount, and optional catalog content ID. Shop nodes default to generated stock or can define exactly three offers, each with a current catalog ID and a Sardines price. Floor node IDs and Army/Quest IDs are stable references in the exported package.
+
+Campaign events have a stable `id`, a trigger (`campaign-start`, `before-battle`, `after-battle`, or `node-cleared`), and an ordered `actions` array. The first editable action is `replace-player-army`; its `armyId` refers to an Army configuration's stable ID from the same workspace package. `campaign-start` events are global. Other triggers can optionally scope to a `floorNumber` and then a `nodeId`; omitting both applies the trigger to all matching nodes, while setting only the floor scopes it to that floor. Battle triggers may target Battle or Boss nodes, and `node-cleared` cannot target Start. Unknown imported action kinds are retained during import/export and reported as not currently editable.
 
 Campaign settings include starting lives, Sardines, initial random-floor node count, random Quest/Shop counts, node growth, player faction, the battle shop toggle, and whether generated floors continue after authored boards end. Generated Adventure map shops can draw from Units, Blessings, Research (unit unlocks), and Spell unlocks. Campaign settings select the general pools; each floor can inherit them or restrict its pools and set its shop tier from 1 to 4. The current Adventure run starts at tier 1, raises the tier with floor progression up to tier 4, and also supports a Shop level unlock reward. Authored, random, and mixed floors, fixed routes, quest pools, exact three-item shop stock, and campaign progression are loaded by the game.
 

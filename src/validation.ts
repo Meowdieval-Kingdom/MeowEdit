@@ -231,6 +231,7 @@ export function validateWorkspace(workspace: Workspace, catalog: ArmyCatalog = {
 
 const CAMPAIGN_NODE_KINDS = new Set(["Start", "Battle", "Reward", "Boss", "Quest", "Shop"]);
 const CAMPAIGN_REWARD_KINDS = new Set(["Sardines", "ExtraLife", "Blessing", "UnitUnlock", "ShopLevelUnlock", "SpellUnlock"]);
+const CAMPAIGN_EVENT_TRIGGERS = new Set(["campaign-start", "before-battle", "after-battle", "node-cleared"]);
 
 export function validateCampaign(
   campaign: CampaignRecord,
@@ -255,6 +256,49 @@ export function validateCampaign(
   }
   if (!uniqueValues(campaign.settings.shopPoolKinds) || campaign.settings.shopPoolKinds.some(kind => !CAMPAIGN_SHOP_KINDS.includes(kind))) {
     issues.push({ level: "error", message: "Campaign shop pools must use unique, supported offer categories." });
+  }
+
+  const events = campaign.events ?? [];
+  if (!uniqueValues(events.map(event => event.id))) issues.push({ level: "error", message: "Campaign event IDs must be present and unique." });
+  for (const event of events) {
+    const label = "Campaign event “" + (event.id || "(missing ID)") + "”: ";
+    if (!nonEmpty(event.id)) issues.push({ level: "error", message: label + "ID is required." });
+    if (!CAMPAIGN_EVENT_TRIGGERS.has(event.trigger)) {
+      issues.push({ level: "error", message: label + "choose a supported trigger." });
+      continue;
+    }
+    if (event.trigger === "campaign-start" && (event.floorNumber !== undefined || event.nodeId)) {
+      issues.push({ level: "error", message: label + "Campaign start events cannot target a floor or node." });
+    }
+    if (event.floorNumber !== undefined && (!Number.isInteger(event.floorNumber) || !campaign.floors.some(floor => floor.number === event.floorNumber))) {
+      issues.push({ level: "error", message: label + "choose a floor that exists in this campaign." });
+    }
+    if (event.nodeId) {
+      if (event.floorNumber === undefined || !Number.isInteger(event.floorNumber)) {
+        issues.push({ level: "error", message: label + "choose a floor before targeting a specific node." });
+      } else {
+        const floor = campaign.floors.find(item => item.number === event.floorNumber);
+        const node = floor?.nodes.find(item => item.id === event.nodeId);
+        if (!node) {
+          issues.push({ level: "error", message: label + "target node “" + event.nodeId + "” does not exist on Floor " + event.floorNumber + "." });
+        } else if ((event.trigger === "before-battle" || event.trigger === "after-battle") && node.kind !== "Battle" && node.kind !== "Boss") {
+          issues.push({ level: "error", message: label + "battle triggers must target a Battle or Boss node." });
+        } else if (event.trigger === "node-cleared" && node.kind === "Start") {
+          issues.push({ level: "error", message: label + "node-cleared triggers cannot target a Start node." });
+        }
+      }
+    }
+    if (event.actions.length === 0) issues.push({ level: "error", message: label + "add at least one action." });
+    for (const action of event.actions) {
+      if (action.kind === "replace-player-army") {
+        const armyId = action.armyId;
+        if (typeof armyId !== "string" || !workspace.armies.some(army => army.id === armyId)) {
+          issues.push({ level: "error", message: label + "replace-player-army must reference an Army Editor army." });
+        }
+      } else {
+        issues.push({ level: "warning", message: label + "action “" + (action.kind || "(missing kind)") + "” is not currently editable; it will be preserved in export." });
+      }
+    }
   }
 
   const questIds = campaign.questIds ?? [];
