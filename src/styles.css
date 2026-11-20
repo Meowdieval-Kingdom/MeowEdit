@@ -2160,3 +2160,34 @@ body { color: var(--ink); background: var(--canvas); }
   .army-cell-instruction { flex-direction: column; gap: 4px; }
   .army-cell-target-grid { gap: 3px; padding: 5px; }
 }
+
+.campaign-events-section, .campaign-event-review, .campaign-event-list { display: grid; gap: 12px; }
+.campaign-event-list-heading, .campaign-event-editor-heading, .campaign-event-action-heading, .campaign-event-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.campaign-event-list-heading h2 { margin: 0; color: #3a3f36; font: 650 17px "Segoe UI", sans-serif; }
+.campaign-event-list-row { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 8px; padding: 10px 0; border-bottom: 1px solid #e8e7df; }
+.campaign-event-list-main { display: grid; gap: 3px; min-width: 0; padding: 4px 0; color: #3f453b; text-align: left; background: transparent; border: 0; cursor: pointer; }
+.campaign-event-list-main strong { font-size: 12px; }
+.campaign-event-list-main span { overflow: hidden; color: #6c7267; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.campaign-event-empty { margin: 0; color: #73796e; font-size: 11px; }
+.campaign-event-editor { display: grid; gap: 12px; padding: 16px; background: #fbfaf6; border: 1px solid #e6e5dd; border-radius: 7px; }
+.campaign-event-editor-heading { margin-bottom: 2px; }
+.campaign-event-editor-heading > div { display: grid; gap: 3px; }
+.campaign-event-editor-heading h3 { margin: 0; color: #394137; font-size: 15px; font-weight: 650; }
+.campaign-event-editor .eyebrow { color: #7c8275; font-size: 9px; letter-spacing: .06em; }
+.campaign-event-target-fields { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+.campaign-event-actions { display: grid; gap: 10px; padding-top: 12px; border-top: 1px solid #e8e7df; }
+.campaign-event-section-heading h4 { margin: 0; color: #50574c; font-size: 12px; font-weight: 650; }
+.campaign-event-action-row { display: grid; gap: 8px; }
+.campaign-event-action-heading strong { color: #4b5545; font-size: 11px; }
+.campaign-event-action-row .related-editor-actions { margin-top: -2px; }
+.campaign-event-unknown-action { display: flex; align-items: center; gap: 8px; color: #74796f; font-size: 10px; }
+.campaign-event-unknown-action code { padding: 2px 5px; color: #555c51; background: #eeeee8; border-radius: 4px; }
+.campaign-event-focus { width: min(620px,100%); margin: 0 auto; background: #fffefa; box-shadow: 0 8px 28px rgba(42,49,36,.06); }
+.campaign-event-review { margin: 14px 0; padding-top: 14px; border-top: 1px solid #e6e5dd; }
+
+@media (max-width: 700px) {
+  .campaign-event-target-fields { grid-template-columns: minmax(0,1fr); gap: 8px; }
+  .campaign-event-editor { padding: 13px; }
+  .campaign-event-list-row { gap: 5px; }
+  .campaign-event-list-main span { white-space: normal; }
+}

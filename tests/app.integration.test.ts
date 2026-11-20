@@ -1172,6 +1172,51 @@ describe("browser application flow", () => {
     expect(campaign.floors[1].randomSettings.nodeCount).toBe(16);
   });
 
+  it("authors a campaign event, creates its Army in context, and returns to the event", async () => {
+    vi.resetModules();
+    localStorage.clear();
+    document.body.innerHTML = '<div id="app"></div>';
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => ({
+      ok: true,
+      json: async () => String(input).includes("army-catalog") ? baseCatalog : rosterFixture
+    })));
+
+    await import("../src/main");
+    document.querySelector<HTMLButtonElement>('[aria-label="New campaign"]')!.click();
+    goToCampaignStep(9);
+    expect(document.querySelector(".campaign-review")).not.toBeNull();
+    document.querySelector<HTMLButtonElement>('[data-action="campaign-add-event"]')!.click();
+    expect(document.querySelector(".campaign-event-focus")).not.toBeNull();
+
+    document.querySelector<HTMLButtonElement>('[data-action="create-campaign-event-army"]')!.click();
+    expect(document.querySelector(".army-guided-screen")).not.toBeNull();
+    document.querySelector<HTMLButtonElement>('[data-action="return-to-parent"]')!.click();
+    expect(document.querySelector(".campaign-event-focus")).not.toBeNull();
+    let saved = JSON.parse(localStorage.getItem("meowedit.workspace.v1")!);
+    let campaign = saved.campaigns.find((item: { key: string }) => item.key === saved.selectedKey);
+    const armyId = saved.armies[saved.armies.length - 1].id;
+    expect(campaign.events[0].actions[0].armyId).toBe(armyId);
+
+    const trigger = document.querySelector<HTMLSelectElement>('[data-bind="events.0.trigger"]')!;
+    trigger.value = "before-battle";
+    trigger.dispatchEvent(new Event("change", { bubbles: true }));
+    const floor = document.querySelector<HTMLSelectElement>('[data-bind="events.0.floorNumber"]')!;
+    floor.value = "1";
+    floor.dispatchEvent(new Event("change", { bubbles: true }));
+    const target = document.querySelector<HTMLSelectElement>('[data-bind="events.0.nodeId"]')!;
+    target.value = "battle-a-1";
+    target.dispatchEvent(new Event("change", { bubbles: true }));
+
+    saved = JSON.parse(localStorage.getItem("meowedit.workspace.v1")!);
+    campaign = saved.campaigns.find((item: { key: string }) => item.key === saved.selectedKey);
+    expect(campaign.events[0]).toMatchObject({ trigger: "before-battle", floorNumber: 1, nodeId: "battle-a-1",
+      actions: [{ kind: "replace-player-army", armyId }] });
+    document.querySelector<HTMLButtonElement>('[data-action="campaign-events-back"]')!.click();
+    document.querySelector<HTMLButtonElement>('[data-action="campaign-remove-event"][data-event-id="event-1"]')!.click();
+    saved = JSON.parse(localStorage.getItem("meowedit.workspace.v1")!);
+    expect(saved.campaigns.find((item: { key: string }) => item.key === saved.selectedKey).events).toEqual([]);
+  });
+
   it("restores an in-progress Campaign-to-Army handoff after a browser reload", async () => {
     vi.resetModules();
     localStorage.clear();

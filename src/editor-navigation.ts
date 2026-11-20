@@ -6,7 +6,8 @@ export type RelatedEditorReturnContext =
       parentKey: string;
       floorId: string;
       nodeId: string | null;
-      target: "army" | "quest-node" | "quest-pool";
+      target: "army" | "quest-node" | "quest-pool" | "event-army";
+      eventId?: string;
       includeQuestInPool?: boolean;
       parentStep: number;
       returnLabel: string;
@@ -46,7 +47,8 @@ export class EditorNavigationHistory {
           !Number.isInteger(context.parentStep) || Number(context.parentStep) < 0) continue;
       if (context.parentType === "campaign" && typeof context.floorId === "string" &&
           (context.nodeId === null || typeof context.nodeId === "string") &&
-          (context.target === "army" || context.target === "quest-node" || context.target === "quest-pool") &&
+          (context.target === "army" || context.target === "quest-node" || context.target === "quest-pool" || context.target === "event-army") &&
+          (context.target !== "event-army" || typeof context.eventId === "string") &&
           (context.includeQuestInPool === undefined || typeof context.includeQuestInPool === "boolean")) {
         this.contexts.push(context as RelatedEditorReturnContext);
       } else if (context.parentType === "quest" && context.target === "army" && typeof context.battleTargetId === "string") {

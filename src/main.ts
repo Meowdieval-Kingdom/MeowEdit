@@ -88,6 +88,7 @@ let armyDragDraft: { placementId: string; startX: number; startY: number; pointe
 let suppressArmyClick = false;
 let selectedCampaignFloorId: string | null = initialEditorSession.selectedCampaignFloorId;
 let selectedCampaignNodeId: string | null = initialEditorSession.selectedCampaignNodeId;
+let selectedCampaignEventId: string | null = null;
 let campaignInteractionMode: "select" | "add" = "select";
 let campaignNodeKindDraft: CampaignNodeKind = "Battle";
 let campaignAddMenuOpen = false;
@@ -158,6 +159,10 @@ function loadWorkspace(): Workspace {
       if (!extension.completionEffects) { extension.completionEffects = []; migrated = true; }
     }
     for (const campaign of parsed.campaigns) {
+      if (!Array.isArray(campaign.events)) { campaign.events = []; migrated = true; }
+      for (const campaignEvent of campaign.events) {
+        if (!Array.isArray(campaignEvent.actions)) { campaignEvent.actions = []; migrated = true; }
+      }
       campaign.questIds ??= [];
       campaign.floors ??= [];
       if (!campaign.designMode) {
@@ -307,7 +312,7 @@ function render(): void {
   }, returnContext ? {
     parent: returnContext.parentType === "campaign" ? "Campaign" : "Quest",
     label: returnContext.returnLabel
-  } : undefined, armyCatalogKind, helpVisible, { abilityId: selectedArmyBattlefieldEffectId, region: selectedArmyCellRegion }, armyAbilityFilters, armyAbilityCategory, armyAbilitySelections);
+  } : undefined, armyCatalogKind, helpVisible, { abilityId: selectedArmyBattlefieldEffectId, region: selectedArmyCellRegion }, armyAbilityFilters, armyAbilityCategory, armyAbilitySelections, selectedCampaignEventId);
   const appLayout = root!.querySelector<HTMLElement>(".app-layout");
   appLayout?.classList.toggle("is-sidebar-collapsed", sidebarCollapsed);
   appLayout?.classList.toggle("is-sidebar-open", root!.querySelector<HTMLElement>(".sidebar")?.classList.contains("is-open") ?? false);
@@ -456,8 +461,24 @@ function selectedDocument(): object | null {
 function fieldValue(element: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement): unknown {
   if (element instanceof HTMLInputElement && element.type === "checkbox") return element.checked;
   if (element instanceof HTMLInputElement && element.type === "number") return element.value === "" ? 0 : Number(element.value);
+  if (element instanceof HTMLSelectElement && element.dataset.optionalNumber === "true") return element.value === "" ? undefined : Number(element.value);
   if (element instanceof HTMLSelectElement && element.dataset.number === "true") return Number(element.value);
   return element.value;
+}
+
+function reconcileCampaignEventTarget(event: CampaignRecord["events"][number], campaign: CampaignRecord): void {
+  if (event.trigger === "campaign-start") {
+    delete event.floorNumber;
+    delete event.nodeId;
+    return;
+  }
+  if (!event.nodeId) { delete event.nodeId; return; }
+  if (event.floorNumber === undefined) { delete event.nodeId; return; }
+  const floor = campaign.floors.find(item => item.number === event.floorNumber);
+  const node = floor?.nodes.find(item => item.id === event.nodeId);
+  const isBattleTrigger = event.trigger === "before-battle" || event.trigger === "after-battle";
+  if (!node || isBattleTrigger && node.kind !== "Battle" && node.kind !== "Boss" ||
+      event.trigger === "node-cleared" && node.kind === "Start") delete event.nodeId;
 }
 
 function bindField(element: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement): void {
@@ -485,6 +506,18 @@ function bindField(element: HTMLInputElement | HTMLTextAreaElement | HTMLSelectE
   setValue(documentValue, path, value);
   const shopOfferKindPath = path.match(/^floors\.(\d+)\.nodes\.(\d+)\.shopOffers\.(\d+)\.kind$/);
   const campaignDocument = currentCampaign();
+  const eventTriggerPath = path.match(/^events\.(\d+)\.trigger$/);
+  const eventFloorPath = path.match(/^events\.(\d+)\.floorNumber$/);
+  const eventTargetIndex = eventTriggerPath ? Number(eventTriggerPath[1]) : eventFloorPath ? Number(eventFloorPath[1]) : -1;
+  if (campaignDocument && eventTargetIndex >= 0) {
+    const campaignEvent = campaignDocument.events[eventTargetIndex];
+    if (campaignEvent) reconcileCampaignEventTarget(campaignEvent, campaignDocument);
+  }
+  const eventNodePath = path.match(/^events\.(\d+)\.nodeId$/);
+  if (campaignDocument && eventNodePath) {
+    const campaignEvent = campaignDocument.events[Number(eventNodePath[1])];
+    if (campaignEvent) reconcileCampaignEventTarget(campaignEvent, campaignDocument);
+  }
   if (shopOfferKindPath && campaignDocument) {
     const offer = campaignDocument.floors[Number(shopOfferKindPath[1])]?.nodes[Number(shopOfferKindPath[2])]?.shopOffers[Number(shopOfferKindPath[3])];
     if (offer) offer.contentId = "";
@@ -649,13 +682,30 @@ function newCampaignFloor(number: number, mode: CampaignFloorMode = "authored"):
   return createCampaignFloor(number, mode);
 }
 
+function addCampaignEvent(): void {
+  const campaign = currentCampaign();
+  if (!campaign) return;
+  campaign.events ??= [];
+  const eventNumber = campaign.events.length + 1;
+  const event = {
+    id: uniqueId("event-" + eventNumber, campaign.events.map(item => item.id), "campaign-event"),
+    trigger: "campaign-start" as const,
+    actions: [{ kind: "replace-player-army", armyId: "" }]
+  };
+  campaign.events.push(event);
+  selectedCampaignEventId = event.id;
+  saveWorkspace();
+  render();
+}
+
 function addCampaign(): void {
   relatedReturnContexts.clear();
+  selectedCampaignEventId = null;
   const name = "New Campaign";
   const id = uniqueId(name, workspace.campaigns.map(item => item.id), "campaign");
   const key = createKey("campaign");
   const campaign: CampaignRecord = {
-    key, id, idAuto: true, name, description: "", designMode: "choose", questIds: [],
+    key, id, idAuto: true, name, description: "", designMode: "choose", questIds: [], events: [],
     floors: [newCampaignFloor(1)],
     settings: {
       startingLives: 3, startingSardines: 10, startingNodeCount: 12, playerFactionId: "", battleShopEnabled: true,
@@ -708,6 +758,17 @@ function campaignRelatedContext(target: "army" | "quest-node" | "quest-pool", in
   };
 }
 
+function campaignEventArmyContext(eventId: string): RelatedEditorReturnContext | null {
+  const campaign = currentCampaign();
+  const floor = currentCampaignFloor(campaign);
+  if (!campaign || !floor || !campaign.events.some(item => item.id === eventId)) return null;
+  return {
+    parentType: "campaign", parentKey: campaign.key, floorId: floor.id,
+    nodeId: selectedCampaignNodeId, target: "event-army", eventId, parentStep: activeEditorStep,
+    returnLabel: campaign.name || "Campaign"
+  };
+}
+
 function questRelatedContext(target: "army", battleTargetId: string): RelatedEditorReturnContext | null {
   const quest = currentQuest();
   return quest ? { parentType: "quest", parentKey: quest.key, target, battleTargetId, parentStep: activeEditorStep, returnLabel: quest.definition.title || "Quest" } : null;
@@ -744,6 +805,11 @@ function returnToRelatedParent(): void {
     if (context.target === "army") {
       const army = currentArmy();
       if (node && army) node.armyId = army.id;
+    } else if (context.target === "event-army") {
+      const army = currentArmy();
+      const campaignEvent = campaign.events.find(item => item.id === context.eventId);
+      const action = campaignEvent?.actions.find(item => item.kind === "replace-player-army");
+      if (army && action) action.armyId = army.id;
     } else {
       const quest = currentQuest();
       const shouldIncludeQuest = context.target === "quest-node" || context.includeQuestInPool;
@@ -755,6 +821,7 @@ function returnToRelatedParent(): void {
     workspace.activeNodeId = null;
     selectedCampaignFloorId = floor?.id ?? null;
     selectedCampaignNodeId = node?.id ?? context.nodeId;
+    selectedCampaignEventId = context.target === "event-army" ? context.eventId ?? null : null;
   } else {
     const quest = workspace.quests.find(item => item.key === context.parentKey);
     if (!quest) return;
@@ -1199,6 +1266,9 @@ function handleDeleteDialogClose(event: Event): void {
         }
         for (const campaign of workspace.campaigns) for (const floor of campaign.floors) for (const node of floor.nodes) {
           if (node.armyId === removedArmy.id) node.armyId = "";
+        }
+        for (const campaign of workspace.campaigns) for (const event of campaign.events) for (const action of event.actions) {
+          if (action.kind === "replace-player-army" && action.armyId === removedArmy.id) action.armyId = "";
         }
       }
     } else {
@@ -1774,6 +1844,22 @@ function onAction(button: HTMLButtonElement): void {
       if (army && context) openRelatedRecord("army", army.key, context);
       return;
     }
+    case "create-campaign-event-army": {
+      const eventId = button.dataset.eventId ?? selectedCampaignEventId ?? "";
+      const context = campaignEventArmyContext(eventId);
+      if (context) addArmy(context);
+      return;
+    }
+    case "open-campaign-event-army": {
+      const eventId = button.dataset.eventId ?? selectedCampaignEventId ?? "";
+      const army = workspace.armies.find(item => item.id === button.dataset.armyId);
+      const context = campaignEventArmyContext(eventId);
+      if (army && context) {
+        selectedCampaignEventId = eventId;
+        openRelatedRecord("army", army.key, context);
+      }
+      return;
+    }
     case "create-campaign-node-quest": {
       const context = campaignRelatedContext("quest-node");
       if (context) addQuest(context);
@@ -1880,9 +1966,46 @@ function onAction(button: HTMLButtonElement): void {
       return;
     case "select-editor-step":
       activeEditorStep = Math.max(0, Number(button.dataset.step ?? 0));
+      if (currentCampaign()) selectedCampaignEventId = null;
       render();
       return;
     case "campaign-add-floor": addCampaignFloor(); return;
+    case "campaign-add-event": addCampaignEvent(); return;
+    case "campaign-edit-events": {
+      const campaign = currentCampaign();
+      if (!campaign?.events.length) return;
+      selectedCampaignEventId = null;
+      if (editorMode === "guided") activeEditorStep = Math.max(0, activeEditorStep - 1);
+      render(); return;
+    }
+    case "campaign-select-event": {
+      const event = currentCampaign()?.events.find(item => item.id === button.dataset.eventId);
+      if (!event) return;
+      selectedCampaignEventId = event.id;
+      render(); return;
+    }
+    case "campaign-events-back": selectedCampaignEventId = null; render(); return;
+    case "campaign-remove-event": {
+      const campaign = currentCampaign();
+      const index = campaign?.events.findIndex(item => item.id === button.dataset.eventId) ?? -1;
+      if (!campaign || index < 0) return;
+      campaign.events.splice(index, 1);
+      if (selectedCampaignEventId === button.dataset.eventId) selectedCampaignEventId = null;
+      saveWorkspace(); render(); return;
+    }
+    case "campaign-add-event-action": {
+      const event = currentCampaign()?.events.find(item => item.id === (button.dataset.eventId ?? selectedCampaignEventId));
+      if (!event || event.actions.some(item => item.kind === "replace-player-army")) return;
+      event.actions.push({ kind: "replace-player-army", armyId: "" });
+      saveWorkspace(); render(); return;
+    }
+    case "campaign-remove-event-action": {
+      const event = currentCampaign()?.events.find(item => item.id === (button.dataset.eventId ?? selectedCampaignEventId));
+      const index = Number(button.dataset.index);
+      if (!event || !Number.isInteger(index) || index < 0 || index >= event.actions.length || event.actions[index].kind !== "replace-player-army") return;
+      event.actions.splice(index, 1);
+      saveWorkspace(); render(); return;
+    }
     case "campaign-design-choice": {
       const campaign = currentCampaign();
       const choice = button.dataset.mode;
@@ -2074,17 +2197,19 @@ function onAction(button: HTMLButtonElement): void {
       saveWorkspace(); render(); return;
     }
     case "editor-back":
+      if (currentCampaign() && root!.querySelector(".campaign-event-focus")) selectedCampaignEventId = null;
       activeEditorStep = Math.max(0, activeEditorStep - 1);
       render();
       return;
     case "editor-next":
+      if (currentCampaign() && root!.querySelector(".campaign-event-focus")) selectedCampaignEventId = null;
       activeEditorStep = currentArmy() ? Math.min(activeEditorStep + 1, 5) : activeEditorStep + 1;
       render();
       return;
     case "open-full-editor":
       editorMode = "full";
       if (currentQuest()) activeEditorStep = activeEditorStep >= 4 ? 7 : Math.min(activeEditorStep, 3);
-      else if (currentCampaign()) activeEditorStep = Math.min(activeEditorStep, 8);
+      else if (currentCampaign()) activeEditorStep = Math.min(activeEditorStep, 12);
       else if (currentArmy()) activeEditorStep = Math.min(activeEditorStep, 5);
       else activeEditorStep = Math.min(activeEditorStep, 4);
       render();
@@ -2092,7 +2217,7 @@ function onAction(button: HTMLButtonElement): void {
     case "open-guided-editor":
       editorMode = "guided";
       activeEditorStep = currentQuest() ? (activeEditorStep >= 4 ? 4 : Math.min(activeEditorStep, 3)) : Math.min(activeEditorStep, 4);
-      if (currentCampaign()) activeEditorStep = Math.min(activeEditorStep, 8);
+      if (currentCampaign()) activeEditorStep = Math.min(activeEditorStep, 12);
       if (currentArmy()) activeEditorStep = Math.min(activeEditorStep, 5);
       render();
       return;

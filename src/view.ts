@@ -95,7 +95,8 @@ function selectField(
   value: string | number,
   options: Array<[string, string]>,
   hint = "",
-  rerender = false
+  rerender = false,
+  optionalNumber = false
 ): string {
   const optionMarkup = options.map(([optionValue, optionLabel]) =>
     '<option value="' + escapeHtml(optionValue) + '"' +
@@ -106,6 +107,7 @@ function selectField(
     '<span class="field-label">' + escapeHtml(label) + '</span>' +
     '<select data-bind="' + escapeHtml(path) + '"' +
     (typeof value === "number" ? ' data-number="true"' : "") +
+    (optionalNumber ? ' data-optional-number="true"' : "") +
     (rerender ? ' data-rerender="true"' : "") + '>' + optionMarkup + '</select>' +
     (hint ? '<span class="field-hint help-copy">' + escapeHtml(hint) + '</span>' : "") +
     '</label>';
@@ -1229,6 +1231,64 @@ function renderCampaignFloorReview(floor: CampaignFloor, workspace: Workspace, c
     (nodes.length ? reviewList("Nodes", nodes) : "") + (routes.length ? reviewList("Routes", routes) : "") + '</section>';
 }
 
+const CAMPAIGN_EVENT_TRIGGER_LABELS: Array<[string, string]> = [
+  ["campaign-start", "Campaign starts"],
+  ["before-battle", "Before a battle"],
+  ["after-battle", "After a battle"],
+  ["node-cleared", "After a node is cleared"]
+];
+
+function campaignEventSummary(event: CampaignRecord["events"][number], campaign: CampaignRecord, workspace: Workspace): string {
+  const trigger = CAMPAIGN_EVENT_TRIGGER_LABELS.find(([value]) => value === event.trigger)?.[1] ?? event.trigger;
+  const floor = campaign.floors.find(item => item.number === event.floorNumber);
+  const node = floor?.nodes.find(item => item.id === event.nodeId);
+  const target = event.trigger === "campaign-start" ? "Campaign start" :
+    (floor ? "Floor " + floor.number : "All floors") + (node ? " · " + (node.label || node.kind) : " · All matching nodes");
+  const action = event.actions.find(item => item.kind === "replace-player-army");
+  const army = typeof action?.armyId === "string" ? workspace.armies.find(item => item.id === action.armyId) : undefined;
+  return trigger + " · " + target + (action ? " · Player army: " + (army?.name ?? (action.armyId || "choose an army")) : " · No supported action");
+}
+
+function renderCampaignEventEditor(event: CampaignRecord["events"][number], eventIndex: number, campaign: CampaignRecord, workspace: Workspace, mode: EditorMode, focused: boolean): string {
+  const path = (field: string) => "events." + eventIndex + "." + field;
+  const eventIdAttribute = ' data-event-id="' + escapeHtml(event.id) + '"';
+  const floorOptions: Array<[string, string]> = [["", "Every floor"], ...campaign.floors.map(item => [String(item.number), "Floor " + item.number] as [string, string])];
+  const floor = campaign.floors.find(item => item.number === event.floorNumber);
+  const eligibleNodes = floor ? floor.nodes.filter(node => event.trigger === "node-cleared"
+    ? node.kind !== "Start"
+    : (event.trigger === "before-battle" || event.trigger === "after-battle") && (node.kind === "Battle" || node.kind === "Boss")) : [];
+  const targetFields = event.trigger === "campaign-start" ? "" : '<div class="campaign-event-target-fields">' +
+    selectField("Floor", path("floorNumber"), event.floorNumber ?? "", floorOptions, "", true, true) +
+    (floor ? selectField("Specific node", path("nodeId"), event.nodeId ?? "", [["", "All matching nodes"], ...eligibleNodes.map(node => [node.id, node.label + " · " + node.kind] as [string, string])], "", true) : "") +
+    '</div>';
+  const actionRows = event.actions.map((action, actionIndex) => {
+    if (action.kind !== "replace-player-army") return '<div class="campaign-event-unknown-action"><span>Unsupported action</span><code>' + escapeHtml(action.kind || "(missing kind)") + '</code></div>';
+    const armyId = typeof action.armyId === "string" ? action.armyId : "";
+    const army = workspace.armies.find(item => item.id === armyId);
+    return '<div class="campaign-event-action-row"><div class="campaign-event-action-heading"><strong>Replace player army</strong>' +
+      (event.actions.filter(item => item.kind === "replace-player-army").length > 1 ? actionButton("campaign-remove-event-action", "Remove", "text-button danger-text", ' data-index="' + actionIndex + '"' + eventIdAttribute) : "") + '</div>' +
+      selectField("Player army", path("actions." + actionIndex + ".armyId"), armyId, [["", "Choose an Army Editor army"], ...workspace.armies.map(item => [item.id, item.name + " · " + item.id] as [string, string])]) +
+      '<div class="related-editor-actions">' + actionButton("create-campaign-event-army", "＋ Create army", "text-button related-create", eventIdAttribute) +
+      (army ? actionButton("open-campaign-event-army", "Edit linked army", "text-button related-open", ' data-army-id="' + escapeHtml(army.id) + '"' + eventIdAttribute) : "") + '</div></div>';
+  }).join("");
+  const hasReplaceAction = event.actions.some(action => action.kind === "replace-player-army");
+  const idField = mode === "full" ? inputField("Event ID", path("id"), event.id, { placeholder: "intro-army" }) :
+    '<details class="advanced-rule-disclosure"><summary>Advanced · stable event ID</summary>' + inputField("Event ID", path("id"), event.id, { placeholder: "intro-army" }) + '</details>';
+  return '<section class="campaign-event-editor' + (focused ? " campaign-event-focus" : "") + '" data-campaign-event="' + escapeHtml(event.id) + '">' +
+    '<div class="campaign-event-editor-heading"><div><span class="eyebrow">EVENT ' + (eventIndex + 1) + '</span><h3>' + escapeHtml(CAMPAIGN_EVENT_TRIGGER_LABELS.find(([value]) => value === event.trigger)?.[1] ?? "Campaign event") + '</h3></div>' +
+    (focused ? actionButton("campaign-events-back", "← Events", "button button-outline") : actionButton("campaign-remove-event", "Remove", "icon-button danger-icon", eventIdAttribute + ' aria-label="Remove campaign event" title="Remove campaign event"')) + '</div>' +
+    selectField("When", path("trigger"), event.trigger, CAMPAIGN_EVENT_TRIGGER_LABELS, "", true) + targetFields +
+    '<section class="campaign-event-actions"><div class="campaign-event-section-heading"><h4>Actions</h4>' + (!hasReplaceAction ? actionButton("campaign-add-event-action", "＋ Add action", "text-button related-create", eventIdAttribute) : "") + '</div>' +
+    (actionRows || '<p class="campaign-event-empty-action">Add an action to this event.</p>') + '</section>' + idField + '</section>';
+}
+
+function renderCampaignEventsList(campaign: CampaignRecord, workspace: Workspace): string {
+  const rows = campaign.events.map(event => '<div class="campaign-event-list-row"><button type="button" class="campaign-event-list-main" data-action="campaign-select-event" data-event-id="' + escapeHtml(event.id) + '"><strong>' + escapeHtml(CAMPAIGN_EVENT_TRIGGER_LABELS.find(([value]) => value === event.trigger)?.[1] ?? "Campaign event") + '</strong><span>' + escapeHtml(campaignEventSummary(event, campaign, workspace)) + '</span></button>' +
+    actionButton("campaign-remove-event", "Remove", "icon-button danger-icon", ' data-event-id="' + escapeHtml(event.id) + '" aria-label="Remove campaign event" title="Remove campaign event"') + '</div>').join("");
+  return '<section class="campaign-event-list"><div class="campaign-event-list-heading">' + actionButton("campaign-add-event", "＋ Add event", "button button-outline") + '</div>' +
+    (rows || '<p class="campaign-event-empty">No campaign events yet.</p>') + '</section>';
+}
+
 function renderCampaignEditor(
   campaign: CampaignRecord,
   workspace: Workspace,
@@ -1237,7 +1297,8 @@ function renderCampaignEditor(
   viewState: CampaignViewState,
   activeStep: number,
   helpVisible: boolean,
-  returnState?: RelatedEditorReturnState
+  returnState?: RelatedEditorReturnState,
+  selectedCampaignEventId: string | null = null
 ): string {
   const floor = campaign.floors.find(item => item.id === viewState.selectedFloorId) ?? campaign.floors[0];
   const floorIndex = floor ? campaign.floors.findIndex(item => item.id === floor.id) : -1;
@@ -1443,23 +1504,26 @@ function renderCampaignEditor(
     (floor?.mode === "random" ? '<div class="campaign-random-preview"><div class="campaign-random-mark">✧</div><div><strong>This floor is generated in game</strong><p class="help-copy">Its layout settings are on the Floors step.</p></div></div>' : board) + '</section>';
   const boards = '<section class="campaign-boards-full" id="campaign-floors">' + floorSetup + (mode === "full" ? floorPoolDisclosure.replace('<details class="campaign-floor-pool">', '<details class="campaign-floor-pool" open>') + board : "") + '</section>';
   const quests = '<section class="campaign-quest-section" id="campaign-quests"><div><h2>Available quests</h2><p class="help-copy">Quest nodes on these floors can reference these quests.</p></div>' + poolDisclosure + '</section>';
+  const campaignEventsSection = '<section class="campaign-events-section" id="campaign-events"><div class="campaign-event-list-heading"><div><h2>Campaign events</h2></div>' + actionButton("campaign-add-event", "＋ Add event", "button button-outline") + '</div>' +
+    (campaign.events.length ? campaign.events.map((event, index) => renderCampaignEventEditor(event, index, campaign, workspace, "full", false)).join("") : '<p class="campaign-event-empty">No campaign events yet.</p>') + '</section>';
   const exportNote = '<div class="campaign-export-note"><strong>Campaigns are playable from an installed content package.</strong><span>Export the workspace ZIP and follow the manual install steps in the game integration guide.</span></div>';
 
   if (mode === "full") {
     const sections = [
       { id: "campaign-basics", label: "Basics" }, { id: "campaign-floors", label: "Floors" },
       { id: "campaign-map", label: "Map" }, { id: "campaign-quests", label: "Quests" },
+      { id: "campaign-events", label: "Events" },
       { id: "campaign-shops", label: "Shops" },
       { id: "campaign-starting-run", label: "Starting run" }, { id: "campaign-progression", label: "Progression" }
     ];
-    return '<main class="workspace-main campaign-editor">' + heading + renderAdvancedSectionNav(sections) + profile + boards + quests + campaignShopAdvanced + exportNote +
+    return '<main class="workspace-main campaign-editor">' + heading + renderAdvancedSectionNav(sections) + profile + boards + quests + campaignEventsSection + campaignShopAdvanced + exportNote +
       '<div class="guided-end-actions">' + actionButton("export-active", "Download campaign JSON", "button button-outline") + actionButton("export-package", "Export campaign ZIP", "button button-primary") + '</div>' +
       '</main>';
   }
 
   const steps = campaign.designMode === "choose" ? ["Approach"] : isSettingsOnly
-    ? ["Name", "Randomizer settings", ...(hasQuestContent ? ["Quests"] : []), ...(hasFloorPoolChoices ? ["Floor pools"] : []), ...(hasShopContent ? ["Shop pools", "Shop unlocks"] : []), "Starting run", "Progression", "Review"]
-    : ["Name", "Floors", ...(hasAuthoredBoards ? ["Map", "Node"] : []), "Quests", ...(hasFloorPoolChoices ? ["Floor pools"] : []), ...(hasShopContent ? ["Shop pools", "Shop unlocks"] : []), "Starting run", "Generated floors", "Review"];
+    ? ["Name", "Randomizer settings", ...(hasQuestContent ? ["Quests"] : []), ...(hasFloorPoolChoices ? ["Floor pools"] : []), ...(hasShopContent ? ["Shop pools", "Shop unlocks"] : []), "Starting run", "Progression", ...(campaign.events.length ? ["Events"] : []), "Review"]
+    : ["Name", "Floors", ...(hasAuthoredBoards ? ["Map", "Node"] : []), "Quests", ...(hasFloorPoolChoices ? ["Floor pools"] : []), ...(hasShopContent ? ["Shop pools", "Shop unlocks"] : []), "Starting run", "Generated floors", ...(campaign.events.length ? ["Events"] : []), "Review"];
   const step = Math.max(0, Math.min(steps.length - 1, activeStep));
   const stepName = steps[step];
   const focusedNodeStep = stepName === "Node";
@@ -1478,12 +1542,17 @@ function renderCampaignEditor(
     reviewField("Floors", String(campaign.floors.length)),
     reviewField("Starting run", startingRunSummary),
     reviewField("Generated shop pools", campaignShopPoolSummary),
+    reviewField("Campaign events", String(campaign.events.length)),
     reviewField("Generated progression", progressionSummary)
   ].join("");
+  const eventReview = '<section class="campaign-event-review"><div class="campaign-event-list-heading"><div><h2>Campaign events</h2></div>' +
+    (campaign.events.length ? actionButton("campaign-edit-events", "Edit events", "button button-outline") : actionButton("campaign-add-event", "＋ Add event", "button button-outline")) + '</div>' +
+    (campaign.events.length ? reviewList("Configured events", campaign.events.map(event => campaignEventSummary(event, campaign, workspace))) : '<p class="campaign-event-empty">Optional · change run data at campaign milestones.</p>') + '</section>';
   const review = '<section class="campaign-review"><div class="campaign-review-heading"><h1>Review your campaign</h1><p class="help-copy">' + (isSettingsOnly ? "Check the randomizer and run settings before exporting." : "Check the board and quest references before exporting.") + '</p></div>' +
     '<dl class="campaign-review-summary">' + reviewRows + '</dl>' + (campaign.description ? '<p class="campaign-review-description">' + escapeHtml(campaign.description) + '</p>' : '') +
     '<div class="campaign-floor-reviews">' + floorReviews + '</div>' +
     (hasQuestContent ? reviewList("Campaign quest pool", campaignQuestNames) : "") +
+    eventReview +
     '<div class="campaign-review-validation">' + renderIssues(allIssues) + '</div>' + exportNote +
     '<div class="guided-end-actions">' + actionButton("export-active", "Download campaign JSON", "button button-outline") + actionButton("export-package", "Export campaign ZIP", "button button-primary") + '</div></section>';
   let screen = "";
@@ -1519,6 +1588,11 @@ function renderCampaignEditor(
     screen = '<section class="campaign-settings-step"><p class="campaign-step-prompt help-copy">Set the player\'s starting resources and faction.</p>' + startingSettings + '</section>';
   } else if (stepName === "Progression" || stepName === "Generated floors") {
     screen = '<section class="campaign-settings-step"><p class="campaign-step-prompt help-copy">' + (isSettingsOnly ? "Choose whether the generated run continues and how later floors grow." : "Choose whether to continue beyond these boards and how later floors grow.") + '</p>' + generatedFloorSettings + '</section>';
+  } else if (stepName === "Events") {
+    const selectedEventIndex = campaign.events.findIndex(event => event.id === selectedCampaignEventId);
+    screen = selectedEventIndex >= 0
+      ? renderCampaignEventEditor(campaign.events[selectedEventIndex], selectedEventIndex, campaign, workspace, mode, true)
+      : renderCampaignEventsList(campaign, workspace);
   } else {
     screen = review;
   }
@@ -1782,7 +1856,8 @@ export function renderApp(
   cellFocus?: { abilityId: string | null; region: "boon" | "bane" },
   abilityFilters: ArmyAbilityFilters = defaultArmyAbilityFilters,
   abilityCategory: ArmyAbilityKind = "spells",
-  abilitySelections: ArmyAbilitySelections = defaultArmyAbilitySelections
+  abilitySelections: ArmyAbilitySelections = defaultArmyAbilitySelections,
+  selectedCampaignEventId: string | null = null
 ): string {
   const item = selectedItem(workspace);
   const guidedCompact = editorMode === "guided" && item !== null;
@@ -1812,7 +1887,7 @@ export function renderApp(
   } else if ("definition" in item) {
     content = renderQuestEditor(item, workspace, roster, catalog, activeEditorStep, editorMode, helpVisible, relatedReturnState);
   } else if ("floors" in item) {
-    content = renderCampaignEditor(item, workspace, catalog, editorMode, campaignViewState, activeEditorStep, helpVisible, relatedReturnState);
+    content = renderCampaignEditor(item, workspace, catalog, editorMode, campaignViewState, activeEditorStep, helpVisible, relatedReturnState, selectedCampaignEventId);
   } else {
     content = renderArmyEditor(item, catalog, roster, editorMode, selectedArmyPlacementId, activeEditorStep, armyCatalogKind, helpVisible, relatedReturnState, cellFocus, abilityFilters, abilityCategory, abilitySelections);
   }

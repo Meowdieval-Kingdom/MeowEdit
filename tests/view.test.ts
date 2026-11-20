@@ -335,6 +335,35 @@ describe("editor rendering", () => {
     expect(renderApp(workspace, rosterFixture, catalog, [], 0, "full", null, view)).toContain("GENERATED BOARD");
   });
 
+  it("renders campaign event editing as an optional guided step and an advanced section", () => {
+    const workspace = workspaceFixture();
+    const campaign = workspace.campaigns[0];
+    const army = workspace.armies[0];
+    const battleId = campaign.floors[0].nodes.find(node => node.kind === "Battle")!.id;
+    campaign.events = [{ id: "event-battle", trigger: "before-battle", floorNumber: 1, nodeId: battleId,
+      actions: [{ kind: "replace-player-army", armyId: army.id }] }];
+    workspace.selectedType = "campaign";
+    workspace.selectedKey = campaign.key;
+    const view = { selectedFloorId: campaign.floors[0].id, selectedNodeId: "start", interactionMode: "select" as const, nodeKind: "Battle" as const, addMenuOpen: false, pendingPlugFromId: null, selectedRouteId: null };
+
+    const advanced = renderApp(workspace, rosterFixture, catalog, [], 0, "full", null, view);
+    expect(advanced).toContain('id="campaign-events"');
+    expect(advanced).toContain('data-bind="events.0.trigger"');
+    expect(advanced).toContain('data-bind="events.0.actions.0.armyId"');
+    expect(advanced).toContain("Create army");
+    expect(advanced).toContain("Edit linked army");
+
+    const eventStep = renderApp(workspace, rosterFixture, catalog, [], 9, "guided", null, view, undefined, "units", false, undefined, undefined, undefined, undefined, "event-battle");
+    expect(eventStep).toContain("Step 10 of 11 · Campaign");
+    expect(eventStep).toContain('class="campaign-event-editor campaign-event-focus"');
+    expect(eventStep).toContain('data-bind="events.0.floorNumber"');
+    expect(eventStep).toContain('<option value="battle-a-1" selected>Battle 1 · Battle</option>');
+
+    const review = renderApp(workspace, rosterFixture, catalog, [], 10, "guided", null, view);
+    expect(review).toContain("Review your campaign");
+    expect(review).toContain("Before a battle · Floor 1 · Battle 1");
+  });
+
   it("reviews every Campaign floor, authored reference, quest pool, and run setting", () => {
     const workspace = workspaceFixture();
     const campaign = workspace.campaigns[0];
