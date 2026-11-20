@@ -4,9 +4,9 @@ MeowEdit keeps authored content as ordinary JSON. It does not use Unity asset re
 
 ## Scope and compatibility
 
-The editor handles dialogue sequences, quests, reusable Army configurations, and campaigns. The game currently reads the existing dialogue and quest fields, but does not load campaign packages or authored Army configurations, and does not execute MeowEdit-only extensions.
+The editor handles dialogue sequences, quests, reusable Army configurations, and campaigns. Meowdieval Kingdom loads version 1 packages copied into its `Resources/AdventureContent` catalog. The package is validated against the game's runtime catalogs before any campaign is offered; invalid content is rejected as a whole.
 
-The checked-in **Import examples** library contains complete game dialogues and the currently supported quest objective types: Escort, Fetch, Battle, and ClearFloor. A new workspace is empty until the author imports those examples. Planned content such as the bridge-repair Timer quest is deliberately absent until the game-side behavior is implemented and usable.
+The checked-in **Import examples** library includes representative dialogue, quest, Army, and campaign records. A new workspace is empty until the author imports those examples. The examples cover the supported quest objectives, authored/random/mixed floors, Army-backed encounters, exact shop offers, branching dialogue decisions, and quest extensions.
 
 ## Current game fields
 
@@ -27,11 +27,11 @@ Quest definitions retain the game's existing fields such as source kind, objecti
 }
 ```
 
-The game-supported objective values are Escort, Fetch, Battle, and ClearFloor. Timer and KillCount are MeowEdit authoring types and need game-side implementation before they are playable.
+The game-supported objective values are Escort, Fetch, Battle, ClearFloor, Timer, and KillCount. Fetch requirements may contain multiple item IDs and quantities. Battle quests may define sequential targets and authored Army references. Timer projects can record a pay-or-wait dialogue outcome, charge Sardines once, count configured battle results, and apply their supported completion effects. KillCount checks recorded battle statistics against a configured unit or faction target.
 
 ## MeowEdit extensions
 
-Future behavior is stored under `meowEdit` so the existing game fields remain intact. Older game readers can ignore unknown fields; they will not act on them until game integration is complete.
+Version 1 quest extensions are stored under `meowEdit` in quest definitions and repeated in the package extension index. The game merges and cross-checks those copies during package loading; conflicts or unsupported extension data reject the package rather than silently changing objective behavior.
 
 Quest extensions currently support:
 
@@ -42,11 +42,11 @@ Quest extensions currently support:
 - offer, active, completion, and failure dialogue links;
 - Timer project rules and typed completion effects.
 
-Dialogue choice decisions store a named result alongside an action. The player-facing label and the game-side ID/outcome are authored independently; persistence and use of the result belong to the game runtime.
+Dialogue choice decisions store a named result alongside an action. The player-facing label and the game-side ID/outcome are authored independently. The game returns the selected result to the owning quest and persists timer-project outcomes in the run save.
 
 ## Army configurations
 
-An Army has a stable ID and contains grid placements, spell IDs, and blessing IDs. Unit IDs use the game's `Faction/UnitName/level` catalog values; building IDs use the same format and can be placed in the same formation. MeowEdit reads unit/building levels, combat stats, descriptions, prefab footprints, spell and blessing effect descriptions/costs, and floor grid sizes from `public/army-catalog.json`. Those snapshots support authoring previews and footprint-aware collision checks; the Army export continues to store the catalog ID and grid anchor for each entry.
+An Army has a stable ID and contains grid placements, spell IDs, blessing/curse IDs, and optional cell-target selections. Unit IDs use the game's `Faction/UnitName/level` catalog values; building IDs use the same format and can be placed in the same formation. MeowEdit reads unit/building levels, combat stats, descriptions, prefab footprints, spell and blessing effect descriptions/costs, and floor grid sizes from `public/army-catalog.json`. Those snapshots support authoring previews and footprint-aware collision checks; the Army export continues to store the catalog ID and grid anchor for each entry.
 
 ```json
 {
@@ -62,7 +62,7 @@ An Army has a stable ID and contains grid placements, spell IDs, and blessing ID
 }
 ```
 
-Army configurations are included in workspace JSON and ZIP packages. Battle target references and army records are MeowEdit data until the game loads the package and resolves those IDs.
+Army configurations are included in workspace JSON and ZIP packages. Campaign Battle/Boss nodes and ordered Quest battle targets can refer to these stable Army IDs. On run creation the game resolves the placements against its unit catalog and builds the authored encounter roster.
 
 ## Campaigns and Adventure floor graphs
 
@@ -91,7 +91,7 @@ Node `x` and `y` are signed integer Adventure grid coordinates, matching the gam
 
 Node types are Start, Battle, Reward, Boss, Quest, and Shop. Battle/Boss nodes can reference an Army ID and enemy faction. Quest nodes reference a campaign quest ID. Reward nodes specify a reward kind, amount, and optional catalog content ID. Shop nodes default to generated stock or can define exactly three offers, each with a current catalog ID and a Sardines price. Floor node IDs and Army/Quest IDs are stable references in the exported package.
 
-Campaign settings include starting lives, Sardines, initial random-floor node count, random Quest/Shop counts, node growth, player faction, the battle shop toggle, and whether generated floors continue after authored boards end. Generated Adventure map shops can draw from Units, Blessings, Research (unit unlocks), and Spell unlocks. Campaign settings select the general pools; each floor can inherit them or restrict its pools and set its shop tier from 1 to 4. The current Adventure run starts at tier 1, raises the tier with floor progression up to tier 4, and also supports a Shop level unlock reward. Shop stock and floor pool overrides are authoring data; the game does not execute them until its campaign loader and start flow are implemented.
+Campaign settings include starting lives, Sardines, initial random-floor node count, random Quest/Shop counts, node growth, player faction, the battle shop toggle, and whether generated floors continue after authored boards end. Generated Adventure map shops can draw from Units, Blessings, Research (unit unlocks), and Spell unlocks. Campaign settings select the general pools; each floor can inherit them or restrict its pools and set its shop tier from 1 to 4. The current Adventure run starts at tier 1, raises the tier with floor progression up to tier 4, and also supports a Shop level unlock reward. Authored, random, and mixed floors, fixed routes, quest pools, exact three-item shop stock, and campaign progression are loaded by the game.
 
 ## ZIP package layout
 

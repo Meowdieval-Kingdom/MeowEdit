@@ -21,15 +21,15 @@ To refresh demo copies after changing local originals, put them under `.local-as
 ## Editor scope
 
 - Dialogue sequences with connected nodes, branches, left/right speakers, speaker-attributed lines, and an in-game-style preview.
-- Quest authoring for the game's current Escort, Fetch, Battle, and Clear Floor objective types.
+- Quest authoring for Escort, Fetch, Battle, Clear Floor, Timer, and Kill Count objectives, including multi-item Fetch and ordered Battle targets.
 - An Army library with game-sized floor grids, unit level selection, spells, blessings, and reusable army IDs for battle targets.
 - A Campaign editor for hand-placed, random, and mixed Adventure floors; integer map-coordinate snapping; connected node routes; per-node quest, army, faction, and reward assignments; and campaign run settings.
 - MeowEdit extensions for multiple fetch items, KillCount objectives, minimum node distances, quest-to-dialogue links, timer-project logic, and dialogue decisions.
 - Guided and advanced editing modes, import, JSON export, and ZIP package export.
 
-New workspaces start empty. Game examples are added only when an author selects **Import examples**; they are limited to the complete dialogue sequences and quest types currently supported by the game. The unfinished bridge-repair draft is not included.
+New workspaces start empty. Selecting **Import examples** adds representative dialogues, every supported quest objective, a reusable Army, and a three-floor campaign that demonstrates authored, random, and mixed maps, rewards, shop stock, saved dialogue decisions, and quest completion effects. The bridge repair is an example Timer quest, not an unfinished draft.
 
-The game currently reads the existing quest and dialogue fields. It does not yet load a campaign package or campaign start screen, execute MeowEdit decision, timer-project, KillCount, multi-item fetch, army configuration, node-distance, or world-effect extensions. Campaign JSON is an authoring/export contract until the Unity integration is completed. See the content format and game integration handoff documents in `docs/`.
+Meowdieval Kingdom can load manually installed version 1 packages containing quests, dialogue sequences, reusable armies, and campaigns. It validates game catalog references and campaign structure before offering a campaign; a package with invalid or unsupported content is excluded as a whole. A started run remains pinned to the package revision and content hash it began with, while new runs use the revision marked latest. Packages are still copied into the Unity project by hand; there is no hosted upload or dynamic in-game download yet. See [content format](docs/content-format.md) and [game integration handoff](docs/game-integration-handoff.md) for the install steps and runtime boundary.
 
 ## GitHub Pages
 

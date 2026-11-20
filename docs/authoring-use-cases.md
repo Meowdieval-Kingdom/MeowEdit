@@ -1,6 +1,6 @@
 # MeowEdit authoring use cases
 
-This document describes the author's end-to-end tasks across the Dialogue, Quest, Army, and Campaign editors. It is the workflow contract for the current static editor; the game-side loading and runtime behavior are tracked separately in [game integration handoff](./game-integration-handoff.md).
+This document describes end-to-end authoring tasks across the Dialogue, Quest, Army, and Campaign editors. The editor is static and stores drafts in the browser; exported packages are copied into the game manually. Installation and runtime behavior are documented in [game integration handoff](./game-integration-handoff.md).
 
 ## Author personas and editing jobs
 
@@ -47,7 +47,7 @@ Guided segments this work into **Basics → Objective → Quest giver → Offer 
 3. Configure minimum node hops between relevant node types when placement constraints matter.
 4. Optionally link offer, active, completion, and failure dialogue sequences. Create or edit a dialogue from the selected link and return to that same quest slot.
 5. For a battle target, create or edit an Army in context and return to the same target. Add/remove targets without losing the quest draft.
-6. Review concrete objective targets, reward, linked dialogue slots, spacing rules, completion effects, and any timer-project summary alongside validation, then export. Complex timer setup, dialogue links, and completion effects remain Advanced authoring fields; Guided review still reports what is configured. Fields beyond the current game schema are retained under the MeowEdit extension; an editor-exported extension is not playable until the game implements it.
+6. Review concrete objective targets, reward, linked dialogue slots, spacing rules, completion effects, and any timer-project summary alongside validation, then export. Complex timer setup, dialogue links, and completion effects remain Advanced authoring fields; Guided review still reports what is configured. These fields are part of the versioned package contract and are validated by the game before play.
 
 ## Army: build and revise a formation
 
@@ -111,7 +111,7 @@ New campaigns first ask which job the author wants to do. **Randomizer settings 
 1. Review all floor modes and contents, generated node totals, quest pools, Army/Quest/reward references, starting run/progression settings, and validation issues.
 2. Fix missing references, duplicate IDs/coordinates, unreachable nodes, invalid routes, and graph rules before export.
 3. Export the Campaign JSON or a workspace ZIP containing campaign definitions plus referenced Quests, Armies, Dialogues, and a manifest.
-4. The exported data is an editor/package contract. Starting a custom Campaign in Meowdieval Kingdom still needs the game-side loader, generator integration, and start flow in [game integration handoff](./game-integration-handoff.md).
+4. Copy the exported package into the game's content resources and register its immutable revision as described in [game integration handoff](./game-integration-handoff.md). Invalid packages are rejected before campaign selection.
 
 ## Context, modes, and recovery
 
@@ -137,4 +137,4 @@ New campaigns first ask which job the author wants to do. **Randomizer settings 
 | Restore editor mode, focused selection, and nested related-record return path after reload | `tests/editor-session.test.ts`, `tests/editor-navigation.test.ts`, `tests/app.integration.test.ts` |
 | Toggle optional Help in Guided and Advanced and retain the preference | `tests/editor-session.test.ts`, `tests/view.test.ts`, `tests/app.integration.test.ts` |
 
-Browser permissions, real filesystem download behavior, game execution of extension fields, and campaign runtime generation cannot be fully verified in jsdom. Package bytes/filenames are mocked in integration tests; game behavior has its own follow-up acceptance plan in the integration handoff.
+Browser permissions and real filesystem download behavior cannot be fully verified in jsdom. Package bytes/filenames are mocked in editor integration tests; Unity tests cover game loading, campaign setup, map and encounter creation, quest progression, and revision continuation.
