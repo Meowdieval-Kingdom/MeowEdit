@@ -8,7 +8,9 @@ Install dependencies with `npm install`, start the editor with `npm run dev`, an
 
 Run the automated suite with `npm test`; use `npm run test:coverage` for the HTML and terminal coverage reports. The jsdom suite covers editor rendering, graph operations, import/export, validation, and a browser interaction flow for army replacement and per-unit spells. Coverage gates apply to the modular source files; the side-effectful `src/main.ts` bootstrap is exercised through integration tests and kept outside the line-coverage denominator. See [docs/testing.md](docs/testing.md).
 
-The app is static HTML, CSS, and TypeScript. It has no server, database, account system, or runtime package dependencies. Drafts autosave in the current browser. Authors explicitly download JSON or a ZIP package to share content.
+The app is static HTML, CSS, and TypeScript; the MeowEdit–Tactics Bridge uses Neon Auth for sign-in and the game backend for publishing. No database credentials or publisher secrets are included in the browser build. Drafts autosave in the signed-in user's browser. Authors can export JSON/ZIP or, when server-authorized, explicitly publish a campaign package.
+
+For local use, copy `.env.example` to `.env.local` (ignored by Git) and set `VITE_NEON_AUTH_BASE_URL` and `VITE_GAME_API_BASE_URL`. Neon Auth accounts must be provisioned by an administrator; the editor intentionally has no public sign-up. A valid authenticated account can author, while upload/publish additionally requires a server-side publisher allowlist entry. Drafts saved before sign-in are copied into the account's store on first load; the original local draft is kept as a backup.
 
 ## Demo and local artwork
 
@@ -30,11 +32,11 @@ To refresh demo copies after changing local originals, put them under `.local-as
 
 New workspaces start empty. Selecting **Import examples** adds representative dialogues, every supported quest objective, a reusable Army, and a three-floor campaign that demonstrates authored, random, and mixed maps, rewards, shop stock, saved dialogue decisions, and quest completion effects. The bridge repair is an example Timer quest, not an unfinished draft.
 
-Meowdieval Kingdom can load manually installed version 1 packages containing quests, dialogue sequences, reusable armies, and campaigns. It validates game catalog references and campaign structure before offering a campaign; a package with invalid or unsupported content is excluded as a whole. A started run remains pinned to the package revision and content hash it began with, while new runs use the revision marked latest. Packages are still copied into the Unity project by hand; there is no hosted upload or dynamic in-game download yet. See [content format](docs/content-format.md) and [game integration handoff](docs/game-integration-handoff.md) for the install steps and runtime boundary.
+Meowdieval Kingdom can load manually installed or Bridge-published version 1 packages containing quests, dialogue sequences, reusable armies, and campaigns. It validates game catalog references and campaign structure before offering a campaign; a package with invalid or unsupported content is excluded as a whole. A started run remains pinned to the package revision and content hash it began with, while new runs use the latest published revision. The game downloads published package revisions into a local cache through a public read-only API; it has no client upload credentials. See [content format](docs/content-format.md) and [game integration handoff](docs/game-integration-handoff.md) for the package contract and runtime boundary.
 
 ## GitHub Pages
 
-The project is prepared for a public GitHub Pages URL at https://meowdieval-kingdom.github.io/MeowEdit/. The workflow in `.github/workflows/deploy-pages.yml` builds `dist` and publishes it on pushes to `main`. In repository settings, set Pages → Build and deployment → Source to GitHub Actions. The first sanitized `main` snapshot must run successfully before the Pages URL is live. The publishing workflow only deploys `main`.
+The project is prepared for a public GitHub Pages URL at https://meowdieval-kingdom.github.io/MeowEdit/. Configure repository Actions variables `MEOWEDIT_NEON_AUTH_BASE_URL` and `MEOWEDIT_GAME_API_BASE_URL`; the workflow injects them as public `VITE_` build settings. They are service addresses, not secrets. Without them, the deployed app remains on a configuration gate and does not load the editor. In repository settings, set Pages → Build and deployment → Source to GitHub Actions. The publishing workflow only deploys `main`.
 
 ## Game catalogs
 

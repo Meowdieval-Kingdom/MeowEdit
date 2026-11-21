@@ -6,3 +6,6 @@ coverage/
 .local-assets/
 meowedit.local-assets.json
 tools/local/
+.env
+.env.local
+.env.*.local

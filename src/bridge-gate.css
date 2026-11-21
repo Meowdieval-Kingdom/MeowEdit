@@ -1,0 +1,46 @@
+#app [hidden] {
+  display: none !important;
+}
+
+.bridge-gate {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: radial-gradient(circle at 50% 0%, #263e52, #101b27 68%);
+  color: #f5f0e5;
+}
+.bridge-card {
+  width: min(100%, 440px);
+  display: grid;
+  gap: 16px;
+  padding: 34px;
+  border: 1px solid #9d8965;
+  border-radius: 16px;
+  background: #182633;
+  box-shadow: 0 24px 70px #0008;
+}
+.bridge-card h1, .bridge-publish-dialog h2 { margin: 0; font-family: inherit; }
+.bridge-card p, .bridge-publish-dialog p { margin: 0; line-height: 1.55; color: #d5d0c4; }
+.bridge-kicker { color: #e5bd75; font-size: .72rem; font-weight: 800; letter-spacing: .14em; }
+.bridge-card label, .bridge-publish-dialog label { display: grid; gap: 7px; font-weight: 700; }
+.bridge-card input, .bridge-publish-dialog input {
+  min-height: 44px; padding: 9px 12px; border: 1px solid #76694f; border-radius: 8px;
+  background: #101a22; color: #fff; font: inherit;
+}
+.bridge-submit, .bridge-publish-actions button {
+  min-height: 44px; padding: 10px 18px; border: 0; border-radius: 8px;
+  background: #e5bd75; color: #1c211f; font: inherit; font-weight: 800; cursor: pointer;
+}
+.bridge-submit:disabled, .bridge-publish-actions button:disabled { opacity: .6; cursor: wait; }
+.bridge-error { min-height: 1.4em; color: #ffaaa0 !important; }
+.bridge-sign-out { margin-left: 8px; }
+.bridge-publish-dialog {
+  width: min(92vw, 520px); padding: 0; border: 1px solid #9d8965; border-radius: 14px;
+  background: #182633; color: #f5f0e5; box-shadow: 0 24px 70px #0009;
+}
+.bridge-publish-dialog::backdrop { background: #07101acc; }
+#bridge-publish-form { display: grid; gap: 16px; padding: 28px; }
+.bridge-publish-status { min-height: 1.5em; color: #f2d69f !important; overflow-wrap: anywhere; }
+.bridge-publish-actions { display: flex; justify-content: flex-end; gap: 10px; }
+.bridge-publish-actions button:first-child { background: #59636a; color: white; }

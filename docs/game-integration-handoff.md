@@ -1,6 +1,6 @@
 # MeowEdit content in Meowdieval Kingdom
 
-MeowEdit is the authoring tool; Meowdieval Kingdom is the runtime. They share one JSON contract for dialogue sequences, quests, Army configurations, and Adventure campaigns. Today the handoff is a manual copy into the game project. There is no account, upload API, remote package repository, or in-build content download.
+MeowEdit is the authoring tool; Meowdieval Kingdom is the runtime. They share one JSON contract for dialogue sequences, quests, Army configurations, and Adventure campaigns. Packages can still be copied into the game manually; the optional Bridge adds authenticated editor access, publisher-authorized upload, explicit publication, and public read-only download for the game.
 
 ## What the game supports
 
@@ -13,6 +13,7 @@ Supported authored content includes:
 - Timer pay-or-wait outcomes, one-time Sardines payment, configured battle counting, and the supported completion effects.
 - Army formations with unit placements, per-unit and Army spells, blessings, and cell-target data.
 - Authored, random, and mixed campaign floors, node routes, faction and run settings, generated quest/shop pools, exact shop stock, rewards, and campaign progression.
+- An optional `boardPreviewUnitId` selects the player character shown on the Adventure map; an empty value uses the selected faction's default hero. It does not change the battle Army.
 - Authored minimum route-hop constraints on fixed authored floors. These constraints are rejected for generated floors when the game could not guarantee them.
 
 For a play-event completion effect, the game records its event ID on the run so a game-side system can consume it. It does not implicitly invoke an arbitrary animation or script from JSON. Unlock-path and unlock-shop-item effects resolve against the campaign route and supported shop catalogs.
@@ -56,4 +57,4 @@ Meowdieval Kingdom's Unity tests cover JSON package parsing and validation, runt
 
 ## Later hosted delivery
 
-Hosted upload is a separate phase. Before the public editor can publish trusted playable content, MeowEdit needs authenticated author access and the backend needs package ownership, validation, immutable revisions, and controlled publication. The game can then fetch only published packages through an authenticated/versioned API. Do not treat a public editor session or an unverified JSON upload as trusted game content.
+The Bridge requires a Neon Auth account before any editor workspace is loaded. A valid account grants authoring access; publishing requires a separate publisher allowlist entry enforced by the server. Uploaded packages are immutable drafts until an authorized author explicitly publishes them. The game catalog exposes only published revisions and is intentionally public/read-only; the build contains no upload credential. CORS limits browser origins but is not treated as authentication.

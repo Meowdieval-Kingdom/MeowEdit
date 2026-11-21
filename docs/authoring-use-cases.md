@@ -1,6 +1,6 @@
 # MeowEdit authoring use cases
 
-This document describes end-to-end authoring tasks across the Dialogue, Quest, Army, and Campaign editors. The editor is static and stores drafts in the browser; exported packages are copied into the game manually. Installation and runtime behavior are documented in [game integration handoff](./game-integration-handoff.md).
+This document describes end-to-end authoring tasks across the Dialogue, Quest, Army, and Campaign editors. The editor stores drafts in the signed-in user's browser; packages can be exported manually or published through the authenticated Bridge. Installation and runtime behavior are documented in [game integration handoff](./game-integration-handoff.md).
 
 ## Author personas and editing jobs
 
