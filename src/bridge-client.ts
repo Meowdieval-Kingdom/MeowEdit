@@ -13,6 +13,8 @@ export interface EditorAccess {
 export interface UploadedPackage {
   packageId: string;
   contentHash: string;
+  /** True when this exact revision was already stored (and possibly published) by the server. */
+  alreadyPublished: boolean;
 }
 
 export class BridgeHttpError extends Error {
@@ -62,7 +64,11 @@ export async function uploadBridgePackage(
   if (body.contentHash !== payload.contentHash) {
     throw new Error("The server package hash did not match the editor package. Nothing was published.");
   }
-  return { packageId: body.packageId, contentHash: body.contentHash };
+  return {
+    packageId: body.packageId,
+    contentHash: body.contentHash,
+    alreadyPublished: body.alreadyPublished === true
+  };
 }
 
 export async function publishBridgePackage(

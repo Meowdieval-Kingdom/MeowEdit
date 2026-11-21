@@ -123,7 +123,7 @@ describe("Bridge bootstrap", () => {
       if (url.endsWith("/v1/editor/access")) return { ok: true, status: 200, json: async () => auth.access };
       if (url.endsWith("/v1/editor/packages")) {
         const payload = JSON.parse(String(init?.body)) as { contentHash: string };
-        return { ok: true, status: 200, json: async () => ({ packageId: "pkg-1", contentHash: payload.contentHash }) };
+        return { ok: true, status: 200, json: async () => ({ packageId: "pkg-1", contentHash: payload.contentHash, alreadyPublished: false }) };
       }
       return { ok: true, status: 200, json: async () => ({ published: true }) };
     }));
@@ -137,6 +137,28 @@ describe("Bridge bootstrap", () => {
     dialog.querySelector<HTMLFormElement>("#bridge-publish-form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
     await vi.waitFor(() => expect(dialog.querySelector(".bridge-publish-status")?.textContent).toContain("Published pkg-1"));
     expect(calls.some(call => call.url.endsWith("/v1/editor/packages/pkg-1/publish"))).toBe(true);
+  });
+
+  it("does not republish an identical revision that the server already has", async () => {
+    auth.sessionUser = { id: "author" };
+    let publishCalls = 0;
+    vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.endsWith("/v1/editor/access")) return { ok: true, status: 200, json: async () => auth.access };
+      if (url.endsWith("/v1/editor/packages")) {
+        const payload = JSON.parse(String(init?.body)) as { contentHash: string };
+        return { ok: true, status: 200, json: async () => ({ packageId: "pkg-1", contentHash: payload.contentHash, alreadyPublished: true }) };
+      }
+      publishCalls += 1;
+      return { ok: true, status: 200, json: async () => ({ published: true }) };
+    }));
+    await import("../src/bridge-bootstrap");
+    const context = await import("../src/bridge-context");
+    await vi.waitFor(() => expect(context.getBridgeActions()).not.toBeNull());
+    context.getBridgeActions()!.publish(publishRequest());
+    const dialog = document.querySelector<HTMLDialogElement>("#bridge-publish-dialog")!;
+    dialog.querySelector<HTMLFormElement>("#bridge-publish-form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+    await vi.waitFor(() => expect(dialog.querySelector(".bridge-publish-status")?.textContent).toContain("already published"));
+    expect(publishCalls).toBe(0);
   });
 
   it("stops publishing when the server returns a different hash", async () => {

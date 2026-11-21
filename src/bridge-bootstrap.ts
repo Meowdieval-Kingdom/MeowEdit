@@ -134,6 +134,10 @@ if (!isBridgeConfigured(authUrl, apiUrl)) {
       if (!token) throw new Error("Your sign-in expired. Sign out and sign in again.");
       const payload: BridgePackagePayload = await createBridgePackagePayload(campaignSetId, request.workspace, request.roster);
       const uploaded = await uploadBridgePackage(fetch, apiUrl, token, payload);
+      if (uploaded.alreadyPublished) {
+        status.textContent = "This exact revision is already published: " + uploaded.packageId + ". No new revision was created.";
+        return;
+      }
       status.textContent = "Package stored. Publishing revision…";
       await publishBridgePackage(fetch, apiUrl, token, uploaded.packageId);
       status.textContent = "Published " + uploaded.packageId + ". New game runs can download it; existing runs stay pinned.";

@@ -12,6 +12,8 @@ describe("MeowEdit–Tactics Bridge package payload", () => {
     expect(first.contentHash).toBe(second.contentHash);
     expect(first.files.map(file => file.path)).toContain("campaigns/Campaigns.json");
     expect(first.files.every(file => !file.path.startsWith("/") && !file.path.includes(".."))).toBe(true);
+    expect(first.files.every(file => file.path.endsWith(".json"))).toBe(true);
+    expect(first.files.some(file => file.path.endsWith("README.txt"))).toBe(false);
     expect(JSON.parse(first.files.find(file => file.path === "campaigns/Campaigns.json")!.content)
       .campaigns[0].id).toBe("test-campaign");
   });

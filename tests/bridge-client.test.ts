@@ -55,15 +55,19 @@ describe("Bridge HTTP client", () => {
   });
 
   it("uploads a package and rejects a mismatched server hash", async () => {
-    const { fetchFn, calls } = fetchMock(response({ packageId: "pkg-1", contentHash: payload.contentHash }));
+    const { fetchFn, calls } = fetchMock(response({ packageId: "pkg-1", contentHash: payload.contentHash, alreadyPublished: false }));
     await expect(uploadBridgePackage(fetchFn, "https://api.example.com/", "jwt", payload))
-      .resolves.toEqual({ packageId: "pkg-1", contentHash: payload.contentHash });
+      .resolves.toEqual({ packageId: "pkg-1", contentHash: payload.contentHash, alreadyPublished: false });
     expect(calls[0][0]).toBe("https://api.example.com/v1/editor/packages");
     expect(calls[0][1]).toMatchObject({
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: "Bearer jwt" },
       body: JSON.stringify(payload)
     });
+
+    const alreadyStored = fetchMock(response({ packageId: "pkg-1", contentHash: payload.contentHash, alreadyPublished: true }));
+    await expect(uploadBridgePackage(alreadyStored.fetchFn, "https://api.example.com", "jwt", payload))
+      .resolves.toMatchObject({ alreadyPublished: true });
 
     const mismatch = fetchMock(response({ packageId: "pkg-1", contentHash: "different" }));
     await expect(uploadBridgePackage(mismatch.fetchFn, "https://api.example.com", "jwt", payload))
