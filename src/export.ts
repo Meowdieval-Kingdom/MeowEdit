@@ -70,6 +70,7 @@ function campaignDocument(record: CampaignRecord): object {
     id: record.id,
     name: record.name,
     description: record.description,
+    boardPreviewUnitId: record.boardPreviewUnitId ?? "",
     questIds: record.questIds,
     floors: record.floors,
     events: record.events ?? [],

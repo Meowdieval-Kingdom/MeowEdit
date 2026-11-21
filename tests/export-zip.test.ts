@@ -17,6 +17,8 @@ describe("content export and ZIP packages", () => {
   it("preserves workspace-only army fields and emits campaign files", () => {
     const workspace = workspaceFixture();
     workspace.armies[0].units[0].spellIds = ["shield"];
+    workspace.campaigns[0].boardPreviewUnitId = "Cats/Fighter/1";
+    workspace.campaigns[0].settings.factionSelectionEnabled = false;
     const parsed = JSON.parse(workspaceJson(workspace));
     expect(parsed.armies[0]._meowEditWorkspace.units[0].spellIds).toEqual(["shield"]);
     expect(parsed.armies[0].units[0].spellIds).toEqual(["shield"]);
@@ -26,6 +28,10 @@ describe("content export and ZIP packages", () => {
     expect(JSON.parse(String(armyEntry?.content)).armies[0].units[0].spellIds).toEqual(["shield"]);
     const manifest = JSON.parse(String(entries.find(entry => entry.path.endsWith("manifest.json"))?.content));
     expect(manifest.campaignRuntimeSupported).toBe(true);
+    const campaignEntry = entries.find(entry => entry.path.endsWith("campaigns/Campaigns.json"));
+    const exportedCampaign = JSON.parse(String(campaignEntry?.content)).campaigns[0];
+    expect(exportedCampaign.boardPreviewUnitId).toBe("Cats/Fighter/1");
+    expect(exportedCampaign.settings.factionSelectionEnabled).toBe(false);
   });
 
   it("round trips stored archives and reports unsupported or damaged ZIP data", async () => {

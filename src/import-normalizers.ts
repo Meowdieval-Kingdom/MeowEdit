@@ -119,6 +119,7 @@ export function normalizeCampaign(value: unknown, idFactory: IdFactory = createK
     id: String(raw.id ?? "imported-campaign"), idAuto: meta.idAuto === true,
     name: String(raw.name ?? raw.id ?? "Imported campaign"),
     description: String(raw.description ?? ""),
+    boardPreviewUnitId: String(raw.boardPreviewUnitId ?? ""),
     designMode: meta.designMode === "settings-only" || meta.designMode === "custom" || meta.designMode === "choose"
       ? meta.designMode
       : Array.isArray(raw.floors) && raw.floors.length > 0 && !(raw.questIds?.length) &&
@@ -171,7 +172,9 @@ export function normalizeCampaign(value: unknown, idFactory: IdFactory = createK
     settings: {
       startingLives: Number(raw.settings?.startingLives ?? 3), startingSardines: Number(raw.settings?.startingSardines ?? 10),
       startingNodeCount: Number(raw.settings?.startingNodeCount ?? 12),
-      playerFactionId: String(raw.settings?.playerFactionId ?? ""), battleShopEnabled: raw.settings?.battleShopEnabled !== false,
+      playerFactionId: String(raw.settings?.playerFactionId ?? ""),
+      factionSelectionEnabled: raw.settings?.factionSelectionEnabled !== false,
+      battleShopEnabled: raw.settings?.battleShopEnabled !== false,
       shopPoolKinds: Array.isArray(raw.settings?.shopPoolKinds) ? raw.settings.shopPoolKinds.filter((kind: string) => ["Unit", "Blessing", "Research", "SpellUnlock"].includes(kind)) : ["Unit", "Blessing", "Research", "SpellUnlock"],
       questNodeCountPerRandomFloor: Number(raw.settings?.questNodeCountPerRandomFloor ?? 2),
       shopNodeCountPerRandomFloor: Number(raw.settings?.shopNodeCountPerRandomFloor ?? 3),

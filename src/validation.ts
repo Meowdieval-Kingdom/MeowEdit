@@ -243,6 +243,9 @@ export function validateCampaign(
   if (!nonEmpty(campaign.name)) issues.push({ level: "error", message: "Campaign name is required." });
   if (campaign.floors.length === 0) issues.push({ level: "error", message: "Add at least one floor board." });
   if (!Number.isInteger(campaign.settings.startingLives) || campaign.settings.startingLives < 1) issues.push({ level: "error", message: "Starting lives must be a whole number of at least one." });
+  if (!campaign.settings.factionSelectionEnabled && !campaign.settings.playerFactionId) {
+    issues.push({ level: "error", message: "Choose a player faction when faction selection is disabled." });
+  }
   if (!Number.isInteger(campaign.settings.startingSardines) || campaign.settings.startingSardines < 10 || campaign.settings.startingSardines > 50) issues.push({ level: "error", message: "Starting Sardines must be a whole number between 10 and 50, matching Adventure settings." });
   if (!Number.isInteger(campaign.settings.startingNodeCount) || campaign.settings.startingNodeCount < 12 || campaign.settings.startingNodeCount > 30 || campaign.settings.startingNodeCount % 2 !== 0) issues.push({ level: "error", message: "Starting random floor node count must be an even number between 12 and 30." });
   if (!Number.isInteger(campaign.settings.questNodeCountPerRandomFloor) || campaign.settings.questNodeCountPerRandomFloor < 0 || campaign.settings.questNodeCountPerRandomFloor > 4) issues.push({ level: "error", message: "Generated Quest nodes per floor must be a whole number between 0 and 4." });
@@ -253,6 +256,10 @@ export function validateCampaign(
   }
   if (campaign.settings.playerFactionId && !catalog.factions.some(item => item.id === campaign.settings.playerFactionId)) {
     issues.push({ level: "error", message: "Choose a player faction from the game catalog." });
+  }
+  if (campaign.boardPreviewUnitId && !catalog.units.some(unit =>
+    unit.levels.some(level => level.id === campaign.boardPreviewUnitId))) {
+    issues.push({ level: "error", message: "Choose a board preview unit from the game catalog, or use the selected faction hero." });
   }
   if (!uniqueValues(campaign.settings.shopPoolKinds) || campaign.settings.shopPoolKinds.some(kind => !CAMPAIGN_SHOP_KINDS.includes(kind))) {
     issues.push({ level: "error", message: "Campaign shop pools must use unique, supported offer categories." });

@@ -242,6 +242,8 @@ export interface CampaignSettings {
   startingSardines: number;
   startingNodeCount: number;
   playerFactionId: string;
+  /** Whether the player chooses a faction when starting this campaign. */
+  factionSelectionEnabled: boolean;
   battleShopEnabled: boolean;
   /** Offer categories used by generated Adventure map shops. */
   shopPoolKinds: CampaignShopOfferKind[];
@@ -281,6 +283,8 @@ export interface CampaignRecord {
   idAuto?: boolean;
   name: string;
   description: string;
+  /** Optional unit shown as the player's character on the Adventure board; empty uses the faction hero. */
+  boardPreviewUnitId?: string;
   /** Guided entry path; editor metadata and omitted from game exports. */
   designMode?: "choose" | "settings-only" | "custom";
   /** Selected reusable quest definitions available to Quest nodes in this campaign. */

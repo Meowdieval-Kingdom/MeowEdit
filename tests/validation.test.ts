@@ -91,6 +91,28 @@ describe("content validation", () => {
     expect(issues.some(issue => issue.level === "warning" && issue.message.includes("grant-token") && issue.message.includes("preserved in export"))).toBe(true);
   });
 
+  it("validates authored board preview units against the runtime unit catalog", () => {
+    const workspace = workspaceFixture();
+    const campaign = workspace.campaigns[0];
+    campaign.boardPreviewUnitId = "Cats/Fighter/1";
+    expect(validateCampaign(campaign, workspace, catalog).filter(issue => issue.level === "error")).toEqual([]);
+
+    campaign.boardPreviewUnitId = "Missing/Unit/1";
+    expect(validateCampaign(campaign, workspace, catalog).map(issue => issue.message))
+      .toContain("Choose a board preview unit from the game catalog, or use the selected faction hero.");
+  });
+
+  it("requires a configured player faction when campaign faction selection is disabled", () => {
+    const workspace = workspaceFixture();
+    const campaign = workspace.campaigns[0];
+    campaign.settings.factionSelectionEnabled = false;
+    expect(validateCampaign(campaign, workspace, catalog).map(issue => issue.message))
+      .toContain("Choose a player faction when faction selection is disabled.");
+
+    campaign.settings.playerFactionId = "Cats";
+    expect(validateCampaign(campaign, workspace, catalog).filter(issue => issue.level === "error")).toEqual([]);
+  });
+
   it("validates exact campaign shop inventory against the game catalog and price rules", () => {
     const campaign = campaignFixture();
     const floor = campaign.floors[0];
