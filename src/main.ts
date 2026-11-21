@@ -43,9 +43,14 @@ import { normalizeArmy, normalizeCampaign, normalizeQuest } from "./import-norma
 import { EditorNavigationHistory, type RelatedEditorReturnContext } from "./editor-navigation";
 import { defaultEditorSession, loadEditorSession, saveEditorSession } from "./editor-session";
 import { includeArmyUnitsInRoster } from "./roster";
+import { getBridgeActions, getBridgeUserId } from "./bridge-context";
 import { escapeHtml, renderApp, renderLivePreview, renderValidationSummary, renderArmyEntityPreview, renderArmyAbilityPreview, type ArmyAbilityFilters, type ArmyAbilityKind, type ArmyAbilitySelections, type EditorMode } from "./view";
 
-const STORAGE_KEY = "meowedit.workspace.v1";
+const LEGACY_STORAGE_KEY = "meowedit.workspace.v1";
+const bridgeUserId = getBridgeUserId();
+const STORAGE_KEY = bridgeUserId
+  ? LEGACY_STORAGE_KEY + "." + encodeURIComponent(bridgeUserId)
+  : LEGACY_STORAGE_KEY;
 const initialEditorSession = (() => {
   try { return loadEditorSession(localStorage); }
   catch { return defaultEditorSession(); }
@@ -106,7 +111,20 @@ void Promise.all([loadRoster(), loadArmyCatalog()]).then(([loadedRoster, loadedC
 
 function loadWorkspace(): Workspace {
   try {
-    const value = localStorage.getItem(STORAGE_KEY);
+    let value = localStorage.getItem(STORAGE_KEY);
+    if (!value && STORAGE_KEY !== LEGACY_STORAGE_KEY) {
+      const legacy = localStorage.getItem(LEGACY_STORAGE_KEY);
+      if (legacy !== null) {
+        try {
+          if ((JSON.parse(legacy) as { schemaVersion?: number }).schemaVersion === 1) {
+            localStorage.setItem(STORAGE_KEY, legacy);
+            value = legacy;
+          }
+        } catch {
+          // Leave a damaged legacy draft untouched rather than copying it into the user's store.
+        }
+      }
+    }
     if (!value) return createSeedWorkspace();
     const parsed = JSON.parse(value) as Workspace;
     if (parsed.schemaVersion !== 1 || !Array.isArray(parsed.dialogues) || !Array.isArray(parsed.quests)) {
@@ -159,6 +177,10 @@ function loadWorkspace(): Workspace {
       if (!extension.completionEffects) { extension.completionEffects = []; migrated = true; }
     }
     for (const campaign of parsed.campaigns) {
+      if (typeof campaign.boardPreviewUnitId !== "string") {
+        campaign.boardPreviewUnitId = "";
+        migrated = true;
+      }
       if (!Array.isArray(campaign.events)) { campaign.events = []; migrated = true; }
       for (const campaignEvent of campaign.events) {
         if (!Array.isArray(campaignEvent.actions)) { campaignEvent.actions = []; migrated = true; }
@@ -174,11 +196,13 @@ function loadWorkspace(): Workspace {
       }
       const oldCampaignSettings = campaign.settings as Partial<CampaignRecord["settings"]> | undefined;
       campaign.settings = {
-        startingLives: 3, startingSardines: 10, startingNodeCount: 12, playerFactionId: "", battleShopEnabled: true,
+        startingLives: 3, startingSardines: 10, startingNodeCount: 12, playerFactionId: "",
+        factionSelectionEnabled: true, battleShopEnabled: true,
         shopPoolKinds: ["Unit", "Blessing", "Research", "SpellUnlock"],
         questNodeCountPerRandomFloor: 2, shopNodeCountPerRandomFloor: 3, nodeGrowthPerFloor: 2, continueWithGeneratedFloors: false,
         ...oldCampaignSettings
       };
+      if (typeof oldCampaignSettings?.factionSelectionEnabled !== "boolean") migrated = true;
       campaign.settings.shopPoolKinds ??= ["Unit", "Blessing", "Research", "SpellUnlock"];
       for (const floor of campaign.floors) {
         if (!floor.questPoolMode) { floor.questPoolMode = "campaign"; migrated = true; }
@@ -705,10 +729,11 @@ function addCampaign(): void {
   const id = uniqueId(name, workspace.campaigns.map(item => item.id), "campaign");
   const key = createKey("campaign");
   const campaign: CampaignRecord = {
-    key, id, idAuto: true, name, description: "", designMode: "choose", questIds: [], events: [],
+    key, id, idAuto: true, name, description: "", boardPreviewUnitId: "", designMode: "choose", questIds: [], events: [],
     floors: [newCampaignFloor(1)],
     settings: {
-      startingLives: 3, startingSardines: 10, startingNodeCount: 12, playerFactionId: "", battleShopEnabled: true,
+      startingLives: 3, startingSardines: 10, startingNodeCount: 12, playerFactionId: "",
+      factionSelectionEnabled: true, battleShopEnabled: true,
       shopPoolKinds: ["Unit", "Blessing", "Research", "SpellUnlock"],
       questNodeCountPerRandomFloor: 2, shopNodeCountPerRandomFloor: 3, nodeGrowthPerFloor: 2,
       continueWithGeneratedFloors: false
@@ -2459,6 +2484,12 @@ function onAction(button: HTMLButtonElement): void {
     }
     case "export-active": exportActive(); return;
     case "export-package": exportPackage(); return;
+    case "publish-package":
+      getBridgeActions()?.publish({ workspace, roster });
+      return;
+    case "bridge-sign-out":
+      getBridgeActions()?.signOut();
+      return;
     case "open-import": document.querySelector<HTMLInputElement>("#import-file")?.click(); return;
     case "open-content-picker": {
       const picker = document.querySelector<HTMLDialogElement>("#content-picker-dialog");

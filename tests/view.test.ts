@@ -302,6 +302,11 @@ describe("editor rendering", () => {
     workspace.selectedKey = workspace.campaigns[0].key;
     const view = { selectedFloorId: workspace.campaigns[0].floors[0].id, selectedNodeId: "start", interactionMode: "select" as const, nodeKind: "Battle" as const, addMenuOpen: false, pendingPlugFromId: null, selectedRouteId: null };
     const advanced = renderApp(workspace, rosterFixture, catalog, [], 0, "full", null, view);
+    expect(advanced).toContain('data-bind="boardPreviewUnitId"');
+    expect(advanced).toContain('value="Cats/Fighter/1"');
+    expect(advanced).toContain("Use selected faction hero");
+    expect(advanced).toContain('data-bind="settings.factionSelectionEnabled"');
+    expect(advanced).toContain("Allow faction selection");
     expect(advanced).not.toContain("ADVENTURE NODE MAP");
     for (const section of ["campaign-basics", "campaign-floors", "campaign-map", "campaign-quests", "campaign-shops", "campaign-starting-run", "campaign-progression"]) {
       expect(advanced).toContain('id="' + section + '"');

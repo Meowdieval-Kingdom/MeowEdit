@@ -20,6 +20,7 @@ import type {
 } from "./model";
 import { dialogueActionsForNode, dialogueMomentName } from "./model";
 import { armyFootprint, armyGridSize, resolveArmyLevel, type ArmyCatalogKind } from "./army-catalog";
+import { canPublish, getBridgeUserId } from "./bridge-context";
 import type { ValidationIssue } from "./validation";
 import { validateCampaign, validateDialogue, validateQuest } from "./validation";
 
@@ -1313,10 +1314,24 @@ function renderCampaignEditor(
   ).join("");
   const startingSettings = '<section class="campaign-settings-panel" id="campaign-starting-run"><div class="campaign-section-heading"><div><h2>Starting run</h2></div></div>' +
     '<div class="form-grid two">' +
+    selectField("Board preview unit", "boardPreviewUnitId", campaign.boardPreviewUnitId ?? "", [
+      ["", "Use selected faction hero"],
+      ...catalog.units.flatMap(unit => unit.levels.map(level => [
+        level.id,
+        unit.name + " · Level " + level.level + " (" + unit.faction + ")"
+      ] as [string, string]))
+    ], "Shown as the player's character on the Adventure board. This does not change the starting Army.") +
     inputField("Starting lives", "settings.startingLives", campaign.settings.startingLives, { type: "number", min: 1, max: 99 }) +
     inputField("Starting Sardines", "settings.startingSardines", campaign.settings.startingSardines, { type: "number", min: 10, max: 50 }) +
-    selectField("Player faction", "settings.playerFactionId", campaign.settings.playerFactionId, [["", "Use game default"], ...catalog.factions.map(item => [item.id, item.name] as [string, string])]) +
-    '</div><label class="campaign-check"><input type="checkbox" data-bind="settings.battleShopEnabled"' + (campaign.settings.battleShopEnabled ? " checked" : "") + '><span>Keep battle shop enabled</span></label></section>';
+    selectField(
+      campaign.settings.factionSelectionEnabled ? "Default player faction" : "Player faction used by this campaign",
+      "settings.playerFactionId",
+      campaign.settings.playerFactionId,
+      [["", campaign.settings.factionSelectionEnabled ? "Use game default" : "Choose a player faction"], ...catalog.factions.map(item => [item.id, item.name] as [string, string])]
+    ) +
+    '</div><label class="campaign-check"><input type="checkbox" data-bind="settings.factionSelectionEnabled"' + (campaign.settings.factionSelectionEnabled ? " checked" : "") + '><span>Allow faction selection</span></label>' +
+    '<p class="help-copy">When disabled, the campaign always uses its selected Player faction.</p>' +
+    '<label class="campaign-check"><input type="checkbox" data-bind="settings.battleShopEnabled"' + (campaign.settings.battleShopEnabled ? " checked" : "") + '><span>Keep battle shop enabled</span></label></section>';
   const generatedFloorSettings = '<section class="campaign-settings-panel" id="campaign-progression"><div class="campaign-section-heading"><div><h2>' + (campaign.designMode === "settings-only" ? "Later generated floors" : "After these boards") + '</h2></div></div>' +
     '<label class="campaign-check"><input type="checkbox" data-bind="settings.continueWithGeneratedFloors"' + (campaign.settings.continueWithGeneratedFloors ? " checked" : "") + '><span>Continue with generated floors</span></label>' +
     (campaign.settings.continueWithGeneratedFloors ? '<div class="form-grid two">' +
@@ -1533,13 +1548,21 @@ function renderCampaignEditor(
     return (quest?.definition.title || id) + (quest && quest.definition.title !== id ? " (" + id + ")" : "");
   });
   const floorReviews = campaign.floors.map(item => renderCampaignFloorReview(item, workspace, campaign)).join("");
-  const startingRunSummary = campaign.settings.startingLives + " lives · " + campaign.settings.startingSardines + " Sardines · " + (campaign.settings.playerFactionId || "game default faction") + " · battle shop " + (campaign.settings.battleShopEnabled ? "on" : "off");
+  const previewUnit = campaign.boardPreviewUnitId
+    ? catalog.units.flatMap(unit => unit.levels.map(level => ({ unit, level })))
+      .find(item => item.level.id === campaign.boardPreviewUnitId)
+    : null;
+  const boardPreviewSummary = !campaign.boardPreviewUnitId
+    ? "Selected faction hero"
+    : previewUnit ? previewUnit.unit.name + " · Level " + previewUnit.level.level : campaign.boardPreviewUnitId;
+  const startingRunSummary = campaign.settings.startingLives + " lives · " + campaign.settings.startingSardines + " Sardines · " + (campaign.settings.playerFactionId || "game default faction") + " · faction choice " + (campaign.settings.factionSelectionEnabled ? "on" : "off") + " · battle shop " + (campaign.settings.battleShopEnabled ? "on" : "off");
   const progressionSummary = (campaign.settings.continueWithGeneratedFloors ? "continues with generated floors" : "ends after listed floors") + " · " + campaign.settings.startingNodeCount + " initial nodes · " + campaign.settings.questNodeCountPerRandomFloor + " Quest nodes · " + campaign.settings.shopNodeCountPerRandomFloor + " Shops · +" + campaign.settings.nodeGrowthPerFloor + " nodes per floor";
   const campaignShopPoolSummary = campaign.settings.shopPoolKinds.length ? campaign.settings.shopPoolKinds.map(kind => CAMPAIGN_SHOP_KIND_LABELS.find(([value]) => value === kind)?.[1] ?? kind).join(", ") : "none";
   const reviewRows = [
     reviewField("Campaign", campaign.name || "Untitled campaign"),
     reviewField("Setup", isSettingsOnly ? "Randomizer only" : "Authored campaign"),
     reviewField("Floors", String(campaign.floors.length)),
+    reviewField("Board preview", boardPreviewSummary),
     reviewField("Starting run", startingRunSummary),
     reviewField("Generated shop pools", campaignShopPoolSummary),
     reviewField("Campaign events", String(campaign.events.length)),
@@ -1585,7 +1608,7 @@ function renderCampaignEditor(
   } else if (stepName === "Shop unlocks") {
     screen = '<section class="campaign-settings-step campaign-shop-unlocks-step"><p class="campaign-step-prompt help-copy">Set the shop tier and offer pools available on each floor.</p>' + floorShopSettings + '</section>';
   } else if (stepName === "Starting run") {
-    screen = '<section class="campaign-settings-step"><p class="campaign-step-prompt help-copy">Set the player\'s starting resources and faction.</p>' + startingSettings + '</section>';
+    screen = '<section class="campaign-settings-step"><p class="campaign-step-prompt help-copy">Choose the board character, starting resources, and faction.</p>' + startingSettings + '</section>';
   } else if (stepName === "Progression" || stepName === "Generated floors") {
     screen = '<section class="campaign-settings-step"><p class="campaign-step-prompt help-copy">' + (isSettingsOnly ? "Choose whether the generated run continues and how later floors grow." : "Choose whether to continue beyond these boards and how later floors grow.") + '</p>' + generatedFloorSettings + '</section>';
   } else if (stepName === "Events") {
@@ -1867,8 +1890,11 @@ export function renderApp(
     || workspace.quests.some(record => record.isGameExample)
     || workspace.armies.some(record => record.isGameExample)
     || workspace.campaigns.some(record => record.isGameExample);
+  const bridgeUserId = getBridgeUserId();
   const toolbar = '<div class="topbar-actions">' +
     (relatedReturnState ? actionButton("return-to-parent", "← " + relatedReturnState.label, "text-button return-to-parent", ' aria-label="Return to ' + escapeHtml(relatedReturnState.parent) + '" title="Return to ' + escapeHtml(relatedReturnState.parent) + '"') : "") +
+    (bridgeUserId && workspace.campaigns.length > 0 && canPublish() ? actionButton("publish-package", "Publish to game", "button button-primary", hasErrors ? " disabled" : "") : "") +
+    (bridgeUserId ? actionButton("bridge-sign-out", "Sign out", "text-button bridge-sign-out") : "") +
     (item && !guidedCompact ? helpToggleButton(helpVisible) : "") +
     '</div>';
   let content: string;

@@ -1482,4 +1482,30 @@ describe("browser application flow", () => {
     expect(saved.campaigns[0].questIds).not.toContain(questId);
     expect(saved.selectedType).toBe("campaign");
   });
+
+  it("carries a pre-bridge draft into the signed-in user's storage without deleting the original", async () => {
+    vi.resetModules();
+    localStorage.clear();
+    document.body.innerHTML = '<div id="app"></div>';
+    const legacy = workspaceFixture();
+    legacy.quests[0].definition.title = "Legacy draft quest";
+    localStorage.setItem("meowedit.workspace.v1", JSON.stringify(legacy));
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => ({
+      ok: true,
+      json: async () => String(input).includes("army-catalog") ? baseCatalog : rosterFixture
+    })));
+    const context = await import("../src/bridge-context");
+    context.setBridgeState({ userId: "author-42", canPublish: false, actions: null });
+    try {
+      await import("../src/main");
+      const migrated = localStorage.getItem("meowedit.workspace.v1.author-42");
+      expect(migrated).not.toBeNull();
+      expect(JSON.parse(migrated!).quests[0].definition.title).toBe("Legacy draft quest");
+      expect(localStorage.getItem("meowedit.workspace.v1")).toBe(JSON.stringify(legacy));
+      await vi.waitFor(() => expect(document.querySelector('[data-action="bridge-sign-out"]')).not.toBeNull());
+      expect(document.querySelector('[data-action="publish-package"]')).toBeNull();
+    } finally {
+      context.resetBridgeState();
+    }
+  });
 });
