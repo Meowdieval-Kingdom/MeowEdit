@@ -168,13 +168,20 @@ if (!isBridgeConfigured()) {
       actions
     });
     setBridgeFetch(async (path, init) => {
-      const freshToken = await neonAuth.getJWTToken();
+      const freshToken = await withTimeout(neonAuth.getJWTToken(), 15000, "Token request timed out.");
       if (!freshToken) throw new Error("Your sign-in expired. Sign out and sign in again.");
       return fetch(apiUrl + path, {
         ...init,
         headers: { ...(init?.headers ?? {}), Authorization: "Bearer " + freshToken }
       });
     });
-    void import("./v2/app");
+    const submit = app!.querySelector<HTMLButtonElement>('#bridge-signin button[type="submit"]');
+    if (submit) submit.textContent = "Loading editor…";
+    try {
+      const editor = await withTimeout(import("./v2/app"), 15000, "The editor bundle could not be loaded in time.");
+      await withTimeout(editor.mountApp(app!), 20000, "The editor did not finish loading in time.");
+    } catch (error) {
+      showGateError(error instanceof Error ? error.message : "The editor could not be loaded.");
+    }
   }
 }
