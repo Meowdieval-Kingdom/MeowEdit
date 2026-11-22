@@ -1,5 +1,5 @@
 import { canPublish, getBridgeFetch, getBridgeUserId } from "../bridge-context";
-import { escapeHtml } from "../view";
+import { escapeHtml } from "./html";
 import {
   createSetRequest, isDraftConflict, publishRequest, saveDraftRequest, type DraftConflictResponse
 } from "./endpoints";
@@ -23,6 +23,8 @@ interface EditorState {
   eventIndex: number;
   status: string;
   validation: ValidationResult;
+  onSaved?: (draftVersion: number) => void;
+  onPublished?: (packageId: string) => void;
 }
 
 const STORAGE_PREFIX = "meowedit.v2.draft.";
@@ -39,9 +41,11 @@ function parsePath(path: string): string[] {
 function setByPath(root: unknown, path: string, value: unknown): void {
   const parts = parsePath(path);
   let cursor = root as Record<string, unknown>;
-  for (const part of parts.slice(0, -1)) {
+  for (let index = 0; index < parts.length - 1; index++) {
+    const part = parts[index];
     const key = /^\d+$/.test(part) ? Number(part) : part;
-    if (cursor[key] === undefined) cursor[key] = /^\d+$/.test(part) ? [] : {};
+    if (cursor[key] === undefined)
+      cursor[key] = /^\d+$/.test(parts[index + 1]) ? [] : {};
     cursor = cursor[key] as Record<string, unknown>;
   }
   const last = parts.at(-1)!;
@@ -417,6 +421,7 @@ async function saveUpload(container: HTMLElement, state: EditorState): Promise<v
     }
     state.draftVersion = body.draftVersion;
     state.status = "Draft saved as version " + state.draftVersion + ".";
+    state.onSaved?.(state.draftVersion);
   } catch (error) {
     state.status = error instanceof Error ? error.message : "Upload failed.";
   }
@@ -448,27 +453,47 @@ async function publish(container: HTMLElement, state: EditorState): Promise<void
     }
     const packed = await packContentSet(state.draft, state.capabilities);
     state.status = "Published " + body.packageId + (body.contentHash === packed.contentHash ? " (hash verified)" : " (HASH MISMATCH)") + ".";
+    state.onPublished?.(body.packageId);
   } catch (error) {
     state.status = error instanceof Error ? error.message : "Publish failed.";
   }
   flash(container, state);
 }
 
-/** Mounts the structured v2 editor into `container`. */
-export async function mountV2Editor(container: HTMLElement, onBack: () => void): Promise<void> {
-  const capabilities = await loadCapabilities();
+export interface V2EditorSeed {
+  draft: ContentSetV2Document;
+  draftVersion: number;
+  publishedPackageId?: string;
+  capabilities?: GameCapabilities;
+}
+
+/** Mounts the detailed v2 editor into `container`, optionally seeded by the main app. */
+export async function mountV2Editor(
+  container: HTMLElement,
+  onBack: () => void,
+  seed?: V2EditorSeed,
+  onSaved?: (draftVersion: number) => void,
+  onPublished?: (packageId: string) => void
+): Promise<void> {
+  const capabilities = seed?.capabilities ?? await loadCapabilities();
   let draft: ContentSetV2Document;
-  try {
-    draft = JSON.parse(localStorage.getItem(storageKey()) ?? "") as ContentSetV2Document;
-  } catch {
-    draft = emptyContentSet("character-missions", "Character Missions");
-    draft.campaigns.push(newCampaign("character-missions", "Character Missions", capabilities));
-    draft.set.campaignOrder = [draft.campaigns[0].id];
+  if (seed) {
+    draft = seed.draft;
+  } else {
+    try {
+      draft = JSON.parse(localStorage.getItem(storageKey()) ?? "") as ContentSetV2Document;
+    } catch {
+      draft = emptyContentSet("character-missions", "Character Missions");
+      draft.campaigns.push(newCampaign("character-missions", "Character Missions", capabilities));
+      draft.set.campaignOrder = [draft.campaigns[0].id];
+    }
   }
   const state: EditorState = {
-    draft, capabilities, draftVersion: 0, section: "campaign", sectionIndex: 0,
-    floorIndex: 0, eventIndex: 0, status: "Local draft autosaved in this browser.",
-    validation: validateContentSet(draft, capabilities)
+    draft, capabilities, draftVersion: seed?.draftVersion ?? 0, section: "campaign", sectionIndex: 0,
+    floorIndex: 0, eventIndex: 0,
+    status: seed ? "Editing the selected content set." : "Local draft autosaved in this browser.",
+    validation: validateContentSet(draft, capabilities),
+    onSaved, onPublished
   };
 
   const handleClick = (event: MouseEvent) => {

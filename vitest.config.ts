@@ -9,14 +9,11 @@ export default defineConfig({
       reporter: ["text", "html"],
       include: ["src/**/*.ts"],
       thresholds: {
-        // These project-wide floors include browser startup and event wiring in main.ts.
+        // Project-wide floors cover the v2-only editor and the authenticated bootstrap.
         statements: 78,
         branches: 70,
         functions: 84,
-        lines: 85,
-        "src/main.ts": {
-          perFile: { statements: 70, branches: 58, functions: 72, lines: 77 }
-        }
+        lines: 85
       }
     }
   }

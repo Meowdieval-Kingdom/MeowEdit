@@ -1,0 +1,42 @@
+/* v2-only editor: set browser, guided steps and status affordances. */
+
+.editor-shell { min-height: 100vh; background: var(--canvas); }
+.editor-shell .topbar-context { min-width: 0; }
+.editor-main { max-width: 980px; margin: 0 auto; padding: 42px 24px 80px; }
+.editor-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 22px; }
+.editor-heading h1 { margin: 0; font: 800 28px/1.1 "Manrope", sans-serif; letter-spacing: -0.03em; color: var(--ink); }
+.editor-heading p { margin: 6px 0 0; color: var(--ink-soft); font-size: 12px; }
+
+.set-list { display: grid; gap: 10px; }
+.set-row { display: flex; align-items: center; gap: 14px; padding: 16px 18px; background: var(--paper); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); }
+.set-row-main { flex: 1; min-width: 0; }
+.set-row-main strong { display: block; color: var(--ink); font-size: 13px; }
+.set-row-main small { display: block; margin-top: 4px; color: var(--muted); font-size: 10px; }
+.set-badges { display: flex; gap: 6px; flex-wrap: wrap; }
+.set-badge { padding: 4px 8px; border-radius: 20px; font-size: 9px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; background: #eef0ea; color: #6a756c; }
+.set-badge.local { background: #f0f0ea; color: #7c8178; }
+.set-badge.draft { background: var(--gold-pale); color: #8a6a2e; }
+.set-badge.published { background: var(--green-pale); color: var(--green-dark); }
+.set-empty { padding: 30px; text-align: center; color: var(--muted); font-size: 12px; background: var(--paper); border: 1px dashed var(--line); border-radius: 10px; }
+
+.guided { display: grid; gap: 20px; }
+.guided-progress { display: flex; gap: 6px; }
+.guided-progress span { flex: 1; height: 4px; border-radius: 4px; background: #e4e6de; }
+.guided-progress span.done { background: var(--green); }
+.guided-progress span.current { background: var(--gold); }
+.guided-step { display: grid; gap: 14px; }
+.guided-step h2 { margin: 0; font: 800 19px "Manrope", sans-serif; color: var(--ink); }
+.guided-step p.step-copy { margin: 0; color: var(--ink-soft); font-size: 12px; line-height: 1.5; }
+.guided-fields { display: grid; gap: 12px; max-width: 460px; }
+.guided-advanced { max-width: 460px; border: 1px solid var(--line); border-radius: 8px; background: #fbfaf5; opacity: 0.72; }
+.guided-advanced:hover, .guided-advanced[open] { opacity: 1; }
+.guided-advanced summary { padding: 10px 12px; cursor: pointer; color: var(--muted); font-size: 11px; font-weight: 700; }
+.guided-advanced .form-grid { padding: 4px 12px 14px; }
+.guided-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.guided-list { display: grid; gap: 8px; max-width: 560px; }
+.guided-list-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--paper); border: 1px solid var(--line); border-radius: 8px; font-size: 12px; }
+.guided-list-item span { flex: 1; }
+.guided-error { color: var(--red); font-size: 11px; }
+.guided-status { color: var(--green-dark); font-size: 12px; min-height: 1em; }
+.validation-list { max-height: 190px; overflow: auto; padding: 12px 14px; background: var(--red-pale); border-radius: 8px; color: #8c4438; font-size: 11px; }
+.validation-list ul { margin: 0; padding-left: 18px; }

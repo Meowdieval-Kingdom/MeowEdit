@@ -1,15 +1,10 @@
 import "./styles.css";
 import "./bridge-gate.css";
 import { createInternalNeonAuth } from "@neondatabase/auth";
-import { createBridgePackagePayload, type BridgePackagePayload } from "./bridge-package";
 import {
-  BridgeHttpError, isBridgeConfigured, publishBridgePackage, requestEditorAccess, uploadBridgePackage
-} from "./bridge-client";
-import {
-  canPublish, resetBridgeFetch, resetBridgeState, setBridgeFetch, setBridgeState,
-  type BridgeActions, type BridgePublishRequest
+  resetBridgeFetch, resetBridgeState, setBridgeFetch, setBridgeState, type BridgeActions
 } from "./bridge-context";
-import { escapeHtml } from "./view";
+import { escapeHtml } from "./v2/html";
 
 type AuthUser = { id: string };
 type AuthResult<T> = { data?: T | null; error?: { message?: string } | null };
@@ -50,19 +45,24 @@ function showGateError(message: string): void {
     return;
   }
   error.textContent = message;
-  const submit = app!.querySelector<HTMLButtonElement>('[data-action="bridge-signin-submit"], #bridge-signin button[type="submit"]');
+  const submit = app!.querySelector<HTMLButtonElement>('#bridge-signin button[type="submit"]');
   if (submit) {
     submit.disabled = false;
     submit.textContent = "Sign in";
   }
 }
 
-if (!isBridgeConfigured(authUrl, apiUrl)) {
+function isBridgeConfigured(): boolean {
+  const https = /^https:\/\//i;
+  return https.test(authUrl)
+    && (https.test(apiUrl) || /^http:\/\/127\.0\.0\.1(?::\d+)?$/i.test(apiUrl));
+}
+
+if (!isBridgeConfigured()) {
   renderGate("", "config");
 } else {
   const neonAuth = createInternalNeonAuth(authUrl);
   const auth = neonAuth.adapter;
-  let pendingPublishRequest: BridgePublishRequest | null = null;
   renderGate("");
   void restoreSession();
 
@@ -99,26 +99,31 @@ if (!isBridgeConfigured(authUrl, apiUrl)) {
       showGateError("A valid sign-in token could not be created. Please sign in again.");
       return;
     }
-    let access;
+    let response: Response;
     try {
-      access = await requestEditorAccess(fetch, apiUrl, token);
-    } catch (error) {
-      if (error instanceof BridgeHttpError && error.status === 401) {
-        showGateError("Your sign-in expired. Please sign in again.");
-      } else {
-        showGateError(error instanceof Error ? error.message : "The game Bridge could not authorize this editor session.");
-      }
+      response = await fetch(apiUrl + "/v1/editor/access", {
+        headers: { Authorization: "Bearer " + token },
+        cache: "no-store"
+      });
+    } catch {
+      showGateError("The game Bridge could not be reached. Check the connection and try again.");
+      return;
+    }
+    if (!response.ok) {
+      showGateError(response.status === 401
+        ? "Your sign-in expired. Please sign in again."
+        : "The game Bridge could not authorize this editor session.");
+      return;
+    }
+    const access = await response.json().catch(() => null) as {
+      authorized?: boolean; canPublish?: boolean; userId?: string; error?: string
+    } | null;
+    if (!access?.authorized) {
+      showGateError(access?.error || "This account is not authorized to open MeowEdit.");
       return;
     }
 
     const actions: BridgeActions = {
-      publish: request => {
-        if (!canPublish()) {
-          window.alert("This account can use MeowEdit but is not authorized to publish game content.");
-          return;
-        }
-        openPublishDialog(request);
-      },
       signOut: () => {
         void auth.signOut().finally(() => {
           resetBridgeFetch();
@@ -127,66 +132,19 @@ if (!isBridgeConfigured(authUrl, apiUrl)) {
         });
       }
     };
-    // The server response is authoritative for identity; the cached session is only a fallback.
-    setBridgeState({ userId: access.userId || user.id, canPublish: access.canPublish === true, actions });
+    setBridgeState({
+      userId: access.userId || user.id,
+      canPublish: access.canPublish === true,
+      actions
+    });
     setBridgeFetch(async (path, init) => {
-      const token = await neonAuth.getJWTToken();
-      if (!token) throw new Error("Your sign-in expired. Sign out and sign in again.");
+      const freshToken = await neonAuth.getJWTToken();
+      if (!freshToken) throw new Error("Your sign-in expired. Sign out and sign in again.");
       return fetch(apiUrl + path, {
         ...init,
-        headers: { ...(init?.headers ?? {}), Authorization: "Bearer " + token }
+        headers: { ...(init?.headers ?? {}), Authorization: "Bearer " + freshToken }
       });
     });
-    await import("./main");
-  }
-
-  function openPublishDialog(request: BridgePublishRequest): void {
-    pendingPublishRequest = request;
-    let dialog = document.querySelector<HTMLDialogElement>("#bridge-publish-dialog");
-    if (!dialog) {
-      document.body.insertAdjacentHTML("beforeend",
-        '<dialog class="confirm-dialog bridge-publish-dialog" id="bridge-publish-dialog"><form id="bridge-publish-form">' +
-        '<span class="eyebrow">MeowEdit · Tactics Bridge</span><h2>Publish campaign revision</h2>' +
-        '<p class="bridge-copy">Upload an immutable package, then make it the latest revision for this campaign set. Existing runs remain pinned to their original package.</p>' +
-        '<label class="field"><span class="field-label">Campaign set ID</span><input name="campaignSetId" value="character-missions" pattern="[a-z0-9][a-z0-9._-]{0,63}" required></label>' +
-        '<p class="bridge-publish-status" role="status"></p>' +
-        '<div class="dialog-actions"><button type="button" class="button button-outline" data-bridge-close>Cancel</button>' +
-        '<button type="submit" class="button button-primary">Upload &amp; publish</button></div></form></dialog>');
-      dialog = document.querySelector<HTMLDialogElement>("#bridge-publish-dialog")!;
-      dialog.querySelector<HTMLButtonElement>("[data-bridge-close]")?.addEventListener("click", () => dialog?.close());
-      dialog.querySelector<HTMLFormElement>("#bridge-publish-form")?.addEventListener("submit", event => {
-        event.preventDefault();
-        if (pendingPublishRequest) void publish(dialog!, pendingPublishRequest);
-      });
-    }
-    const status = dialog.querySelector<HTMLElement>(".bridge-publish-status");
-    if (status) status.textContent = "";
-    dialog.showModal();
-  }
-
-  async function publish(dialog: HTMLDialogElement, request: BridgePublishRequest): Promise<void> {
-    const form = dialog.querySelector<HTMLFormElement>("#bridge-publish-form")!;
-    const submit = form.querySelector<HTMLButtonElement>("button[type=submit]")!;
-    const status = form.querySelector<HTMLElement>(".bridge-publish-status")!;
-    const campaignSetId = String(new FormData(form).get("campaignSetId") ?? "");
-    submit.disabled = true;
-    status.textContent = "Validating and uploading package…";
-    try {
-      const token = await neonAuth.getJWTToken();
-      if (!token) throw new Error("Your sign-in expired. Sign out and sign in again.");
-      const payload: BridgePackagePayload = await createBridgePackagePayload(campaignSetId, request.workspace, request.roster);
-      const uploaded = await uploadBridgePackage(fetch, apiUrl, token, payload);
-      if (uploaded.alreadyPublished) {
-        status.textContent = "This exact revision is already published: " + uploaded.packageId + ". No new revision was created.";
-        return;
-      }
-      status.textContent = "Package stored. Publishing revision…";
-      await publishBridgePackage(fetch, apiUrl, token, uploaded.packageId);
-      status.textContent = "Published " + uploaded.packageId + ". New game runs can download it; existing runs stay pinned.";
-    } catch (error) {
-      status.textContent = error instanceof Error ? error.message : "Publishing failed.";
-    } finally {
-      submit.disabled = false;
-    }
+    void import("./v2/app");
   }
 }
