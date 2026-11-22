@@ -16,7 +16,7 @@ The core authoring jobs are distinct: create a new thing without manual identifi
 ## Content sets
 
 1. Open the **Content sets** browser. Create a new set, rename one, or open an existing draft. Deletion is reserved for accounts with the administrator permission; the server remains authoritative.
-2. The guided path focuses on one or two fields per step for **new** sets; opening an existing set shows its overview, and **Advanced controls** expand the same page for detailed edits.
+2. New sets use a guided path with one or two fields per step. Existing sets show a list per category (campaigns, quests, armies, dialogues) with Add / Edit / Remove; adding is guided, and Edit opens only that entry's advanced fields in the same page.
 3. Drafts autosave in this browser and are uploaded explicitly with **Save / Upload**. **Publish** is a separate action that makes the revision public.
 4. Published sets from the game backend appear in **Your content sets** with a Published badge; there is no static example import and no separate examples list.
 

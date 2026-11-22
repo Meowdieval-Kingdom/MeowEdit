@@ -31,8 +31,11 @@ interface AppState {
   capabilities: GameCapabilities;
   sets: SetSummary[];
   view: "browser" | "wizard" | "set";
-  advanced: boolean;
   focus: DetailSection;
+  entry: { section: DetailSection; index: number } | null;
+  adding: boolean;
+  addName: string;
+  addId: string;
   setId: string;
   draft: ContentSetV2Document;
   draftVersion: number;
@@ -288,7 +291,8 @@ async function openSet(container: HTMLElement, state: AppState, setId: string): 
   state.draftVersion = version;
   state.publishedPackageId = published;
   state.contentKind = null;
-  state.advanced = false;
+  state.entry = null;
+  state.adding = false;
   state.focus = "campaigns";
   const existing = version > 0 || draft.campaigns.length > 0 || draft.quests.length > 0
     || draft.armies.length > 0 || draft.dialogues.length > 0;
@@ -424,7 +428,7 @@ function renderEditor(container: HTMLElement, state: AppState): void {
 
   container.querySelector<HTMLElement>("[data-advanced]")?.addEventListener("click", () => {
     state.view = "set";
-    state.advanced = true;
+    state.entry = null;
     renderSetView(container, state);
   });
   container.querySelector<HTMLElement>("[data-back-browser]")?.addEventListener("click", () => {
@@ -458,35 +462,73 @@ function renderEditor(container: HTMLElement, state: AppState): void {
   };
 }
 
+function entryLabel(draft: ContentSetV2Document, section: DetailSection, index: number): string {
+  if (section === "campaigns") return draft.campaigns[index]?.name.default || draft.campaigns[index]?.id || String(index);
+  if (section === "quests") return draft.quests[index]?.title.default || draft.quests[index]?.id || String(index);
+  if (section === "armies") return draft.armies[index]?.name.default || draft.armies[index]?.id || String(index);
+  return draft.dialogues[index]?.sequenceId || String(index);
+}
+
 function renderSetView(container: HTMLElement, state: AppState): void {
   const draft = state.draft;
   const focus = state.focus;
   const tabs = DETAIL_SECTIONS.map(section =>
-    '<button type="button" class="button ' + (focus === section ? "button-primary" : "button-outline") +
+    '<button type="button" class="button ' + (focus === section && !state.entry && !state.adding ? "button-primary" : "button-outline") +
     '" data-focus="' + section + '">' + section + " (" + detailItemCount(draft, section) + ")</button>").join("");
-  const advanced = state.advanced ? renderDetailSection({ draft, capabilities: state.capabilities }, focus) : "";
-  const validation = state.validation.valid
-    ? '<p class="step-copy">No contract issues.</p>'
-    : '<div class="validation-list"><ul>' + state.validation.issues.map(issue =>
-      "<li>" + escapeHtml(issue.path + ": " + issue.message) + "</li>").join("") + "</ul></div>";
-
-  container.innerHTML = '<main class="editor-shell"><div class="topbar"><div class="topbar-context">' +
+  const topbar = '<div class="topbar"><div class="topbar-context">' +
     '<span class="brand-mark">M</span><strong>MeowEdit</strong><span class="context-divider">/</span>' +
     '<span class="context-crumb">' + escapeHtml(state.setId) + "</span></div><div class=\"topbar-actions\">" +
-    '<button type="button" class="button button-outline" data-toggle-advanced>' +
-    (state.advanced ? "Compact view" : "Advanced controls") + "</button>" +
-    '<button type="button" class="button button-outline" data-save>Save / Upload</button>' +
-    '<button type="button" class="button button-primary" data-publish' +
-    (canPublish() && state.validation.valid ? "" : " disabled") + ">Publish</button>" +
     '<button type="button" class="text-button" data-back-browser>Sets</button>' +
-    '<button type="button" class="text-button" data-sign-out>Sign out</button></div></div>' +
-    '<div class="editor-main"><div class="editor-heading"><div><h1>' + escapeHtml(draft.set.name.default || state.setId) + "</h1>" +
+    '<button type="button" class="text-button" data-sign-out>Sign out</button></div></div>';
+  const heading = '<div class="editor-heading"><div><h1>' + escapeHtml(draft.set.name.default || state.setId) + "</h1>" +
     "<p>" + draft.campaigns.length + " campaigns · " + draft.quests.length + " quests · " +
-    draft.armies.length + " armies · " + draft.dialogues.length + " dialogues</p></div></div>" +
-    '<div class="guided-actions">' + tabs +
-    '<button type="button" class="button button-small" data-add="' + focus + '">+ Add ' + focus.slice(0, -1) + "</button></div>" +
-    '<section class="v2-validation"><h2>Validation</h2>' + validation + "</section>" +
-    (state.advanced ? '<section class="v2-details"><h2>' + focus + '</h2>' + advanced + "</section>" : "") +
+    draft.armies.length + " armies · " + draft.dialogues.length + " dialogues</p></div></div>";
+
+  let body: string;
+  if (state.adding) {
+    body = heading +
+      '<section class="guided-step"><h2>Add ' + focus.slice(0, -1) + "</h2>" +
+      '<p class="step-copy">Two fields to start. Everything else can be filled in later from the advanced view.</p>' +
+      '<div class="guided-fields">' +
+      '<label class="field"><span class="field-label">Name</span><input data-v2-add="name" value="' + escapeHtml(state.addName) + '"></label>' +
+      '<label class="field"><span class="field-label">ID (optional)</span><input data-v2-add="id" value="' + escapeHtml(state.addId) + '" placeholder="generated if empty"></label>' +
+      '<details class="guided-advanced"><summary>More options (not required)</summary><div class="form-grid">' +
+      '<p class="step-copy">Quests default to the first objective/reward kind; campaigns start with one floor. Adjust these in the advanced view.</p>' +
+      "</div></details></div>" +
+      '<div class="guided-actions"><button type="button" class="button button-outline" data-add-cancel>Cancel</button>' +
+      '<button type="button" class="button button-primary" data-add-create>Create ' + focus.slice(0, -1) + "</button></div></section>";
+  } else if (state.entry) {
+    const { section, index } = state.entry;
+    body = heading +
+      '<section class="v2-details"><h2>Edit ' + section.slice(0, -1) + ': ' + escapeHtml(entryLabel(draft, section, index)) + "</h2>" +
+      '<p class="step-copy">Changes save locally as you type. Return to the list to upload or publish.</p>' +
+      renderDetailSection({ draft, capabilities: state.capabilities }, section, index) +
+      '<div class="guided-actions"><button type="button" class="button button-outline" data-entry-back>← Back to list</button></div></section>';
+  } else {
+    const count = detailItemCount(draft, focus);
+    const rows = Array.from({ length: count }, (_, index) =>
+      '<div class="set-row"><div class="set-row-main"><strong>' + escapeHtml(entryLabel(draft, focus, index)) + "</strong>" +
+      "<small>" + escapeHtml(focus === "dialogues" ? draft.dialogues[index].sequenceId :
+        focus === "campaigns" ? draft.campaigns[index].id :
+          focus === "quests" ? draft.quests[index].id : draft.armies[index].id) + "</small></div>" +
+      '<button type="button" class="text-button" data-entry-edit="' + index + '">Edit</button>' +
+      '<button type="button" class="text-button danger-text" data-entry-remove="' + index + '">Remove</button></div>').join("");
+    const validation = state.validation.valid
+      ? '<p class="step-copy">No contract issues.</p>'
+      : '<div class="validation-list"><ul>' + state.validation.issues.map(issue =>
+        "<li>" + escapeHtml(issue.path + ": " + issue.message) + "</li>").join("") + "</ul></div>";
+    body = heading +
+      '<div class="guided-actions">' + tabs +
+      '<button type="button" class="button button-primary" data-add="' + focus + '">+ Add ' + focus.slice(0, -1) + "</button></div>" +
+      '<div class="set-list">' + (rows || '<div class="set-empty">No ' + focus + ' yet. Add one to get started.</div>') + "</div>" +
+      '<section class="v2-validation"><h2>Validation</h2>' + validation + "</section>" +
+      '<div class="guided-actions"><button type="button" class="button button-outline" data-save>Save / Upload</button>' +
+      '<button type="button" class="button button-primary" data-publish' +
+      (canPublish() && state.validation.valid ? "" : " disabled") + ">Publish</button></div>";
+  }
+
+  container.innerHTML = '<main class="editor-shell">' + topbar +
+    '<div class="editor-main">' + body +
     '<p class="guided-status" data-status>' + escapeHtml(state.status) + "</p></div></main>";
 
   container.querySelector<HTMLElement>("[data-back-browser]")?.addEventListener("click", () => {
@@ -494,34 +536,77 @@ function renderSetView(container: HTMLElement, state: AppState): void {
     renderBrowser(container, state);
   });
   container.querySelector<HTMLElement>("[data-sign-out]")?.addEventListener("click", () => getBridgeActions()?.signOut());
-  container.querySelector<HTMLElement>("[data-toggle-advanced]")?.addEventListener("click", () => {
-    state.advanced = !state.advanced;
-    renderSetView(container, state);
-  });
-  container.querySelector<HTMLElement>("[data-save]")?.addEventListener("click", () => { void saveDraft(container, state); });
-  container.querySelector<HTMLElement>("[data-publish]")?.addEventListener("click", () => { void publishDraft(container, state); });
   container.querySelectorAll<HTMLElement>("[data-focus]").forEach(button => button.addEventListener("click", () => {
     state.focus = button.dataset.focus as DetailSection;
+    state.entry = null;
+    state.adding = false;
     renderSetView(container, state);
   }));
-  container.querySelector<HTMLElement>("[data-add]")?.addEventListener("click", () => {
-    addItem(state, state.focus);
+  container.querySelectorAll<HTMLElement>("[data-entry-edit]").forEach(button => button.addEventListener("click", () => {
+    state.entry = { section: focus, index: Number(button.dataset.entryEdit) };
+    renderSetView(container, state);
+  }));
+  container.querySelectorAll<HTMLElement>("[data-entry-remove]").forEach(button => button.addEventListener("click", () => {
+    const index = Number(button.dataset.entryRemove);
+    if (!window.confirm("Remove this " + focus.slice(0, -1) + "?")) return;
+    removeEntry(state, focus, index);
+    renderSetView(container, state);
+  }));
+  container.querySelector<HTMLElement>("[data-entry-back]")?.addEventListener("click", () => {
+    state.entry = null;
     renderSetView(container, state);
   });
+  container.querySelector<HTMLElement>("[data-add]")?.addEventListener("click", () => {
+    state.adding = true;
+    state.addName = "";
+    state.addId = "";
+    renderSetView(container, state);
+  });
+  container.querySelector<HTMLElement>("[data-add-cancel]")?.addEventListener("click", () => {
+    state.adding = false;
+    renderSetView(container, state);
+  });
+  container.querySelector<HTMLElement>("[data-add-create]")?.addEventListener("click", () => {
+    addItem(state, focus, state.addName || undefined, state.addId || undefined);
+    state.adding = false;
+    renderSetView(container, state);
+  });
+  container.querySelectorAll<HTMLInputElement>("[data-v2-add]").forEach(input => input.addEventListener("input", () => {
+    if (input.dataset.v2Add === "name") state.addName = input.value;
+    else state.addId = input.value;
+  }));
+  container.querySelector<HTMLElement>("[data-save]")?.addEventListener("click", () => { void saveDraft(container, state); });
+  container.querySelector<HTMLElement>("[data-publish]")?.addEventListener("click", () => { void publishDraft(container, state); });
   wireDetailActions(container, state);
-  container.onchange = event => applyChange(state, event);
+  container.onchange = event => {
+    applyChange(state, event);
+    flashStatus(container, state);
+  };
 }
 
-function addItem(state: AppState, section: DetailSection): void {
-  const capabilities = state.capabilities;
+function removeEntry(state: AppState, section: DetailSection, index: number): void {
   if (section === "campaigns") {
-    const id = "campaign-" + (state.draft.campaigns.length + 1);
-    state.draft.campaigns.push(newCampaign(id, id, capabilities));
-    state.draft.set.campaignOrder.push(id);
+    const removed = state.draft.campaigns.splice(index, 1)[0];
+    state.draft.set.campaignOrder = state.draft.set.campaignOrder.filter(id => id !== removed.id);
+  } else if (section === "quests") state.draft.quests.splice(index, 1);
+  else if (section === "armies") state.draft.armies.splice(index, 1);
+  else state.draft.dialogues.splice(index, 1);
+  state.validation = validateContentSet(state.draft, state.capabilities);
+  persistLocal(state);
+}
+
+function addItem(state: AppState, section: DetailSection, name?: string, requestedId?: string): void {
+  const capabilities = state.capabilities;
+  const generated = (prefix: string) => prefix + "-" + (state.draft[section]?.length ?? 0) + 1;
+  if (section === "campaigns") {
+    const id = requestedId || generated("campaign");
+    const campaign = newCampaign(id, name || id, capabilities);
+    state.draft.campaigns.push(campaign);
+    state.draft.set.campaignOrder.push(campaign.id);
   } else if (section === "quests") {
-    const id = "quest-" + (state.draft.quests.length + 1);
+    const id = requestedId || generated("quest");
     state.draft.quests.push({
-      schemaVersion: 2, id, title: localized(id), description: localized(""),
+      schemaVersion: 2, id, title: localized(name || id), description: localized(""),
       objectiveKind: capabilities.enums.objectiveKind[0], rewardKind: capabilities.enums.rewardKind[0], rewardAmount: 0,
       meowEdit: {
         schemaVersion: 2, dialogueLinks: { offer: [], active: [], completion: [], failure: [] }, logicKind: "none",
@@ -537,13 +622,13 @@ function addItem(state: AppState, section: DetailSection): void {
       }
     });
   } else if (section === "armies") {
-    const id = "army-" + (state.draft.armies.length + 1);
-    state.draft.armies.push({ schemaVersion: 2, id, name: localized(id), units: [], spellIds: [], blessingIds: [], CellBlessingPicks: [] });
+    const id = requestedId || generated("army");
+    state.draft.armies.push({ schemaVersion: 2, id, name: localized(name || id), units: [], spellIds: [], blessingIds: [], CellBlessingPicks: [] });
   } else {
-    const id = "dialogue-" + (state.draft.dialogues.length + 1);
+    const id = requestedId || generated("dialogue");
     state.draft.dialogues.push({
       schemaVersion: 2, sequenceId: id, startNodeId: "opening", pauseMode: "none", defaultCharactersPerSecond: 30,
-      nodes: [{ id: "opening", headline: localized("Opening"), textSpeed: 30, speakers: [], segments: [], actions: [] }]
+      nodes: [{ id: "opening", headline: localized(name || "Opening"), textSpeed: 30, speakers: [], segments: [], actions: [] }]
     });
   }
   state.validation = validateContentSet(state.draft, state.capabilities);
@@ -787,7 +872,8 @@ async function refreshSets(state: AppState): Promise<void> {
 export async function mountApp(container: HTMLElement): Promise<void> {
   const capabilities = await loadCapabilities();
   const state: AppState = {
-    capabilities, sets: [], view: "browser", advanced: false, focus: "campaigns",
+    capabilities, sets: [], view: "browser", focus: "campaigns", entry: null,
+    adding: false, addName: "", addId: "",
     setId: "", draft: emptyContentSet("", ""),
     draftVersion: 0, step: 0, contentKind: null, draftTitle: "", draftSecondary: "",
     status: "", validation: { valid: false, issues: [] }

@@ -36,11 +36,12 @@ function button(action: string, label: string, dataset = ""): string {
 }
 
 /** Inline advanced controls for one category. All actions are handled by the main app. */
-export function renderDetailSection(ctx: DetailContext, section: string): string {
+export function renderDetailSection(ctx: DetailContext, section: string, onlyIndex?: number): string {
   const draft = ctx.draft;
   const capabilities = ctx.capabilities;
+  const visible = <T>(items: T[]): T[] => onlyIndex === undefined ? items : items.filter((_, index) => index === onlyIndex);
   if (section === "campaigns") {
-    return draft.campaigns.map((campaign, index) => {
+    return visible(draft.campaigns).map((campaign, index) => {
       const base = `campaigns[${index}]`;
       return '<div class="card"><h3>' + escapeHtml(campaign.name.default || campaign.id) + "</h3><div class=\"form-grid two\">" +
         text("id", base + ".id", campaign.id) + text("name", base + ".name.default", campaign.name.default) +
@@ -110,7 +111,7 @@ export function renderDetailSection(ctx: DetailContext, section: string): string
   }
 
   if (section === "quests") {
-    return draft.quests.map((quest, index) => {
+    return visible(draft.quests).map((quest, index) => {
       const base = `quests[${index}]`;
       const ext = base + ".meowEdit";
       return '<div class="card"><h3>' + escapeHtml(quest.title.default || quest.id) + "</h3><div class=\"form-grid two\">" +
@@ -166,7 +167,7 @@ export function renderDetailSection(ctx: DetailContext, section: string): string
   }
 
   if (section === "armies") {
-    return draft.armies.map((army, index) => {
+    return visible(draft.armies).map((army, index) => {
       const base = `armies[${index}]`;
       return '<div class="card"><h3>' + escapeHtml(army.name.default || army.id) + "</h3><div class=\"form-grid two\">" +
         text("id", base + ".id", army.id) + text("name", base + ".name.default", army.name.default) +
@@ -190,7 +191,7 @@ export function renderDetailSection(ctx: DetailContext, section: string): string
   }
 
   if (section === "dialogues") {
-    return draft.dialogues.map((dialogue, dialogueIndex) => {
+    return visible(draft.dialogues).map((dialogue, dialogueIndex) => {
       const base = `dialogues[${dialogueIndex}]`;
       return '<div class="card"><h3>' + escapeHtml(dialogue.sequenceId) + "</h3><div class=\"form-grid two\">" +
         text("sequenceId", base + ".sequenceId", dialogue.sequenceId) +
