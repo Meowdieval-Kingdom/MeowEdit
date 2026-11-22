@@ -1,18 +1,18 @@
 # MeowEdit
 
-A lightweight, browser-only authoring studio for Meowdieval dialogues, quests, reusable army configurations, and Adventure campaigns.
+The browser authoring studio for Meowdieval content sets: campaigns, quests, armies and dialogues in one structured v2 document.
 
-> **Contract notice:** the v1 format and manual/ZIP + save-pinning handoff described in `docs/content-format.md` and `docs/game-integration-handoff.md` are superseded. The single source of truth for the v2 structured-record contract is `C:\Users\ekkii\Projects\MeowdievalKingdom\Docs\WIP\MeowEdit-Content-Contract-V2.md`. Local browser autosave stays; upload/publish to Neon is an explicit author action.
+> **Contract:** the single source of truth is `C:\Users\ekkii\Projects\MeowdievalKingdom\Docs\WIP\MeowEdit-Content-Contract-V2.md`. The v1 local-only editor, ZIP workflow and "Import examples" flow have been removed. Sign-in is required, drafts autosave locally, uploading a draft and publishing a revision are separate explicit actions.
 
 ## Run locally
 
 Install dependencies with `npm install`, start the editor with `npm run dev`, and create a production build with `npm run build`.
 
-Run the automated suite with `npm test`; use `npm run test:coverage` for the HTML and terminal coverage reports. The jsdom suite covers editor rendering, graph operations, import/export, validation, and a browser interaction flow for army replacement and per-unit spells. Coverage gates apply to the modular source files; the side-effectful `src/main.ts` bootstrap is exercised through integration tests and kept outside the line-coverage denominator. See [docs/testing.md](docs/testing.md).
+Run the automated suite with `npm test`; use `npm run test:coverage` for the HTML and terminal coverage reports. `npm run contract:check` verifies the authority hash, the strict JSON Schemas, hand-authored fixtures, and JSON Schema/zod agreement. The jsdom suite covers the sign-in gate, the set browser, guided authoring and the v2 validators. See [docs/testing.md](docs/testing.md).
 
-The app is static HTML, CSS, and TypeScript; the MeowEdit–Tactics Bridge uses Neon Auth for sign-in and the game backend for publishing. No database credentials or publisher secrets are included in the browser build. Drafts autosave in the signed-in user's browser. Authors can export JSON/ZIP or, when server-authorized, explicitly publish a campaign package.
+The app is static HTML, CSS and TypeScript. Neon Auth handles sign-in; the game backend stores version-guarded drafts and published revisions. No credentials or publisher secrets are in the browser build. The set browser lists your backend sets with Local only / Draft vN / Published badges. **Save / Upload** creates or updates a private draft; **Publish** makes it the latest public revision for the set and warns that tester progress resets. A **Detailed editor** is available for gameplay-affecting nested fields.
 
-For local use, copy `.env.example` to `.env.local` (ignored by Git) and set `VITE_NEON_AUTH_BASE_URL` and `VITE_GAME_API_BASE_URL`. Neon Auth accounts must be provisioned by an administrator; the editor intentionally has no public sign-up. A valid authenticated account can author, while upload/publish additionally requires a server-side publisher allowlist entry. Drafts saved before sign-in are copied into the account's store on first load; the original local draft is kept as a backup.
+For local use, copy `.env.example` to `.env.local` (ignored by Git) and set `VITE_NEON_AUTH_BASE_URL` and `VITE_GAME_API_BASE_URL`. Neon Auth accounts must be provisioned by an administrator; there is no public sign-up. A valid account can author; uploading and publishing additionally require a server-side publisher allowlist entry.
 
 ## Demo and local artwork
 
@@ -24,17 +24,12 @@ To refresh demo copies after changing local originals, put them under `.local-as
 
 ## Editor scope
 
-- Dialogue sequences with connected nodes, branches, left/right speakers, speaker-attributed lines, and an in-game-style preview.
-- Quest authoring for Escort, Fetch, Battle, Clear Floor, Timer, and Kill Count objectives, including multi-item Fetch and ordered Battle targets.
-- An Army library with game-sized floor grids, unit level selection, spells, blessings, and reusable army IDs for battle targets.
-- A Campaign editor for hand-placed, random, and mixed Adventure floors; integer map-coordinate snapping; connected node routes; per-node quest, army, faction, and reward assignments; and campaign run settings.
-- Campaign events for campaign start, battle timing, or cleared nodes, with a `replace-player-army` action linked to an Army Editor configuration.
-- MeowEdit extensions for multiple fetch items, KillCount objectives, minimum node distances, quest-to-dialogue links, timer-project logic, and dialogue decisions.
-- Guided and advanced editing modes, import, JSON export, and ZIP package export.
+- **Content sets** are the unit of authoring and publishing: one set contains one or more campaigns plus shared quests, armies and dialogues.
+- A **guided path** focuses on one or two fields per step (set details → campaign → board character → content → review); optional fields live in folded, dimmed "More options" areas.
+- A **Detailed editor** exposes the full structured fields, including registry-driven events (triggers, conditions, actions and parameters), quest timer/effects, army cell-blessing picks, floor nodes/routes and dialogue decisions.
+- The capability manifest (`public/game-capabilities.json`) drives pickers, strict validation and enum whitelists; `npm run snapshot-game-capabilities` regenerates it from the game checkout.
 
-New workspaces start empty. Selecting **Import examples** adds representative dialogues, every supported quest objective, a reusable Army, and a three-floor campaign that demonstrates authored, random, and mixed maps, rewards, shop stock, saved dialogue decisions, and quest completion effects. The bridge repair is an example Timer quest, not an unfinished draft.
-
-Meowdieval Kingdom can load manually installed or Bridge-published version 1 packages containing quests, dialogue sequences, reusable armies, and campaigns. It validates game catalog references and campaign structure before offering a campaign; a package with invalid or unsupported content is excluded as a whole. A started run remains pinned to the package revision and content hash it began with, while new runs use the latest published revision. The game downloads published package revisions into a local cache through a public read-only API; it has no client upload credentials. See [content format](docs/content-format.md) and [game integration handoff](docs/game-integration-handoff.md) for the package contract and runtime boundary.
+Meowdieval Kingdom reads published revisions through a public, read-only catalog and caches them locally. New runs use the latest published revision of each set; a started run stays pinned to its package ID and content hash. Bundled v1 packages still require manual `PackageIndex.json` registration in the Unity project; published v2 sets do not.
 
 ## GitHub Pages
 
