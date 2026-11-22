@@ -10,7 +10,7 @@ Install dependencies with `npm install`, start the editor with `npm run dev`, an
 
 Run the automated suite with `npm test`; use `npm run test:coverage` for the HTML and terminal coverage reports. `npm run contract:check` verifies the authority hash, the strict JSON Schemas, hand-authored fixtures, and JSON Schema/zod agreement. The jsdom suite covers the sign-in gate, the set browser, guided authoring and the v2 validators. See [docs/testing.md](docs/testing.md).
 
-The app is static HTML, CSS and TypeScript. Neon Auth handles sign-in; the game backend stores version-guarded drafts and published revisions. No credentials or publisher secrets are in the browser build. The set browser lists your backend sets with Local only / Draft vN / Published badges. **Save / Upload** creates or updates a private draft; **Publish** makes it the latest public revision for the set and warns that tester progress resets. A **Detailed editor** is available for gameplay-affecting nested fields.
+The app is static HTML, CSS and TypeScript. Neon Auth handles sign-in; the game backend stores version-guarded drafts and published revisions. No credentials or publisher secrets are in the browser build. The set browser lists your backend sets with Local only / Draft vN / Published badges. **Save / Upload** creates or updates a private draft; **Publish** makes it the latest public revision for the set and warns that tester progress resets. **Advanced controls** in the set view expose gameplay-affecting nested fields without leaving the page.
 
 For local use, copy `.env.example` to `.env.local` (ignored by Git) and set `VITE_NEON_AUTH_BASE_URL` and `VITE_GAME_API_BASE_URL`. Neon Auth accounts must be provisioned by an administrator; there is no public sign-up. A valid account can author; uploading and publishing additionally require a server-side publisher allowlist entry.
 
@@ -26,7 +26,7 @@ To refresh demo copies after changing local originals, put them under `.local-as
 
 - **Content sets** are the unit of authoring and publishing: one set contains one or more campaigns plus shared quests, armies and dialogues.
 - A **guided path** focuses on one or two fields per step (set details → campaign → board character → content → review); optional fields live in folded, dimmed "More options" areas.
-- A **Detailed editor** exposes the full structured fields, including registry-driven events (triggers, conditions, actions and parameters), quest timer/effects, army cell-blessing picks, floor nodes/routes and dialogue decisions.
+- **Advanced controls** in the set view expose the full structured fields, including registry-driven events (triggers, conditions, actions and parameters), quest timer/effects, army cell-blessing picks, floor nodes/routes and dialogue decisions.
 - The capability manifest (`public/game-capabilities.json`) drives pickers, strict validation and enum whitelists; `npm run snapshot-game-capabilities` regenerates it from the game checkout.
 
 Meowdieval Kingdom reads published revisions through a public, read-only catalog and caches them locally. New runs use the latest published revision of each set; a started run stays pinned to its package ID and content hash. Bundled v1 packages still require manual `PackageIndex.json` registration in the Unity project; published v2 sets do not.

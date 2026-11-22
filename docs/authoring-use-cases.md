@@ -13,12 +13,12 @@ This document describes end-to-end authoring tasks across the Dialogue, Quest, A
 
 The core authoring jobs are distinct: create a new thing without manual identifiers, continue an existing draft, make a narrow edit without stepping through a wizard, build related content without losing the parent context, check the result, and export it for the game or another teammate.
 
-## Content sets and examples
+## Content sets
 
 1. Open the **Content sets** browser. Create a new set, rename one, or open an existing draft. Deletion is reserved for accounts with the administrator permission; the server remains authoritative.
-2. The guided path focuses on one or two fields per step; the **Detailed editor** exposes the full structured content when needed.
+2. The guided path focuses on one or two fields per step for **new** sets; opening an existing set shows its overview, and **Advanced controls** expand the same page for detailed edits.
 3. Drafts autosave in this browser and are uploaded explicitly with **Save / Upload**. **Publish** is a separate action that makes the revision public.
-4. Published sets from the game backend appear under **Live examples** and can be inspected there; there is no static example import.
+4. Published sets from the game backend appear in **Your content sets** with a Published badge; there is no static example import and no separate examples list.
 
 ## Dialogue: write and branch a conversation
 

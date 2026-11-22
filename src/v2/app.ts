@@ -5,12 +5,12 @@ import {
 import {
   createSetRequest, isDraftConflict, publishRequest, saveDraftRequest
 } from "./endpoints";
-import { mountV2Editor } from "./editor";
+import { DETAIL_SECTIONS, detailItemCount, renderDetailSection, type DetailSection } from "./details";
 import { emptyContentSet, localized, namedRef } from "./factory";
 import { escapeHtml } from "./html";
 import { packContentSet } from "./packer";
-import { ACTIONS, TRIGGERS } from "./registries";
-import type { ContentSetV2Document, GameCapabilities } from "./types";
+import { ACTIONS, CONDITIONS, TRIGGERS } from "./registries";
+import type { CampaignEvent, ContentSetV2Document, GameCapabilities } from "./types";
 import { validateContentSet, type ValidationResult } from "./validation";
 
 interface SetSummary {
@@ -27,18 +27,12 @@ interface LocalRecord {
   publishedPackageId?: string;
 }
 
-interface PublishedExample {
-  setId: string;
-  packageId: string;
-  contentHash: string;
-  publishedAt?: string;
-}
-
 interface AppState {
   capabilities: GameCapabilities;
   sets: SetSummary[];
-  examples: PublishedExample[];
-  view: "browser" | "editor" | "advanced";
+  view: "browser" | "wizard" | "set";
+  advanced: boolean;
+  focus: DetailSection;
   setId: string;
   draft: ContentSetV2Document;
   draftVersion: number;
@@ -167,13 +161,6 @@ function renderBrowser(container: HTMLElement, state: AppState): void {
     '<button type="button" class="button button-outline" data-open="' + escapeHtml(summary.setId) + '">Open</button></div>'
   ).join("") : '<div class="set-empty">No content sets yet. Create one to start authoring.</div>';
 
-  const exampleRows = state.examples.length ? state.examples.map(example =>
-    '<div class="set-row"><div class="set-row-main"><strong>' + escapeHtml(example.setId) + "</strong>" +
-    "<small>" + escapeHtml(example.packageId) + " · " + escapeHtml(example.publishedAt ?? "") + "</small></div>" +
-    '<span class="set-badge published">Live</span>' +
-    '<button type="button" class="button button-outline" data-view-example="' + escapeHtml(example.packageId) + '">View</button></div>'
-  ).join("") : '<div class="set-empty">No published content is available yet.</div>';
-
   container.innerHTML = '<main class="editor-shell"><div class="topbar"><div class="topbar-context">' +
     '<span class="brand-mark">M</span><strong>MeowEdit</strong><span class="context-divider">/</span>' +
     '<span class="context-crumb">CONTENT SETS</span></div><div class="topbar-actions">' +
@@ -182,9 +169,6 @@ function renderBrowser(container: HTMLElement, state: AppState): void {
     "<p>Create, rename, open and publish sets. Drafts stay private until you publish.</p></div>" +
     '<button type="button" class="button button-primary" data-new-set>+ New set</button></div>' +
     '<div class="set-list">' + rows + "</div>" +
-    '<div class="editor-heading"><div><h2>Live examples</h2>' +
-    "<p>Published sets from the game backend, ready to inspect.</p></div></div>" +
-    '<div class="set-list">' + exampleRows + "</div>" +
     '<p class="guided-status" data-status>' + escapeHtml(state.status) + "</p></div></main>";
 
   container.querySelector<HTMLElement>("[data-sign-out]")?.addEventListener("click", () => getBridgeActions()?.signOut());
@@ -198,7 +182,7 @@ function renderBrowser(container: HTMLElement, state: AppState): void {
     state.publishedPackageId = undefined;
     state.step = 0;
     state.contentKind = null;
-    state.view = "editor";
+    state.view = "wizard";
     renderEditor(container, state);
   });
   container.querySelectorAll<HTMLElement>("[data-open]").forEach(button => button.addEventListener("click", () => {
@@ -209,9 +193,6 @@ function renderBrowser(container: HTMLElement, state: AppState): void {
   }));
   container.querySelectorAll<HTMLElement>("[data-delete]").forEach(button => button.addEventListener("click", () => {
     void deleteSet(container, state, button.dataset.delete!);
-  }));
-  container.querySelectorAll<HTMLElement>("[data-view-example]").forEach(button => button.addEventListener("click", () => {
-    void viewExample(container, state, button.dataset.viewExample!);
   }));
 }
 
@@ -279,20 +260,6 @@ async function deleteSet(container: HTMLElement, state: AppState, setId: string)
   renderBrowser(container, state);
 }
 
-async function viewExample(container: HTMLElement, state: AppState, packageId: string): Promise<void> {
-  try {
-    const detail = await requestJson<{ files: Array<{ path: string; content: string }> }>(
-      "/v1/content/campaigns/" + encodeURIComponent(packageId));
-    const campaignsFile = detail.files.find(file => file.path === "campaigns/Campaigns.json");
-    const campaigns = campaignsFile ? JSON.parse(campaignsFile.content) as { campaigns: Array<{ name?: { default?: string }; id: string }> } : null;
-    const names = campaigns?.campaigns.map(item => item.name?.default || item.id).join(", ") || "No campaigns in this revision";
-    window.alert("Published set " + packageId + "\nCampaigns: " + names);
-  } catch (error) {
-    state.status = error instanceof Error ? error.message : "The published example could not be loaded.";
-    flashStatus(container, state);
-  }
-}
-
 async function openSet(container: HTMLElement, state: AppState, setId: string): Promise<void> {
   const records = storage();
   const local = records[setId];
@@ -320,11 +287,15 @@ async function openSet(container: HTMLElement, state: AppState, setId: string): 
   state.draft.set.setId = setId;
   state.draftVersion = version;
   state.publishedPackageId = published;
-  state.step = version > 0 ? 2 : 0;
   state.contentKind = null;
-  state.view = "editor";
+  state.advanced = false;
+  state.focus = "campaigns";
+  const existing = version > 0 || draft.campaigns.length > 0 || draft.quests.length > 0
+    || draft.armies.length > 0 || draft.dialogues.length > 0;
+  state.view = existing ? "set" : "wizard";
   state.validation = validateContentSet(state.draft, state.capabilities);
-  renderEditor(container, state);
+  if (state.view === "set") renderSetView(container, state);
+  else renderEditor(container, state);
 }
 
 function addContent(state: AppState): void {
@@ -436,7 +407,7 @@ function renderEditor(container: HTMLElement, state: AppState): void {
     '<span class="brand-mark">M</span><strong>MeowEdit</strong><span class="context-divider">/</span>' +
     '<span class="context-crumb">' + escapeHtml(state.setId || "NEW SET") + "</span></div>" +
     '<div class="topbar-actions">' + statusBadge +
-    '<button type="button" class="text-button" data-advanced>Detailed editor</button>' +
+    '<button type="button" class="text-button" data-advanced>Advanced controls</button>' +
     '<button type="button" class="text-button" data-back-browser>Sets</button>' +
     '<button type="button" class="text-button" data-sign-out>Sign out</button></div></div>' +
     '<div class="editor-main"><div class="editor-heading"><div><h1>' + escapeHtml(STEP_TITLES[step]) + "</h1>" +
@@ -452,8 +423,9 @@ function renderEditor(container: HTMLElement, state: AppState): void {
     "</div></section></div></div></main>";
 
   container.querySelector<HTMLElement>("[data-advanced]")?.addEventListener("click", () => {
-    state.view = "advanced";
-    renderAdvanced(container, state);
+    state.view = "set";
+    state.advanced = true;
+    renderSetView(container, state);
   });
   container.querySelector<HTMLElement>("[data-back-browser]")?.addEventListener("click", () => {
     state.view = "browser";
@@ -481,46 +453,239 @@ function renderEditor(container: HTMLElement, state: AppState): void {
   container.querySelector<HTMLElement>("[data-save]")?.addEventListener("click", () => { void saveDraft(container, state); });
   container.querySelector<HTMLElement>("[data-publish]")?.addEventListener("click", () => { void publishDraft(container, state); });
   container.onchange = event => {
-    const element = event.target as HTMLInputElement | HTMLSelectElement;
-    const bind = element.dataset.v2Bind;
-    if (!bind) return;
-    if (bind === "draftTitle") state.draftTitle = element.value;
-    else if (bind === "draftSecondary") state.draftSecondary = element.value;
-    else setByPath(state.draft, bind, element.value);
-    if (bind === "campaigns[0].id" && state.draft.campaigns[0]) {
-      state.draft.set.campaignOrder = [state.draft.campaigns[0].id];
-    }
-    state.validation = validateContentSet(state.draft, state.capabilities);
-    persistLocal(state);
+    applyChange(state, event);
     flashStatus(container, state);
   };
 }
 
-function renderAdvanced(container: HTMLElement, state: AppState): void {
-  container.innerHTML = '<main class="editor-shell"><div id="advanced-host"></div></main>';
-  const host = container.querySelector<HTMLElement>("#advanced-host")!;
-  void mountV2Editor(host,
-    () => {
-      state.view = "editor";
-      state.validation = validateContentSet(state.draft, state.capabilities);
-      renderEditor(container, state);
-    },
-    {
-      draft: state.draft,
-      draftVersion: state.draftVersion,
-      publishedPackageId: state.publishedPackageId,
-      capabilities: state.capabilities
-    },
-    draftVersion => {
-      state.draftVersion = draftVersion;
-      persistLocal(state);
-      void refreshSets(state);
-    },
-    packageId => {
-      state.publishedPackageId = packageId;
-      persistLocal(state);
-      void refreshSets(state);
+function renderSetView(container: HTMLElement, state: AppState): void {
+  const draft = state.draft;
+  const focus = state.focus;
+  const tabs = DETAIL_SECTIONS.map(section =>
+    '<button type="button" class="button ' + (focus === section ? "button-primary" : "button-outline") +
+    '" data-focus="' + section + '">' + section + " (" + detailItemCount(draft, section) + ")</button>").join("");
+  const advanced = state.advanced ? renderDetailSection({ draft, capabilities: state.capabilities }, focus) : "";
+  const validation = state.validation.valid
+    ? '<p class="step-copy">No contract issues.</p>'
+    : '<div class="validation-list"><ul>' + state.validation.issues.map(issue =>
+      "<li>" + escapeHtml(issue.path + ": " + issue.message) + "</li>").join("") + "</ul></div>";
+
+  container.innerHTML = '<main class="editor-shell"><div class="topbar"><div class="topbar-context">' +
+    '<span class="brand-mark">M</span><strong>MeowEdit</strong><span class="context-divider">/</span>' +
+    '<span class="context-crumb">' + escapeHtml(state.setId) + "</span></div><div class=\"topbar-actions\">" +
+    '<button type="button" class="button button-outline" data-toggle-advanced>' +
+    (state.advanced ? "Compact view" : "Advanced controls") + "</button>" +
+    '<button type="button" class="button button-outline" data-save>Save / Upload</button>' +
+    '<button type="button" class="button button-primary" data-publish' +
+    (canPublish() && state.validation.valid ? "" : " disabled") + ">Publish</button>" +
+    '<button type="button" class="text-button" data-back-browser>Sets</button>' +
+    '<button type="button" class="text-button" data-sign-out>Sign out</button></div></div>' +
+    '<div class="editor-main"><div class="editor-heading"><div><h1>' + escapeHtml(draft.set.name.default || state.setId) + "</h1>" +
+    "<p>" + draft.campaigns.length + " campaigns · " + draft.quests.length + " quests · " +
+    draft.armies.length + " armies · " + draft.dialogues.length + " dialogues</p></div></div>" +
+    '<div class="guided-actions">' + tabs +
+    '<button type="button" class="button button-small" data-add="' + focus + '">+ Add ' + focus.slice(0, -1) + "</button></div>" +
+    '<section class="v2-validation"><h2>Validation</h2>' + validation + "</section>" +
+    (state.advanced ? '<section class="v2-details"><h2>' + focus + '</h2>' + advanced + "</section>" : "") +
+    '<p class="guided-status" data-status>' + escapeHtml(state.status) + "</p></div></main>";
+
+  container.querySelector<HTMLElement>("[data-back-browser]")?.addEventListener("click", () => {
+    state.view = "browser";
+    renderBrowser(container, state);
+  });
+  container.querySelector<HTMLElement>("[data-sign-out]")?.addEventListener("click", () => getBridgeActions()?.signOut());
+  container.querySelector<HTMLElement>("[data-toggle-advanced]")?.addEventListener("click", () => {
+    state.advanced = !state.advanced;
+    renderSetView(container, state);
+  });
+  container.querySelector<HTMLElement>("[data-save]")?.addEventListener("click", () => { void saveDraft(container, state); });
+  container.querySelector<HTMLElement>("[data-publish]")?.addEventListener("click", () => { void publishDraft(container, state); });
+  container.querySelectorAll<HTMLElement>("[data-focus]").forEach(button => button.addEventListener("click", () => {
+    state.focus = button.dataset.focus as DetailSection;
+    renderSetView(container, state);
+  }));
+  container.querySelector<HTMLElement>("[data-add]")?.addEventListener("click", () => {
+    addItem(state, state.focus);
+    renderSetView(container, state);
+  });
+  wireDetailActions(container, state);
+  container.onchange = event => applyChange(state, event);
+}
+
+function addItem(state: AppState, section: DetailSection): void {
+  const capabilities = state.capabilities;
+  if (section === "campaigns") {
+    const id = "campaign-" + (state.draft.campaigns.length + 1);
+    state.draft.campaigns.push(newCampaign(id, id, capabilities));
+    state.draft.set.campaignOrder.push(id);
+  } else if (section === "quests") {
+    const id = "quest-" + (state.draft.quests.length + 1);
+    state.draft.quests.push({
+      schemaVersion: 2, id, title: localized(id), description: localized(""),
+      objectiveKind: capabilities.enums.objectiveKind[0], rewardKind: capabilities.enums.rewardKind[0], rewardAmount: 0,
+      meowEdit: {
+        schemaVersion: 2, dialogueLinks: { offer: [], active: [], completion: [], failure: [] }, logicKind: "none",
+        timer: {
+          decisionId: namedRef("decision-" + id), payOutcomeId: namedRef("outcome-" + id),
+          waitOutcomeId: namedRef("outcome-" + id), counterId: namedRef("counter-" + id),
+          counterTarget: 1, counterLabel: localized("Battles"), countEvent: "battle-won",
+          paymentResource: "sardines", paymentAmount: 0, paymentCompletesImmediately: false, completionEffects: []
+        },
+        completionEffects: [], fetchItems: [], battleTargets: [],
+        killCount: { targetKind: "unit", targetId: namedRef(capabilities.ids.units[0] ?? "unit"), count: 1 },
+        minimumNodeDistances: []
+      }
     });
+  } else if (section === "armies") {
+    const id = "army-" + (state.draft.armies.length + 1);
+    state.draft.armies.push({ schemaVersion: 2, id, name: localized(id), units: [], spellIds: [], blessingIds: [], CellBlessingPicks: [] });
+  } else {
+    const id = "dialogue-" + (state.draft.dialogues.length + 1);
+    state.draft.dialogues.push({
+      schemaVersion: 2, sequenceId: id, startNodeId: "opening", pauseMode: "none", defaultCharactersPerSecond: 30,
+      nodes: [{ id: "opening", headline: localized("Opening"), textSpeed: 30, speakers: [], segments: [], actions: [] }]
+    });
+  }
+  state.validation = validateContentSet(state.draft, state.capabilities);
+  persistLocal(state);
+}
+
+function wireDetailActions(container: HTMLElement, state: AppState): void {
+  container.querySelectorAll<HTMLElement>("[data-detail-action]").forEach(button => button.addEventListener("click", () => {
+    const action = button.dataset.detailAction!;
+    const index = Number(button.dataset.index ?? 0);
+    const campaignIndex = Number(button.dataset.campaign ?? 0);
+    const floorIndex = Number(button.dataset.floor ?? 0);
+    const nodeIndex = Number(button.dataset.node ?? 0);
+    const eventIndex = Number(button.dataset.event ?? 0);
+    const questIndex = Number(button.dataset.quest ?? 0);
+    const armyIndex = Number(button.dataset.army ?? 0);
+    const dialogueIndex = Number(button.dataset.dialogue ?? 0);
+    const campaign = state.draft.campaigns[campaignIndex];
+    const floor = campaign?.floors[floorIndex];
+    const node = floor?.nodes[nodeIndex];
+    const event = campaign?.events[eventIndex];
+    const quest = state.draft.quests[questIndex];
+    const army = state.draft.armies[armyIndex];
+    const dialogue = state.draft.dialogues[dialogueIndex];
+    const dialogueNode = dialogue?.nodes[nodeIndex];
+    const capabilities = state.capabilities;
+
+    if (action === "add-node" && floor) floor.nodes.push({
+      id: "node-" + (floor.nodes.length + 1), label: localized("Node"),
+      kind: capabilities.enums.nodeKind[1] ?? capabilities.enums.nodeKind[0], x: 0, y: 0,
+      armyId: namedRef("army"), questId: namedRef("quest"), enemyFactionId: namedRef(capabilities.ids.factions[0] ?? "faction"),
+      rewardKind: capabilities.enums.rewardKind[0], rewardAmount: 0,
+      rewardContentId: namedRef("reward"), shopOfferMode: "generated", shopOffers: []
+    });
+    else if (action === "remove-node" && floor) floor.nodes.splice(index, 1);
+    else if (action === "add-route" && floor) floor.routes.push({
+      id: "route-" + (floor.routes.length + 1),
+      fromNodeId: floor.nodes[0]?.id ?? "", toNodeId: floor.nodes.at(-1)?.id ?? "", oneWay: false
+    });
+    else if (action === "remove-route" && floor) floor.routes.splice(index, 1);
+    else if (action === "add-offer" && node) node.shopOffers.push({
+      kind: capabilities.enums.shopOfferKind[0], contentId: namedRef(capabilities.ids.units[0] ?? "unit"), price: 0
+    });
+    else if (action === "remove-offer" && node) node.shopOffers.splice(index, 1);
+    else if (action === "add-event" && campaign) campaign.events.push(emptyEvent());
+    else if (action === "remove-event" && campaign) campaign.events.splice(index, 1);
+    else if (action === "add-condition" && event) event.conditions.push({ key: CONDITIONS[0].kind, value: null });
+    else if (action === "remove-condition" && event) event.conditions.splice(index, 1);
+    else if (action === "add-action" && event) event.actions.push({
+      kind: ACTIONS[0].kind,
+      parameters: ACTIONS[0].parameters.map(parameter => ({
+        key: parameter.key,
+        value: parameter.type === "int" ? 1 : parameter.type === "NamedRef[]" ? []
+          : parameter.type === "NamedRef" ? namedRef(capabilities.ids.units[0] ?? "unit") : ""
+      }))
+    });
+    else if (action === "remove-action" && event) event.actions.splice(index, 1);
+    else if (action === "add-fetch-item" && quest) quest.meowEdit.fetchItems.push({ id: "item", displayName: localized("Item"), count: 1 });
+    else if (action === "remove-fetch-item" && quest) quest.meowEdit.fetchItems.splice(index, 1);
+    else if (action === "add-battle-target" && quest) quest.meowEdit.battleTargets.push({
+      id: "target", label: localized("Target"), nodeKind: capabilities.enums.nodeKind[1] ?? capabilities.enums.nodeKind[0],
+      floorOffset: 0, armyId: namedRef("army")
+    });
+    else if (action === "remove-battle-target" && quest) quest.meowEdit.battleTargets.splice(index, 1);
+    else if (action === "add-distance" && quest) quest.meowEdit.minimumNodeDistances.push({
+      id: "distance-" + (quest.meowEdit.minimumNodeDistances.length + 1),
+      fromNodeKind: capabilities.enums.nodeKind[0], toNodeKind: capabilities.enums.nodeKind[1] ?? capabilities.enums.nodeKind[0],
+      minimumHops: 1
+    });
+    else if (action === "remove-distance" && quest) quest.meowEdit.minimumNodeDistances.splice(index, 1);
+    else if (action === "add-effect" && quest) quest.meowEdit.completionEffects.push({
+      kind: "unlock", targetId: namedRef("target"), label: localized("Effect")
+    });
+    else if (action === "remove-effect" && quest) quest.meowEdit.completionEffects.splice(index, 1);
+    else if (action === "add-unit" && army) army.units.push({ unitId: namedRef(capabilities.ids.units[0] ?? "unit"), x: 0, y: 0, spellIds: [] });
+    else if (action === "remove-unit" && army) army.units.splice(index, 1);
+    else if (action === "add-cell-pick" && army) army.CellBlessingPicks.push({
+      RootId: namedRef(capabilities.ids.blessings[0] ?? "blessing"), Lane: "FrontRow", Cells: [], Locked: false, BaneCells: []
+    });
+    else if (action === "remove-cell-pick" && army) army.CellBlessingPicks.splice(index, 1);
+    else if (action === "add-dialogue-node" && dialogue) dialogue.nodes.push({
+      id: "node-" + (dialogue.nodes.length + 1), headline: localized("Node"), textSpeed: 30, speakers: [], segments: [], actions: []
+    });
+    else if (action === "remove-dialogue-node" && dialogue) dialogue.nodes.splice(index, 1);
+    else if (action === "add-speaker" && dialogueNode) dialogueNode.speakers.push({
+      id: "speaker-" + (dialogueNode.speakers.length + 1), unitId: namedRef(capabilities.ids.units[0] ?? "unit"),
+      displayName: localized("Speaker"), side: "right", mood: "Normal"
+    });
+    else if (action === "remove-speaker" && dialogueNode) dialogueNode.speakers.splice(index, 1);
+    else if (action === "add-segment" && dialogueNode) dialogueNode.segments.push({
+      speakerIds: dialogueNode.speakers.map(speaker => speaker.id), text: localized("Text")
+    });
+    else if (action === "remove-segment" && dialogueNode) dialogueNode.segments.splice(index, 1);
+    else if (action === "add-dialogue-action" && dialogueNode) dialogueNode.actions.push({
+      label: localized("Continue"), targetNodeId: dialogueNode.id,
+      meowEdit: { decision: { id: "decision", label: localized("Decision"), outcomeId: "outcome", outcomeLabel: localized("Outcome") }, defaultContinue: true }
+    });
+    else if (action === "remove-dialogue-action" && dialogueNode) dialogueNode.actions.splice(index, 1);
+    else return;
+    state.validation = validateContentSet(state.draft, state.capabilities);
+    persistLocal(state);
+    renderSetView(container, state);
+  }));
+}
+
+function applyChange(state: AppState, event: Event): void {
+  const element = event.target as HTMLInputElement | HTMLSelectElement;
+  const bind = element.dataset.v2Bind;
+  const list = element.dataset.v2List;
+  const refValue = element.dataset.v2Ref;
+  const bool = element.dataset.v2Bool;
+  const cells = element.dataset.v2Cells;
+  const baneCells = element.dataset.v2BaneCells;
+  const path = bind ?? list ?? refValue ?? bool ?? cells ?? baneCells;
+  if (!path) return;
+  let value: unknown = element.value;
+  if (element instanceof HTMLInputElement && element.type === "number") value = Number(element.value);
+  if (list) value = element.value.split(",").map(item => item.trim()).filter(Boolean).map(id => namedRef(id));
+  if (refValue) value = namedRef(element.value);
+  if (bool && element instanceof HTMLInputElement) value = element.checked;
+  if (cells || baneCells) value = element.value.split(";").map(item => item.trim()).filter(Boolean).map(item => {
+    const [x, y] = item.split(",").map(Number);
+    return { x: Number.isFinite(x) ? x : 0, y: Number.isFinite(y) ? y : 0 };
+  });
+  if (path === "draftTitle") state.draftTitle = element.value;
+  else if (path === "draftSecondary") state.draftSecondary = element.value;
+  else setByPath(state.draft, path, value);
+  if (path === "campaigns[0].id" && state.draft.campaigns[0]) state.draft.set.campaignOrder = [state.draft.campaigns[0].id];
+  state.validation = validateContentSet(state.draft, state.capabilities);
+  persistLocal(state);
+}
+
+function emptyEvent(): CampaignEvent {
+  return {
+    id: "event-" + Math.random().toString(36).slice(2, 8), trigger: TRIGGERS[0], conditions: [],
+    actions: [{ kind: ACTIONS[0].kind, parameters: ACTIONS[0].parameters.map(parameter => ({
+      key: parameter.key,
+      value: parameter.type === "int" ? 1 : parameter.type === "NamedRef[]" ? []
+        : parameter.type === "enum" ? parameter.values?.[0] ?? "" : ""
+    })) }],
+    oneShot: "per-run"
+  };
 }
 
 function setByPath(root: unknown, path: string, value: unknown): void {
@@ -622,16 +787,11 @@ async function refreshSets(state: AppState): Promise<void> {
 export async function mountApp(container: HTMLElement): Promise<void> {
   const capabilities = await loadCapabilities();
   const state: AppState = {
-    capabilities, sets: [], examples: [], view: "browser", setId: "", draft: emptyContentSet("", ""),
+    capabilities, sets: [], view: "browser", advanced: false, focus: "campaigns",
+    setId: "", draft: emptyContentSet("", ""),
     draftVersion: 0, step: 0, contentKind: null, draftTitle: "", draftSecondary: "",
     status: "", validation: { valid: false, issues: [] }
   };
   await refreshSets(state);
-  try {
-    const published = await requestJson<{ sets: PublishedExample[] }>("/v1/content/campaigns");
-    state.examples = published.sets;
-  } catch {
-    state.examples = [];
-  }
   renderBrowser(container, state);
 }
