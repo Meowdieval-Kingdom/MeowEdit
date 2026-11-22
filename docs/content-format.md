@@ -1,4 +1,10 @@
-# MeowEdit content format
+# MeowEdit content format (v1 — historical)
+
+> **SUPERSEDED — do not implement from this document.** The single source of truth for the v2
+> content contract is `C:\Users\ekkii\Projects\MeowdievalKingdom\Docs\WIP\MeowEdit-Content-Contract-V2.md`.
+> It defines the structured authoring records, the generated runtime package, strict validation,
+> named values, the capability snapshot and the HTTP payloads. This file is retained only as
+> evidence of the v1 format that the migration must convert.
 
 MeowEdit keeps authored content as ordinary JSON. It does not use Unity asset references or a server database.
 

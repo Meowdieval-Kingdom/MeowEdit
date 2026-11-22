@@ -1,0 +1,462 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://meowedit.local/contract/v2/content-set-v2.schema.json",
+  "title": "ContentSetV2Document",
+  "description": "MeowEdit Content Contract v2 authoring record. Sections 2.1, 4 and 5. Generated-from-design source of truth; additionalProperties is false everywhere.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "set", "quests", "armies", "campaigns", "dialogues"],
+  "properties": {
+    "schemaVersion": { "const": 2 },
+    "set": { "$ref": "#/$defs/setDocument" },
+    "quests": { "type": "array", "items": { "$ref": "#/$defs/questDocument" } },
+    "armies": { "type": "array", "items": { "$ref": "#/$defs/armyDocument" } },
+    "campaigns": { "type": "array", "items": { "$ref": "#/$defs/campaignDocument" } },
+    "dialogues": { "type": "array", "items": { "$ref": "#/$defs/dialogueDocument" } }
+  },
+  "$defs": {
+    "enums": {
+      "nodeKind": { "type": "string", "enum": ["Start", "Battle", "Reward", "Boss", "Quest", "Shop"] },
+      "objectiveKind": { "type": "string", "enum": ["Escort", "Fetch", "Battle", "ClearFloor", "Timer", "KillCount"] },
+      "shopPoolKind": { "type": "string", "enum": ["Unit", "Blessing", "Research", "SpellUnlock"] },
+      "floorMode": { "type": "string", "enum": ["authored", "random", "mixed"] },
+      "rewardKind": { "type": "string", "enum": ["Sardines", "ExtraLife", "Blessing", "UnitUnlock", "ShopLevelUnlock", "SpellUnlock"] },
+      "shopOfferKind": { "type": "string", "enum": ["Unit", "Blessing", "Research", "SpellUnlock"] },
+      "trigger": { "type": "string", "enum": ["campaign-start", "floor-entered", "floor-completed", "campaign-completed", "run-ended", "before-battle", "after-battle", "battle-won", "battle-lost", "battle-draw", "boss-defeated", "lives-lost", "battle-restarted", "node-revealed", "node-entered", "reward-claimed", "shop-entered", "shop-visited", "item-purchased", "shop-rerolled", "quest-accepted", "quest-completed", "quest-failed", "quest-item-collected", "quest-item-delivered", "escort-completed", "dialogue-choice-selected", "floor-exit-warning", "blessing-offered", "blessing-chosen", "curse-ticked", "node-cleared"] },
+      "condition": { "type": "string", "enum": ["battle-won", "battle-lost", "battle-draw", "boss", "floor-n", "node-kind", "has-blessing", "quest-id", "lives-below", "choice-outcome"] },
+      "action": { "type": "string", "enum": ["replace-player-army", "grant-blessings", "dialogue", "restart-battle", "unlock-path", "unlock-shop-item", "grant-sardines", "grant-life", "set-flag"] }
+    },
+    "localizedText": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["default", "locales"],
+      "properties": {
+        "default": { "type": "string" },
+        "locales": { "type": "object", "additionalProperties": { "type": "string" } }
+      }
+    },
+    "namedRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "label"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "label": { "$ref": "#/$defs/localizedText" }
+      }
+    },
+    "parameter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "value"],
+      "properties": {
+        "key": { "type": "string", "minLength": 1 },
+        "value": {}
+      }
+    },
+    "conditionParameter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key"],
+      "properties": {
+        "key": { "$ref": "#/$defs/enums/condition" },
+        "value": {}
+      }
+    },
+    "setDocument": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "setId", "name", "description", "displayOrder", "campaignOrder"],
+      "properties": {
+        "schemaVersion": { "const": 2 },
+        "setId": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$" },
+        "name": { "$ref": "#/$defs/localizedText" },
+        "description": { "$ref": "#/$defs/localizedText" },
+        "displayOrder": { "type": "integer" },
+        "campaignOrder": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "completionEffect": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "targetId", "label"],
+      "properties": {
+        "kind": { "type": "string" },
+        "targetId": { "$ref": "#/$defs/namedRef" },
+        "label": { "$ref": "#/$defs/localizedText" }
+      }
+    },
+    "fetchItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "displayName", "count"],
+      "properties": {
+        "id": { "type": "string" },
+        "displayName": { "$ref": "#/$defs/localizedText" },
+        "count": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "battleTarget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "label", "nodeKind", "floorOffset", "armyId"],
+      "properties": {
+        "id": { "type": "string" },
+        "label": { "$ref": "#/$defs/localizedText" },
+        "nodeKind": { "type": "string" },
+        "floorOffset": { "type": "integer" },
+        "armyId": { "$ref": "#/$defs/namedRef" }
+      }
+    },
+    "killCount": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["targetKind", "targetId", "count"],
+      "properties": {
+        "targetKind": { "type": "string" },
+        "targetId": { "$ref": "#/$defs/namedRef" },
+        "count": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "distanceRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "fromNodeKind", "toNodeKind", "minimumHops"],
+      "properties": {
+        "id": { "type": "string" },
+        "fromNodeKind": { "type": "string" },
+        "toNodeKind": { "type": "string" },
+        "minimumHops": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "questTimer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "decisionId", "payOutcomeId", "waitOutcomeId", "counterId", "counterTarget",
+        "counterLabel", "countEvent", "paymentResource", "paymentAmount",
+        "paymentCompletesImmediately", "completionEffects"
+      ],
+      "properties": {
+        "decisionId": { "$ref": "#/$defs/namedRef" },
+        "payOutcomeId": { "$ref": "#/$defs/namedRef" },
+        "waitOutcomeId": { "$ref": "#/$defs/namedRef" },
+        "counterId": { "$ref": "#/$defs/namedRef" },
+        "counterTarget": { "type": "integer" },
+        "counterLabel": { "$ref": "#/$defs/localizedText" },
+        "countEvent": { "type": "string" },
+        "paymentResource": { "type": "string" },
+        "paymentAmount": { "type": "integer", "minimum": 0 },
+        "paymentCompletesImmediately": { "type": "boolean" },
+        "completionEffects": { "type": "array", "items": { "$ref": "#/$defs/completionEffect" } }
+      }
+    },
+    "meowEditQuestExtension": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion", "dialogueLinks", "logicKind", "timer", "completionEffects",
+        "fetchItems", "battleTargets", "killCount", "minimumNodeDistances"
+      ],
+      "properties": {
+        "schemaVersion": { "const": 2 },
+        "dialogueLinks": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["offer", "active", "completion", "failure"],
+          "properties": {
+            "offer": { "type": "array", "items": { "$ref": "#/$defs/namedRef" } },
+            "active": { "type": "array", "items": { "$ref": "#/$defs/namedRef" } },
+            "completion": { "type": "array", "items": { "$ref": "#/$defs/namedRef" } },
+            "failure": { "type": "array", "items": { "$ref": "#/$defs/namedRef" } }
+          }
+        },
+        "logicKind": { "type": "string" },
+        "timer": { "$ref": "#/$defs/questTimer" },
+        "completionEffects": { "type": "array", "items": { "$ref": "#/$defs/completionEffect" } },
+        "fetchItems": { "type": "array", "items": { "$ref": "#/$defs/fetchItem" } },
+        "battleTargets": { "type": "array", "items": { "$ref": "#/$defs/battleTarget" } },
+        "killCount": { "$ref": "#/$defs/killCount" },
+        "minimumNodeDistances": { "type": "array", "items": { "$ref": "#/$defs/distanceRule" } }
+      }
+    },
+    "questDocument": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "id", "title", "description", "meowEdit"],
+      "properties": {
+        "schemaVersion": { "const": 2 },
+        "id": { "type": "string", "minLength": 1 },
+        "title": { "$ref": "#/$defs/localizedText" },
+        "description": { "$ref": "#/$defs/localizedText" },
+        "sourceKind": { "type": "string" },
+        "sourceSlot": { "type": "string" },
+        "firstFloor": { "type": "integer" },
+        "repeatEveryFloors": { "type": "integer" },
+        "priority": { "type": "integer" },
+        "objectiveKind": { "$ref": "#/$defs/enums/objectiveKind" },
+        "targetNodeKind": { "type": "string" },
+        "targetFloorOffset": { "type": "integer" },
+        "escortUnitId": { "$ref": "#/$defs/namedRef" },
+        "itemId": { "$ref": "#/$defs/namedRef" },
+        "speakerUnitId": { "$ref": "#/$defs/namedRef" },
+        "speakerName": { "$ref": "#/$defs/localizedText" },
+        "offerText": { "$ref": "#/$defs/localizedText" },
+        "activeText": { "$ref": "#/$defs/localizedText" },
+        "acceptLabel": { "$ref": "#/$defs/localizedText" },
+        "declineLabel": { "$ref": "#/$defs/localizedText" },
+        "rewardKind": { "$ref": "#/$defs/enums/rewardKind" },
+        "rewardAmount": { "type": "integer" },
+        "rewardContentId": { "$ref": "#/$defs/namedRef" },
+        "meowEdit": { "$ref": "#/$defs/meowEditQuestExtension" }
+      }
+    },
+    "armyUnit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["unitId", "x", "y", "spellIds"],
+      "properties": {
+        "unitId": { "$ref": "#/$defs/namedRef" },
+        "x": { "type": "integer" },
+        "y": { "type": "integer" },
+        "spellIds": { "type": "array", "items": { "$ref": "#/$defs/namedRef" } }
+      }
+    },
+    "cellBlessingPick": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["RootId", "Lane", "Cells", "Locked", "BaneCells"],
+      "properties": {
+        "RootId": { "$ref": "#/$defs/namedRef" },
+        "Lane": { "type": "string" },
+        "Cells": { "type": "array", "items": { "type": "object" } },
+        "Locked": { "type": "boolean" },
+        "BaneCells": { "type": "array", "items": { "type": "object" } }
+      }
+    },
+    "armyDocument": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "id", "name", "units", "spellIds", "blessingIds", "CellBlessingPicks"],
+      "properties": {
+        "schemaVersion": { "const": 2 },
+        "id": { "type": "string", "minLength": 1 },
+        "name": { "$ref": "#/$defs/localizedText" },
+        "units": { "type": "array", "items": { "$ref": "#/$defs/armyUnit" } },
+        "spellIds": { "type": "array", "items": { "$ref": "#/$defs/namedRef" } },
+        "blessingIds": { "type": "array", "items": { "$ref": "#/$defs/namedRef" } },
+        "CellBlessingPicks": { "type": "array", "items": { "$ref": "#/$defs/cellBlessingPick" } }
+      }
+    },
+    "campaignSettings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "startingLives", "startingSardines", "startingNodeCount", "playerFactionId",
+        "factionSelectionEnabled", "battleShopEnabled", "shopPoolKinds",
+        "questNodeCountPerRandomFloor", "shopNodeCountPerRandomFloor", "nodeGrowthPerFloor",
+        "continueWithGeneratedFloors", "blessingsEnabled", "restoreArmyAfterLoss"
+      ],
+      "properties": {
+        "startingLives": { "type": "integer", "minimum": 1 },
+        "startingSardines": { "type": "integer", "minimum": 0 },
+        "startingNodeCount": { "type": "integer", "minimum": 0 },
+        "playerFactionId": { "$ref": "#/$defs/namedRef" },
+        "factionSelectionEnabled": { "type": "boolean" },
+        "battleShopEnabled": { "type": "boolean" },
+        "shopPoolKinds": { "type": "array", "items": { "$ref": "#/$defs/enums/shopPoolKind" } },
+        "questNodeCountPerRandomFloor": { "type": "integer", "minimum": 0 },
+        "shopNodeCountPerRandomFloor": { "type": "integer", "minimum": 0 },
+        "nodeGrowthPerFloor": { "type": "integer", "minimum": 0 },
+        "continueWithGeneratedFloors": { "type": "boolean" },
+        "blessingsEnabled": { "type": "boolean" },
+        "restoreArmyAfterLoss": { "type": "boolean" }
+      }
+    },
+    "shopOffer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "contentId", "price"],
+      "properties": {
+        "kind": { "$ref": "#/$defs/enums/shopOfferKind" },
+        "contentId": { "$ref": "#/$defs/namedRef" },
+        "price": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "campaignNode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "label", "kind", "x", "y", "armyId", "questId", "enemyFactionId", "rewardKind", "rewardAmount", "rewardContentId", "shopOfferMode", "shopOffers"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "label": { "$ref": "#/$defs/localizedText" },
+        "kind": { "$ref": "#/$defs/enums/nodeKind" },
+        "x": { "type": "integer" },
+        "y": { "type": "integer" },
+        "armyId": { "$ref": "#/$defs/namedRef" },
+        "questId": { "$ref": "#/$defs/namedRef" },
+        "enemyFactionId": { "$ref": "#/$defs/namedRef" },
+        "rewardKind": { "$ref": "#/$defs/enums/rewardKind" },
+        "rewardAmount": { "type": "integer" },
+        "rewardContentId": { "$ref": "#/$defs/namedRef" },
+        "shopOfferMode": { "type": "string" },
+        "shopOffers": { "type": "array", "items": { "$ref": "#/$defs/shopOffer" } }
+      }
+    },
+    "campaignRoute": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "fromNodeId", "toNodeId", "oneWay"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "fromNodeId": { "type": "string" },
+        "toNodeId": { "type": "string" },
+        "oneWay": { "type": "boolean" }
+      }
+    },
+    "campaignFloor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id", "number", "mode", "questPoolMode", "questPoolIds", "shopPoolMode",
+        "shopPoolKinds", "shopLevel", "randomSettings", "nodes", "routes"
+      ],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "number": { "type": "integer", "minimum": 1 },
+        "mode": { "$ref": "#/$defs/enums/floorMode" },
+        "questPoolMode": { "type": "string" },
+        "questPoolIds": { "type": "array", "items": { "$ref": "#/$defs/namedRef" } },
+        "shopPoolMode": { "type": "string" },
+        "shopPoolKinds": { "type": "array", "items": { "$ref": "#/$defs/enums/shopPoolKind" } },
+        "shopLevel": { "type": "integer", "minimum": 1, "maximum": 4 },
+        "randomSettings": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["nodeCount", "questNodeCount", "shopNodeCount"],
+          "properties": {
+            "nodeCount": { "type": "integer", "minimum": 0 },
+            "questNodeCount": { "type": "integer", "minimum": 0 },
+            "shopNodeCount": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "nodes": { "type": "array", "items": { "$ref": "#/$defs/campaignNode" } },
+        "routes": { "type": "array", "items": { "$ref": "#/$defs/campaignRoute" } }
+      }
+    },
+    "campaignEventAction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "parameters"],
+      "properties": {
+        "kind": { "$ref": "#/$defs/enums/action" },
+        "parameters": { "type": "array", "items": { "$ref": "#/$defs/parameter" } }
+      }
+    },
+    "campaignEvent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "trigger", "conditions", "actions", "oneShot"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "trigger": { "$ref": "#/$defs/enums/trigger" },
+        "floorNumber": { "type": "integer" },
+        "nodeId": { "type": "string" },
+        "conditions": { "type": "array", "items": { "$ref": "#/$defs/conditionParameter" } },
+        "actions": { "type": "array", "items": { "$ref": "#/$defs/campaignEventAction" } },
+        "oneShot": { "type": "string", "enum": ["per-run", "per-node", "always"] }
+      }
+    },
+    "campaignDocument": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "id", "name", "description", "boardPreviewUnitId", "questIds", "floors", "events", "settings"],
+      "properties": {
+        "schemaVersion": { "const": 2 },
+        "id": { "type": "string", "minLength": 1 },
+        "name": { "$ref": "#/$defs/localizedText" },
+        "description": { "$ref": "#/$defs/localizedText" },
+        "boardPreviewUnitId": { "$ref": "#/$defs/namedRef" },
+        "questIds": { "type": "array", "items": { "$ref": "#/$defs/namedRef" } },
+        "floors": { "type": "array", "items": { "$ref": "#/$defs/campaignFloor" }, "minItems": 1 },
+        "events": { "type": "array", "items": { "$ref": "#/$defs/campaignEvent" } },
+        "settings": { "$ref": "#/$defs/campaignSettings" }
+      }
+    },
+    "dialogueSpeaker": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "unitId", "displayName", "side", "mood"],
+      "properties": {
+        "id": { "type": "string" },
+        "unitId": { "$ref": "#/$defs/namedRef" },
+        "displayName": { "$ref": "#/$defs/localizedText" },
+        "side": { "type": "string" },
+        "mood": { "type": "string" }
+      }
+    },
+    "dialogueSegment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["speakerIds", "text"],
+      "properties": {
+        "speakerIds": { "type": "array", "items": { "type": "string" } },
+        "text": { "$ref": "#/$defs/localizedText" }
+      }
+    },
+    "dialogueDecision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "label", "outcomeId", "outcomeLabel"],
+      "properties": {
+        "id": { "type": "string" },
+        "label": { "$ref": "#/$defs/localizedText" },
+        "outcomeId": { "type": "string" },
+        "outcomeLabel": { "$ref": "#/$defs/localizedText" }
+      }
+    },
+    "dialogueAction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "targetNodeId", "meowEdit"],
+      "properties": {
+        "label": { "$ref": "#/$defs/localizedText" },
+        "targetNodeId": { "type": "string" },
+        "meowEdit": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["decision", "defaultContinue"],
+          "properties": {
+            "decision": { "$ref": "#/$defs/dialogueDecision" },
+            "defaultContinue": { "type": "boolean" }
+          }
+        }
+      }
+    },
+    "dialogueNode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "headline", "textSpeed", "speakers", "segments", "actions"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "headline": { "$ref": "#/$defs/localizedText" },
+        "textSpeed": { "type": "number" },
+        "speakers": { "type": "array", "items": { "$ref": "#/$defs/dialogueSpeaker" } },
+        "segments": { "type": "array", "items": { "$ref": "#/$defs/dialogueSegment" } },
+        "actions": { "type": "array", "items": { "$ref": "#/$defs/dialogueAction" } }
+      }
+    },
+    "dialogueDocument": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "sequenceId", "startNodeId", "pauseMode", "defaultCharactersPerSecond", "nodes"],
+      "properties": {
+        "schemaVersion": { "const": 2 },
+        "sequenceId": { "type": "string", "minLength": 1 },
+        "startNodeId": { "type": "string", "minLength": 1 },
+        "pauseMode": { "type": "string" },
+        "defaultCharactersPerSecond": { "type": "number" },
+        "nodes": { "type": "array", "items": { "$ref": "#/$defs/dialogueNode" }, "minItems": 1 }
+      }
+    }
+  }
+}

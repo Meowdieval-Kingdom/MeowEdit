@@ -5,7 +5,8 @@ import {
   BridgeHttpError, isBridgeConfigured, publishBridgePackage, requestEditorAccess, uploadBridgePackage
 } from "./bridge-client";
 import {
-  canPublish, resetBridgeState, setBridgeState, type BridgeActions, type BridgePublishRequest
+  canPublish, resetBridgeFetch, resetBridgeState, setBridgeFetch, setBridgeState,
+  type BridgeActions, type BridgePublishRequest
 } from "./bridge-context";
 import { escapeHtml } from "./view";
 
@@ -94,6 +95,7 @@ if (!isBridgeConfigured(authUrl, apiUrl)) {
       },
       signOut: () => {
         void auth.signOut().finally(() => {
+          resetBridgeFetch();
           resetBridgeState();
           window.location.reload();
         });
@@ -101,6 +103,14 @@ if (!isBridgeConfigured(authUrl, apiUrl)) {
     };
     // The server response is authoritative for identity; the cached session is only a fallback.
     setBridgeState({ userId: access.userId || user.id, canPublish: access.canPublish === true, actions });
+    setBridgeFetch(async (path, init) => {
+      const token = await neonAuth.getJWTToken();
+      if (!token) throw new Error("Your sign-in expired. Sign out and sign in again.");
+      return fetch(apiUrl + path, {
+        ...init,
+        headers: { ...(init?.headers ?? {}), Authorization: "Bearer " + token }
+      });
+    });
     await import("./main");
   }
 

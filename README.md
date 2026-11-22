@@ -2,6 +2,8 @@
 
 A lightweight, browser-only authoring studio for Meowdieval dialogues, quests, reusable army configurations, and Adventure campaigns.
 
+> **Contract notice:** the v1 format and manual/ZIP + save-pinning handoff described in `docs/content-format.md` and `docs/game-integration-handoff.md` are superseded. The single source of truth for the v2 structured-record contract is `C:\Users\ekkii\Projects\MeowdievalKingdom\Docs\WIP\MeowEdit-Content-Contract-V2.md`. Local browser autosave stays; upload/publish to Neon is an explicit author action.
+
 ## Run locally
 
 Install dependencies with `npm install`, start the editor with `npm run dev`, and create a production build with `npm run build`.

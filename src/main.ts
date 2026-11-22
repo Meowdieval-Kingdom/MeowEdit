@@ -44,6 +44,7 @@ import { EditorNavigationHistory, type RelatedEditorReturnContext } from "./edit
 import { defaultEditorSession, loadEditorSession, saveEditorSession } from "./editor-session";
 import { includeArmyUnitsInRoster } from "./roster";
 import { getBridgeActions, getBridgeUserId } from "./bridge-context";
+import { mountV2Editor } from "./v2/editor";
 import { escapeHtml, renderApp, renderLivePreview, renderValidationSummary, renderArmyEntityPreview, renderArmyAbilityPreview, type ArmyAbilityFilters, type ArmyAbilityKind, type ArmyAbilitySelections, type EditorMode } from "./view";
 
 const LEGACY_STORAGE_KEY = "meowedit.workspace.v1";
@@ -307,7 +308,10 @@ function persistEditorSession(): void {
   }
 }
 
+let v2Mode = false;
+
 function render(): void {
+  if (v2Mode) return;
   const campaign = currentCampaign();
   if (campaign) {
     if (!campaign.floors.some(item => item.id === selectedCampaignFloorId)) selectedCampaignFloorId = campaign.floors[0]?.id ?? null;
@@ -2486,6 +2490,14 @@ function onAction(button: HTMLButtonElement): void {
     case "export-package": exportPackage(); return;
     case "publish-package":
       getBridgeActions()?.publish({ workspace, roster });
+      return;
+    case "open-v2-editor":
+      v2Mode = true;
+      root!.innerHTML = '<div id="v2-editor-root"></div>';
+      void mountV2Editor(root!.querySelector<HTMLElement>("#v2-editor-root")!, () => {
+        v2Mode = false;
+        render();
+      });
       return;
     case "bridge-sign-out":
       getBridgeActions()?.signOut();

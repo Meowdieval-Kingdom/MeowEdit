@@ -1,0 +1,307 @@
+/** MeowEdit Content Contract v2 authoring types (§§2.1, 4, 5). Mirrors contract/v2/schema/content-set-v2.schema.json. */
+
+export interface LocalizedText {
+  default: string;
+  locales: Record<string, string>;
+}
+
+export interface NamedRef {
+  id: string;
+  label: LocalizedText;
+}
+
+export interface Parameter {
+  key: string;
+  value: unknown;
+}
+
+export interface SetDocument {
+  schemaVersion: 2;
+  setId: string;
+  name: LocalizedText;
+  description: LocalizedText;
+  displayOrder: number;
+  campaignOrder: string[];
+}
+
+export interface CompletionEffect {
+  kind: string;
+  targetId: NamedRef;
+  label: LocalizedText;
+}
+
+export interface FetchItem {
+  id: string;
+  displayName: LocalizedText;
+  count: number;
+}
+
+export interface BattleTarget {
+  id: string;
+  label: LocalizedText;
+  nodeKind: string;
+  floorOffset: number;
+  armyId: NamedRef;
+}
+
+export interface KillCount {
+  targetKind: string;
+  targetId: NamedRef;
+  count: number;
+}
+
+export interface DistanceRule {
+  id: string;
+  fromNodeKind: string;
+  toNodeKind: string;
+  minimumHops: number;
+}
+
+export interface QuestTimer {
+  decisionId: NamedRef;
+  payOutcomeId: NamedRef;
+  waitOutcomeId: NamedRef;
+  counterId: NamedRef;
+  counterTarget: number;
+  counterLabel: LocalizedText;
+  countEvent: string;
+  paymentResource: string;
+  paymentAmount: number;
+  paymentCompletesImmediately: boolean;
+  completionEffects: CompletionEffect[];
+}
+
+export interface MeowEditQuestExtension {
+  schemaVersion: 2;
+  dialogueLinks: Record<"offer" | "active" | "completion" | "failure", NamedRef[]>;
+  logicKind: string;
+  timer: QuestTimer;
+  completionEffects: CompletionEffect[];
+  fetchItems: FetchItem[];
+  battleTargets: BattleTarget[];
+  killCount: KillCount;
+  minimumNodeDistances: DistanceRule[];
+}
+
+export interface QuestDocument {
+  schemaVersion: 2;
+  id: string;
+  title: LocalizedText;
+  description: LocalizedText;
+  sourceKind?: string;
+  sourceSlot?: string;
+  firstFloor?: number;
+  repeatEveryFloors?: number;
+  priority?: number;
+  objectiveKind?: string;
+  targetNodeKind?: string;
+  targetFloorOffset?: number;
+  escortUnitId?: NamedRef;
+  itemId?: NamedRef;
+  speakerUnitId?: NamedRef;
+  speakerName?: LocalizedText;
+  offerText?: LocalizedText;
+  activeText?: LocalizedText;
+  acceptLabel?: LocalizedText;
+  declineLabel?: LocalizedText;
+  rewardKind?: string;
+  rewardAmount?: number;
+  rewardContentId?: NamedRef;
+  meowEdit: MeowEditQuestExtension;
+}
+
+export interface ArmyUnitPlacement {
+  unitId: NamedRef;
+  x: number;
+  y: number;
+  spellIds: NamedRef[];
+}
+
+export interface CellBlessingPick {
+  RootId: NamedRef;
+  Lane: string;
+  Cells: object[];
+  Locked: boolean;
+  BaneCells: object[];
+}
+
+export interface ArmyDocument {
+  schemaVersion: 2;
+  id: string;
+  name: LocalizedText;
+  units: ArmyUnitPlacement[];
+  spellIds: NamedRef[];
+  blessingIds: NamedRef[];
+  CellBlessingPicks: CellBlessingPick[];
+}
+
+export interface CampaignSettings {
+  startingLives: number;
+  startingSardines: number;
+  startingNodeCount: number;
+  playerFactionId: NamedRef;
+  factionSelectionEnabled: boolean;
+  battleShopEnabled: boolean;
+  shopPoolKinds: string[];
+  questNodeCountPerRandomFloor: number;
+  shopNodeCountPerRandomFloor: number;
+  nodeGrowthPerFloor: number;
+  continueWithGeneratedFloors: boolean;
+  blessingsEnabled: boolean;
+  restoreArmyAfterLoss: boolean;
+}
+
+export interface ShopOffer {
+  kind: string;
+  contentId: NamedRef;
+  price: number;
+}
+
+export interface CampaignNode {
+  id: string;
+  label: LocalizedText;
+  kind: string;
+  x: number;
+  y: number;
+  armyId: NamedRef;
+  questId: NamedRef;
+  enemyFactionId: NamedRef;
+  rewardKind: string;
+  rewardAmount: number;
+  rewardContentId: NamedRef;
+  shopOfferMode: string;
+  shopOffers: ShopOffer[];
+}
+
+export interface CampaignRoute {
+  id: string;
+  fromNodeId: string;
+  toNodeId: string;
+  oneWay: boolean;
+}
+
+export interface CampaignFloor {
+  id: string;
+  number: number;
+  mode: string;
+  questPoolMode: string;
+  questPoolIds: NamedRef[];
+  shopPoolMode: string;
+  shopPoolKinds: string[];
+  shopLevel: number;
+  randomSettings: { nodeCount: number; questNodeCount: number; shopNodeCount: number };
+  nodes: CampaignNode[];
+  routes: CampaignRoute[];
+}
+
+export interface CampaignEventAction {
+  kind: string;
+  parameters: Parameter[];
+}
+
+export type EventOneShot = "per-run" | "per-node" | "always";
+
+export interface CampaignEvent {
+  id: string;
+  trigger: string;
+  floorNumber?: number;
+  nodeId?: string;
+  conditions: Parameter[];
+  actions: CampaignEventAction[];
+  oneShot: EventOneShot;
+}
+
+export interface CampaignDocument {
+  schemaVersion: 2;
+  id: string;
+  name: LocalizedText;
+  description: LocalizedText;
+  boardPreviewUnitId: NamedRef;
+  questIds: NamedRef[];
+  floors: CampaignFloor[];
+  events: CampaignEvent[];
+  settings: CampaignSettings;
+}
+
+export interface DialogueDecision {
+  id: string;
+  label: LocalizedText;
+  outcomeId: string;
+  outcomeLabel: LocalizedText;
+}
+
+export interface DialogueSpeaker {
+  id: string;
+  unitId: NamedRef;
+  displayName: LocalizedText;
+  side: string;
+  mood: string;
+}
+
+export interface DialogueSegment {
+  speakerIds: string[];
+  text: LocalizedText;
+}
+
+export interface DialogueAction {
+  label: LocalizedText;
+  targetNodeId: string;
+  meowEdit: { decision: DialogueDecision; defaultContinue: boolean };
+}
+
+export interface DialogueNode {
+  id: string;
+  headline: LocalizedText;
+  textSpeed: number;
+  speakers: DialogueSpeaker[];
+  segments: DialogueSegment[];
+  actions: DialogueAction[];
+}
+
+export interface DialogueDocument {
+  schemaVersion: 2;
+  sequenceId: string;
+  startNodeId: string;
+  pauseMode: string;
+  defaultCharactersPerSecond: number;
+  nodes: DialogueNode[];
+}
+
+export interface ContentSetV2Document {
+  schemaVersion: 2;
+  set: SetDocument;
+  quests: QuestDocument[];
+  armies: ArmyDocument[];
+  campaigns: CampaignDocument[];
+  dialogues: DialogueDocument[];
+}
+
+export interface ParameterDescriptor {
+  type: "NamedRef" | "NamedRef[]" | "string" | "int" | "enum";
+  values?: string[];
+  required?: boolean;
+}
+
+/** The generated capability manifest (§6). */
+export interface GameCapabilities {
+  appVersion: string;
+  buildNumber: number;
+  schemaVersions: number[];
+  triggers: string[];
+  actions: string[];
+  conditions: string[];
+  parameters: Record<string, ParameterDescriptor>;
+  enums: {
+    nodeKind: string[];
+    objectiveKind: string[];
+    shopPoolKind: string[];
+    floorMode: string[];
+    rewardKind: string[];
+    shopOfferKind: string[];
+    faction: string[];
+  };
+  features: string[];
+  limits: { maxAuthoredNodesPerFloor: number };
+  locales: string[];
+  ids: { units: string[]; blessings: string[]; curses: string[]; spells: string[]; factions: string[] };
+}

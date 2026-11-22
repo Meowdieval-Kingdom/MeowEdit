@@ -40,3 +40,20 @@ export function canPublish(): boolean {
 export function getBridgeActions(): BridgeActions | null {
   return state.actions;
 }
+
+/** Authenticated request helper installed by the bridge bootstrap for v2 endpoint calls. */
+export type BridgeFetch = (path: string, init?: RequestInit) => Promise<Response>;
+
+let bridgeFetch: BridgeFetch | null = null;
+
+export function setBridgeFetch(handler: BridgeFetch): void {
+  bridgeFetch = handler;
+}
+
+export function getBridgeFetch(): BridgeFetch | null {
+  return bridgeFetch;
+}
+
+export function resetBridgeFetch(): void {
+  bridgeFetch = null;
+}

@@ -1,4 +1,9 @@
-# MeowEdit content in Meowdieval Kingdom
+# MeowEdit content in Meowdieval Kingdom (v1 — historical)
+
+> **SUPERSEDED — do not implement from this document.** In particular the manual ZIP install
+> steps and the "save pinned to package revision" behaviour below are replaced by structured
+> records in Neon, a generated immutable package, and content-hash save invalidation. The single
+> source of truth is `C:\Users\ekkii\Projects\MeowdievalKingdom\Docs\WIP\MeowEdit-Content-Contract-V2.md`.
 
 MeowEdit is the authoring tool; Meowdieval Kingdom is the runtime. They share one JSON contract for dialogue sequences, quests, Army configurations, and Adventure campaigns. Packages can still be copied into the game manually; the optional Bridge adds authenticated editor access, publisher-authorized upload, explicit publication, and public read-only download for the game.
 

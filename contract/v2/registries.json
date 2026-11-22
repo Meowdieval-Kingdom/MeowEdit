@@ -1,0 +1,91 @@
+{
+  "schemaVersion": 2,
+  "source": "MeowEdit Content Contract v2, sections 6 and 7 (canonical vocabularies)",
+  "triggers": [
+    "campaign-start",
+    "floor-entered",
+    "floor-completed",
+    "campaign-completed",
+    "run-ended",
+    "before-battle",
+    "after-battle",
+    "battle-won",
+    "battle-lost",
+    "battle-draw",
+    "boss-defeated",
+    "lives-lost",
+    "battle-restarted",
+    "node-revealed",
+    "node-entered",
+    "reward-claimed",
+    "shop-entered",
+    "shop-visited",
+    "item-purchased",
+    "shop-rerolled",
+    "quest-accepted",
+    "quest-completed",
+    "quest-failed",
+    "quest-item-collected",
+    "quest-item-delivered",
+    "escort-completed",
+    "dialogue-choice-selected",
+    "floor-exit-warning",
+    "blessing-offered",
+    "blessing-chosen",
+    "curse-ticked"
+  ],
+  "internalTriggers": ["node-cleared"],
+  "conditions": [
+    { "kind": "battle-won", "parameters": [] },
+    { "kind": "battle-lost", "parameters": [] },
+    { "kind": "battle-draw", "parameters": [] },
+    { "kind": "boss", "parameters": [] },
+    { "kind": "floor-n", "parameters": [{ "key": "n", "type": "int", "required": true }] },
+    { "kind": "node-kind", "parameters": [{ "key": "kind", "type": "enum", "enumRef": "nodeKind", "required": true }] },
+    { "kind": "has-blessing", "parameters": [{ "key": "id", "type": "NamedRef", "refKind": "blessing", "required": true }] },
+    { "kind": "quest-id", "parameters": [{ "key": "id", "type": "NamedRef", "refKind": "quest", "required": true }] },
+    { "kind": "lives-below", "parameters": [{ "key": "threshold", "type": "int", "required": true }] },
+    { "kind": "choice-outcome", "parameters": [{ "key": "outcomeId", "type": "string", "required": true }] }
+  ],
+  "actions": [
+    { "kind": "replace-player-army", "parameters": [{ "key": "army", "type": "NamedRef", "required": true }] },
+    { "kind": "grant-blessings", "parameters": [{ "key": "ids", "type": "NamedRef[]", "required": true }] },
+    {
+      "kind": "dialogue",
+      "parameters": [
+        { "key": "sequence", "type": "NamedRef", "required": true },
+        { "key": "timing", "type": "enum", "values": ["in-battle", "round-summary", "map", "immediate"], "required": true }
+      ]
+    },
+    { "kind": "restart-battle", "parameters": [] },
+    { "kind": "unlock-path", "parameters": [{ "key": "routeId", "type": "NamedRef", "required": true }] },
+    {
+      "kind": "unlock-shop-item",
+      "parameters": [
+        { "key": "kind", "type": "string", "required": true },
+        { "key": "contentId", "type": "NamedRef", "required": true }
+      ]
+    },
+    { "kind": "grant-sardines", "parameters": [{ "key": "amount", "type": "int", "required": true }] },
+    { "kind": "grant-life", "parameters": [{ "key": "amount", "type": "int", "required": true }] },
+    {
+      "kind": "set-flag",
+      "parameters": [
+        { "key": "key", "type": "string", "required": true },
+        { "key": "value", "type": "string", "required": true }
+      ]
+    }
+  ],
+  "enums": {
+    "nodeKind": ["Start", "Battle", "Reward", "Boss", "Quest", "Shop"],
+    "objectiveKind": ["Escort", "Fetch", "Battle", "ClearFloor", "Timer", "KillCount"],
+    "shopPoolKind": ["Unit", "Blessing", "Research", "SpellUnlock"],
+    "floorMode": ["authored", "random", "mixed"],
+    "rewardKind": ["Sardines", "ExtraLife", "Blessing", "UnitUnlock", "ShopLevelUnlock", "SpellUnlock"],
+    "shopOfferKind": ["Unit", "Blessing", "Research", "SpellUnlock"],
+    "faction": ["Nobles", "Peasants", "HarborClaws", "CrystalCats", "WanderingTrader", "MagicCats", "Neutral"]
+  },
+  "features": ["timed-quests", "decision-outcomes", "blessing-effects"],
+  "limits": { "maxAuthoredNodesPerFloor": 30 },
+  "locales": ["en", "de"]
+}

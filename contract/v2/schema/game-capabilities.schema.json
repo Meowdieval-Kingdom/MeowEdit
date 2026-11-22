@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://meowedit.local/contract/v2/game-capabilities.schema.json",
+  "title": "GameCapabilities",
+  "description": "MeowEdit Content Contract v2 capability manifest (§6). Generated from contract/v2/registries.json plus checked-in game catalogs. additionalProperties is false for every object shape; map entries are constrained by propertyNames/additionalProperties.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "appVersion",
+    "buildNumber",
+    "schemaVersions",
+    "triggers",
+    "actions",
+    "conditions",
+    "parameters",
+    "enums",
+    "features",
+    "limits",
+    "locales",
+    "ids"
+  ],
+  "$defs": {
+    "kindList": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "idList": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "parameterDescriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": { "type": "string", "enum": ["NamedRef", "NamedRef[]", "string", "int", "enum"] },
+        "values": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "required": { "type": "boolean" }
+      }
+    }
+  },
+  "properties": {
+    "appVersion": { "type": "string", "minLength": 1 },
+    "buildNumber": { "type": "integer", "minimum": 0 },
+    "schemaVersions": {
+      "type": "array",
+      "items": { "const": 2 },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "triggers": { "$ref": "#/$defs/kindList" },
+    "actions": { "$ref": "#/$defs/kindList" },
+    "conditions": { "$ref": "#/$defs/kindList" },
+    "parameters": {
+      "description": "'<kind>.<parameterKey>' -> descriptor from §6. Enum values travel in the descriptor.",
+      "type": "object",
+      "propertyNames": { "pattern": "^[a-z][a-z0-9-]*\\.[A-Za-z][A-Za-z0-9]*$" },
+      "additionalProperties": { "$ref": "#/$defs/parameterDescriptor" }
+    },
+    "enums": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["nodeKind", "objectiveKind", "shopPoolKind", "floorMode", "rewardKind", "shopOfferKind", "faction"],
+      "properties": {
+        "nodeKind": { "$ref": "#/$defs/kindList" },
+        "objectiveKind": { "$ref": "#/$defs/kindList" },
+        "shopPoolKind": { "$ref": "#/$defs/kindList" },
+        "floorMode": { "$ref": "#/$defs/kindList" },
+        "rewardKind": { "$ref": "#/$defs/kindList" },
+        "shopOfferKind": { "$ref": "#/$defs/kindList" },
+        "faction": { "$ref": "#/$defs/kindList" }
+      }
+    },
+    "features": { "$ref": "#/$defs/kindList" },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["maxAuthoredNodesPerFloor"],
+      "properties": {
+        "maxAuthoredNodesPerFloor": { "type": "integer", "const": 30 }
+      }
+    },
+    "locales": {
+      "type": "array",
+      "items": { "type": "string", "enum": ["en", "de"] },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "ids": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["units", "blessings", "curses", "spells", "factions"],
+      "properties": {
+        "units": { "$ref": "#/$defs/idList" },
+        "blessings": { "$ref": "#/$defs/idList" },
+        "curses": { "$ref": "#/$defs/idList" },
+        "spells": { "$ref": "#/$defs/idList" },
+        "factions": { "$ref": "#/$defs/idList" }
+      }
+    }
+  }
+}

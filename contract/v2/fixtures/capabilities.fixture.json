@@ -1,0 +1,31 @@
+{
+  "appVersion": "0.2.2",
+  "buildNumber": 6,
+  "schemaVersions": [2],
+  "triggers": ["campaign-start", "after-battle", "battle-won", "dialogue-choice-selected"],
+  "actions": ["replace-player-army", "dialogue"],
+  "conditions": ["choice-outcome"],
+  "parameters": {
+    "choice-outcome.outcomeId": { "type": "string", "required": true },
+    "dialogue.timing": { "type": "enum", "values": ["in-battle", "round-summary", "map", "immediate"], "required": true }
+  },
+  "enums": {
+    "nodeKind": ["Start", "Battle", "Reward", "Boss", "Quest", "Shop"],
+    "objectiveKind": ["Escort", "Fetch", "Battle", "ClearFloor", "Timer", "KillCount"],
+    "shopPoolKind": ["Unit", "Blessing", "Research", "SpellUnlock"],
+    "floorMode": ["authored", "random", "mixed"],
+    "rewardKind": ["Sardines", "ExtraLife", "Blessing", "UnitUnlock", "ShopLevelUnlock", "SpellUnlock"],
+    "shopOfferKind": ["Unit", "Blessing", "Research", "SpellUnlock"],
+    "faction": ["Nobles", "Peasants", "HarborClaws", "CrystalCats", "WanderingTrader", "MagicCats", "Neutral"]
+  },
+  "features": ["timed-quests", "decision-outcomes", "blessing-effects"],
+  "limits": { "maxAuthoredNodesPerFloor": 30 },
+  "locales": ["en", "de"],
+  "ids": {
+    "units": ["Cats/Fighter/1"],
+    "blessings": ["blessing-strength"],
+    "curses": ["curse-greed"],
+    "spells": ["spell-shield"],
+    "factions": ["Cats"]
+  }
+}

@@ -1894,6 +1894,7 @@ export function renderApp(
   const toolbar = '<div class="topbar-actions">' +
     (relatedReturnState ? actionButton("return-to-parent", "← " + relatedReturnState.label, "text-button return-to-parent", ' aria-label="Return to ' + escapeHtml(relatedReturnState.parent) + '" title="Return to ' + escapeHtml(relatedReturnState.parent) + '"') : "") +
     (bridgeUserId && workspace.campaigns.length > 0 && canPublish() ? actionButton("publish-package", "Publish to game", "button button-primary", hasErrors ? " disabled" : "") : "") +
+    (bridgeUserId ? actionButton("open-v2-editor", "Content v2", "text-button open-v2-editor") : "") +
     (bridgeUserId ? actionButton("bridge-sign-out", "Sign out", "text-button bridge-sign-out") : "") +
     (item && !guidedCompact ? helpToggleButton(helpVisible) : "") +
     '</div>';
