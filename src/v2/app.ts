@@ -1,5 +1,7 @@
 import "./app.css";
-import { canPublish, getBridgeActions, getBridgeFetch, getBridgeUserId } from "../bridge-context";
+import {
+  canDeleteSets, canPublish, getBridgeActions, getBridgeFetch, getBridgeUserId
+} from "../bridge-context";
 import {
   createSetRequest, isDraftConflict, publishRequest, saveDraftRequest
 } from "./endpoints";
@@ -25,9 +27,17 @@ interface LocalRecord {
   publishedPackageId?: string;
 }
 
+interface PublishedExample {
+  setId: string;
+  packageId: string;
+  contentHash: string;
+  publishedAt?: string;
+}
+
 interface AppState {
   capabilities: GameCapabilities;
   sets: SetSummary[];
+  examples: PublishedExample[];
   view: "browser" | "editor" | "advanced";
   setId: string;
   draft: ContentSetV2Document;
@@ -150,17 +160,31 @@ function renderBrowser(container: HTMLElement, state: AppState): void {
     '<div class="set-row"><div class="set-row-main"><strong>' + escapeHtml(summary.name || summary.setId) + "</strong>" +
     "<small>" + escapeHtml(summary.setId) + "</small></div>" +
     '<div class="set-badges">' + badge(summary, records) + "</div>" +
+    '<button type="button" class="text-button" data-rename="' + escapeHtml(summary.setId) + '">Rename</button>' +
+    (canDeleteSets()
+      ? '<button type="button" class="text-button danger-text" data-delete="' + escapeHtml(summary.setId) + '">Delete</button>'
+      : "") +
     '<button type="button" class="button button-outline" data-open="' + escapeHtml(summary.setId) + '">Open</button></div>'
   ).join("") : '<div class="set-empty">No content sets yet. Create one to start authoring.</div>';
+
+  const exampleRows = state.examples.length ? state.examples.map(example =>
+    '<div class="set-row"><div class="set-row-main"><strong>' + escapeHtml(example.setId) + "</strong>" +
+    "<small>" + escapeHtml(example.packageId) + " · " + escapeHtml(example.publishedAt ?? "") + "</small></div>" +
+    '<span class="set-badge published">Live</span>' +
+    '<button type="button" class="button button-outline" data-view-example="' + escapeHtml(example.packageId) + '">View</button></div>'
+  ).join("") : '<div class="set-empty">No published content is available yet.</div>';
 
   container.innerHTML = '<main class="editor-shell"><div class="topbar"><div class="topbar-context">' +
     '<span class="brand-mark">M</span><strong>MeowEdit</strong><span class="context-divider">/</span>' +
     '<span class="context-crumb">CONTENT SETS</span></div><div class="topbar-actions">' +
     '<button type="button" class="text-button" data-sign-out>Sign out</button></div></div>' +
-    '<div class="editor-main"><div class="editor-heading"><div><h1>Content sets</h1>' +
-    "<p>One set publishes as one campaign package. Drafts stay private until you publish.</p></div>" +
+    '<div class="editor-main"><div class="editor-heading"><div><h1>Your content sets</h1>' +
+    "<p>Create, rename, open and publish sets. Drafts stay private until you publish.</p></div>" +
     '<button type="button" class="button button-primary" data-new-set>+ New set</button></div>' +
     '<div class="set-list">' + rows + "</div>" +
+    '<div class="editor-heading"><div><h2>Live examples</h2>' +
+    "<p>Published sets from the game backend, ready to inspect.</p></div></div>" +
+    '<div class="set-list">' + exampleRows + "</div>" +
     '<p class="guided-status" data-status>' + escapeHtml(state.status) + "</p></div></main>";
 
   container.querySelector<HTMLElement>("[data-sign-out]")?.addEventListener("click", () => getBridgeActions()?.signOut());
@@ -180,6 +204,93 @@ function renderBrowser(container: HTMLElement, state: AppState): void {
   container.querySelectorAll<HTMLElement>("[data-open]").forEach(button => button.addEventListener("click", () => {
     void openSet(container, state, button.dataset.open!);
   }));
+  container.querySelectorAll<HTMLElement>("[data-rename]").forEach(button => button.addEventListener("click", () => {
+    void renameSet(container, state, button.dataset.rename!);
+  }));
+  container.querySelectorAll<HTMLElement>("[data-delete]").forEach(button => button.addEventListener("click", () => {
+    void deleteSet(container, state, button.dataset.delete!);
+  }));
+  container.querySelectorAll<HTMLElement>("[data-view-example]").forEach(button => button.addEventListener("click", () => {
+    void viewExample(container, state, button.dataset.viewExample!);
+  }));
+}
+
+async function renameSet(container: HTMLElement, state: AppState, setId: string): Promise<void> {
+  const records = storage();
+  const summary = state.sets.find(item => item.setId === setId);
+  const current = records[setId]?.draft.set.name.default || summary?.name || setId;
+  const name = window.prompt("New name for " + setId + ":", current)?.trim();
+  if (!name) return;
+  let draft = records[setId]?.draft;
+  let version = records[setId]?.draftVersion ?? 0;
+  if (summary && summary.draftVersion > 0) {
+    try {
+      const loaded = await requestJson<{ draft: ContentSetV2Document; draftVersion: number }>(
+        "/v1/editor/campaign-sets/" + encodeURIComponent(setId));
+      draft = loaded.draft;
+      version = loaded.draftVersion;
+    } catch (error) {
+      state.status = error instanceof Error ? error.message : "The draft could not be loaded.";
+      renderBrowser(container, state);
+      return;
+    }
+  }
+  if (!draft) {
+    state.status = "This set has no draft to rename.";
+    renderBrowser(container, state);
+    return;
+  }
+  draft.set.name.default = name;
+  try {
+    if (version > 0) {
+      const result = await requestJson<{ draftVersion: number }>(
+        "/v1/editor/campaign-sets/" + encodeURIComponent(setId), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(saveDraftRequest(version, draft))
+        });
+      version = result.draftVersion;
+    }
+    records[setId] = { draft, draftVersion: version, publishedPackageId: summary?.publishedPackageId };
+    localStorage.setItem(localKey(), JSON.stringify(records));
+    state.status = "Renamed to " + name + ".";
+    await refreshSets(state);
+  } catch (error) {
+    state.status = error instanceof Error ? error.message : "Rename failed.";
+  }
+  renderBrowser(container, state);
+}
+
+async function deleteSet(container: HTMLElement, state: AppState, setId: string): Promise<void> {
+  if (!canDeleteSets()) return;
+  if (!window.confirm("Delete content set '" + setId + "'? This cannot be undone.")) return;
+  const records = storage();
+  const version = records[setId]?.draftVersion ?? state.sets.find(item => item.setId === setId)?.draftVersion ?? 0;
+  try {
+    if (version > 0)
+      await requestJson<{ deleted: boolean }>("/v1/editor/campaign-sets/" + encodeURIComponent(setId), { method: "DELETE" });
+    delete records[setId];
+    localStorage.setItem(localKey(), JSON.stringify(records));
+    state.status = "Deleted " + setId + ".";
+    await refreshSets(state);
+  } catch (error) {
+    state.status = error instanceof Error ? error.message : "Deletion failed. The set was not removed.";
+  }
+  renderBrowser(container, state);
+}
+
+async function viewExample(container: HTMLElement, state: AppState, packageId: string): Promise<void> {
+  try {
+    const detail = await requestJson<{ files: Array<{ path: string; content: string }> }>(
+      "/v1/content/campaigns/" + encodeURIComponent(packageId));
+    const campaignsFile = detail.files.find(file => file.path === "campaigns/Campaigns.json");
+    const campaigns = campaignsFile ? JSON.parse(campaignsFile.content) as { campaigns: Array<{ name?: { default?: string }; id: string }> } : null;
+    const names = campaigns?.campaigns.map(item => item.name?.default || item.id).join(", ") || "No campaigns in this revision";
+    window.alert("Published set " + packageId + "\nCampaigns: " + names);
+  } catch (error) {
+    state.status = error instanceof Error ? error.message : "The published example could not be loaded.";
+    flashStatus(container, state);
+  }
 }
 
 async function openSet(container: HTMLElement, state: AppState, setId: string): Promise<void> {
@@ -511,10 +622,16 @@ async function refreshSets(state: AppState): Promise<void> {
 export async function mountApp(container: HTMLElement): Promise<void> {
   const capabilities = await loadCapabilities();
   const state: AppState = {
-    capabilities, sets: [], view: "browser", setId: "", draft: emptyContentSet("", ""),
+    capabilities, sets: [], examples: [], view: "browser", setId: "", draft: emptyContentSet("", ""),
     draftVersion: 0, step: 0, contentKind: null, draftTitle: "", draftSecondary: "",
     status: "", validation: { valid: false, issues: [] }
   };
   await refreshSets(state);
+  try {
+    const published = await requestJson<{ sets: PublishedExample[] }>("/v1/content/campaigns");
+    state.examples = published.sets;
+  } catch {
+    state.examples = [];
+  }
   renderBrowser(container, state);
 }

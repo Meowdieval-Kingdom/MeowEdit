@@ -116,7 +116,7 @@ if (!isBridgeConfigured()) {
       return;
     }
     const access = await response.json().catch(() => null) as {
-      authorized?: boolean; canPublish?: boolean; userId?: string; error?: string
+      authorized?: boolean; canPublish?: boolean; canDeleteSets?: boolean; userId?: string; error?: string
     } | null;
     if (!access?.authorized) {
       showGateError(access?.error || "This account is not authorized to open MeowEdit.");
@@ -135,6 +135,7 @@ if (!isBridgeConfigured()) {
     setBridgeState({
       userId: access.userId || user.id,
       canPublish: access.canPublish === true,
+      canDeleteSets: access.canDeleteSets === true,
       actions
     });
     setBridgeFetch(async (path, init) => {

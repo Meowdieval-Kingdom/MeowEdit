@@ -12,7 +12,7 @@ MeowEdit keeps authored content as ordinary JSON. It does not use Unity asset re
 
 The editor handles dialogue sequences, quests, reusable Army configurations, and campaigns. Meowdieval Kingdom loads version 1 packages copied into its `Resources/AdventureContent` catalog. The package is validated against the game's runtime catalogs before any campaign is offered; invalid content is rejected as a whole.
 
-The checked-in **Import examples** library includes representative dialogue, quest, Army, and campaign records. A new workspace is empty until the author imports those examples. The examples cover the supported quest objectives, authored/random/mixed floors, Army-backed encounters, exact shop offers, branching dialogue decisions, and quest extensions.
+There is no static example import. Published v2 sets are listed under **Live examples** in the editor and can be inspected from the game backend; they are the current reference content.
 
 ## Current game fields
 

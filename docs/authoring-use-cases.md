@@ -13,12 +13,12 @@ This document describes end-to-end authoring tasks across the Dialogue, Quest, A
 
 The core authoring jobs are distinct: create a new thing without manual identifiers, continue an existing draft, make a narrow edit without stepping through a wizard, build related content without losing the parent context, check the result, and export it for the game or another teammate.
 
-## Workspace and examples
+## Content sets and examples
 
-1. Open an empty workspace or choose **Import examples** to add the complete, currently usable game examples. Importing skips matching IDs instead of duplicating records.
-2. Create a Dialogue, Quest, Army, or Campaign from the workspace. Existing entries can be selected, edited, exported, or removed from their list.
-3. Drafts autosave in this browser. Import accepts supported JSON and MeowEdit ZIP packages; export downloads one selected JSON record or the workspace package.
-4. Removing the imported examples reverses that explicit import and keeps user-authored records.
+1. Open the **Content sets** browser. Create a new set, rename one, or open an existing draft. Deletion is reserved for accounts with the administrator permission; the server remains authoritative.
+2. The guided path focuses on one or two fields per step; the **Detailed editor** exposes the full structured content when needed.
+3. Drafts autosave in this browser and are uploaded explicitly with **Save / Upload**. **Publish** is a separate action that makes the revision public.
+4. Published sets from the game backend appear under **Live examples** and can be inspected there; there is no static example import.
 
 ## Dialogue: write and branch a conversation
 

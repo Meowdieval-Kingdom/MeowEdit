@@ -5,10 +5,11 @@ export interface BridgeActions {
 interface BridgeState {
   userId: string | null;
   canPublish: boolean;
+  canDeleteSets: boolean;
   actions: BridgeActions | null;
 }
 
-const state: BridgeState = { userId: null, canPublish: false, actions: null };
+const state: BridgeState = { userId: null, canPublish: false, canDeleteSets: false, actions: null };
 
 /** Set by the authenticated bootstrap before the v2 editor is imported. */
 export function setBridgeState(next: Partial<BridgeState>): void {
@@ -18,6 +19,7 @@ export function setBridgeState(next: Partial<BridgeState>): void {
 export function resetBridgeState(): void {
   state.userId = null;
   state.canPublish = false;
+  state.canDeleteSets = false;
   state.actions = null;
 }
 
@@ -27,6 +29,11 @@ export function getBridgeUserId(): string | null {
 
 export function canPublish(): boolean {
   return state.canPublish;
+}
+
+/** Reserved for the future administrator role; the server remains authoritative for deletion. */
+export function canDeleteSets(): boolean {
+  return state.canDeleteSets;
 }
 
 export function getBridgeActions(): BridgeActions | null {

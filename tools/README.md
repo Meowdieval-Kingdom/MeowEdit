@@ -41,20 +41,6 @@ The script validates IDs and mood names, copies optional PNGs into public/avatar
 
 Portraits in `public/avatars/` are captured from the game's `MainMenuPortraitCapture` `UnitPreviewCamera` with a transparent background. Use the rendered unit ID for the filename, replacing `/` and spaces with `-` (for example, `Peasants-Fighter-1.png`). The Army snapshot links matching per-level captures; the roster snapshot links each Compendium character's level-one capture for dialogue avatars. Do not assign Compendium overview screenshots by guesswork: those images do not map individual models to IDs.
 
-# Updating the game examples
-
-MeowEdit serves a static snapshot of the current game dialogues and quest definitions at public/game-examples.json. Visitors can import or remove those entries from the bottom of the left sidebar; they do not need a local copy of the game repository.
-
-From a MeowEdit checkout beside MeowdievalKingdom, run:
-
-    npm run snapshot-game-examples
-
-Or provide the game checkout explicitly:
-
-    npm run snapshot-game-examples -- --game-root <MeowdievalKingdom path>
-
-The script copies every JSON file in the game's DialogueSequences resource folder and every quest in AdventureQuests/Definitions.json into the checked-in static snapshot.
-
 # Updating the game capability manifest
 
 MeowEdit serves a static capability manifest at public/game-capabilities.json (Content Contract v2 §6). It is consumed by editor pickers/validation, backend publish-time validation and Unity's admission check; CI regenerates it with `MEOWDIEVAL_BUILD_NUMBER` set. From a MeowEdit checkout beside MeowdievalKingdom, run:

@@ -14,7 +14,6 @@
     "watermark-demo-assets": "node tools/watermark-demo-assets.mjs",
     "verify-demo-assets": "node tools/verify-demo-assets.mjs",
     "confirm-real-assets": "node tools/confirm-real-assets.mjs",
-    "snapshot-game-examples": "node tools/snapshot-game-examples.mjs",
     "snapshot-unit-roster": "node tools/snapshot-unit-roster.mjs",
     "snapshot-army-catalog": "node tools/snapshot-army-catalog.mjs",
     "snapshot-game-capabilities": "node tools/snapshot-game-capabilities.mjs"
