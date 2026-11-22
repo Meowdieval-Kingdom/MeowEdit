@@ -82,6 +82,21 @@ describe("Bridge bootstrap", () => {
     expect(auth.signInEmail).toHaveBeenCalledWith({ email: "author@example.com", password: "secret" });
   });
 
+  it("uses the editor's form components and keeps input after a failed sign-in", async () => {
+    auth.signInEmail.mockImplementation(async () => ({ error: { message: "Wrong password" } }));
+    await import("../src/bridge-bootstrap");
+    expect(document.querySelector(".bridge-gate .topbar .brand-mark")).not.toBeNull();
+    expect(document.querySelector("#bridge-signin.card .field")).not.toBeNull();
+    expect(document.querySelector('#bridge-signin button[type="submit"].button-primary')).not.toBeNull();
+
+    const form = document.querySelector<HTMLFormElement>("#bridge-signin")!;
+    form.querySelector<HTMLInputElement>('[name="email"]')!.value = "author@example.com";
+    form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+    await vi.waitFor(() => expect(document.querySelector(".bridge-error")?.textContent).toContain("Wrong password"));
+    expect(document.querySelector<HTMLInputElement>('[name="email"]')!.value).toBe("author@example.com");
+    expect(document.querySelector<HTMLButtonElement>('button[type="submit"]')!.disabled).toBe(false);
+  });
+
   it("escapes error messages instead of rendering them as markup", async () => {
     auth.signInEmail.mockImplementation(async () => ({ error: { message: "<img src=x onerror=alert(1)>" } }));
     await import("../src/bridge-bootstrap");

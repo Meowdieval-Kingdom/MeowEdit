@@ -44,9 +44,11 @@ const schemas = schemaFiles.map(name => {
 });
 
 const registryPath = path.join(contractDirectory, "registries.json");
-const registryContents = readFileSync(registryPath, "utf8");
+// Git checks these files out with platform line endings; normalize so the authority hash is stable.
+const normalize = text => text.replace(/\r\n/g, "\n");
+const registryContents = normalize(readFileSync(registryPath, "utf8"));
 const canonicalContract = [
-  ...schemas.map(schema => schema.name + "\n" + schema.contents),
+  ...schemas.map(schema => schema.name + "\n" + normalize(schema.contents)),
   "registries.json\n" + registryContents
 ].join("");
 const schemaHash = createHash("sha256").update(canonicalContract, "utf8").digest("hex");
