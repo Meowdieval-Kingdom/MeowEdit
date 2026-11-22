@@ -52,6 +52,15 @@ function showGateError(message: string): void {
   }
 }
 
+function withTimeout<T>(promise: Promise<T>, milliseconds: number, message: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_resolve, reject) => {
+      setTimeout(() => reject(new Error(message)), milliseconds);
+    })
+  ]);
+}
+
 function isBridgeConfigured(): boolean {
   const https = /^https:\/\//i;
   return https.test(authUrl)
@@ -68,7 +77,11 @@ if (!isBridgeConfigured()) {
 
   async function restoreSession(): Promise<void> {
     try {
-      const result = await auth.getSession() as AuthResult<SessionEnvelope>;
+      const result = await withTimeout(
+        auth.getSession() as Promise<AuthResult<SessionEnvelope>>,
+        15000,
+        "Session restore timed out. Please try signing in again."
+      );
       if (result.data?.user?.id) await authorize(result.data.user);
     } catch {
       showGateError("Your sign-in could not be restored. Please sign in again.");
@@ -82,10 +95,20 @@ if (!isBridgeConfigured()) {
     if (typeof email !== "string" || typeof password !== "string") return;
     if (submit) { submit.disabled = true; submit.textContent = "Signing in…"; }
     try {
-      const result = await auth.signIn.email({ email: email.trim(), password }) as AuthResult<SessionEnvelope>;
+      const result = await withTimeout(
+        auth.signIn.email({ email: email.trim(), password }) as Promise<AuthResult<SessionEnvelope>>,
+        15000,
+        "Sign-in timed out. Check your connection and try again."
+      );
       if (result.error) throw new Error(result.error.message || "Sign-in failed.");
-      const session = result.data?.user ? result.data : (await auth.getSession() as AuthResult<SessionEnvelope>).data;
+      const session = result.data?.user ? result.data
+        : (await withTimeout(
+          auth.getSession() as Promise<AuthResult<SessionEnvelope>>,
+          15000,
+          "Session lookup timed out. Please try again."
+        )).data;
       if (!session?.user?.id) throw new Error("The sign-in succeeded but no user session was returned.");
+      if (submit) submit.textContent = "Authorizing…";
       await authorize(session.user);
     } catch (error) {
       showGateError(error instanceof Error ? error.message : "Sign-in failed. Check the credentials and try again.");
@@ -94,17 +117,23 @@ if (!isBridgeConfigured()) {
   signInHandler = signIn;
 
   async function authorize(user: AuthUser): Promise<void> {
-    const token = await neonAuth.getJWTToken();
+    let token: string | null;
+    try {
+      token = await withTimeout(neonAuth.getJWTToken(), 15000, "Token request timed out. Please try again.");
+    } catch (error) {
+      showGateError(error instanceof Error ? error.message : "Token request failed.");
+      return;
+    }
     if (!token) {
       showGateError("A valid sign-in token could not be created. Please sign in again.");
       return;
     }
     let response: Response;
     try {
-      response = await fetch(apiUrl + "/v1/editor/access", {
+      response = await withTimeout(fetch(apiUrl + "/v1/editor/access", {
         headers: { Authorization: "Bearer " + token },
         cache: "no-store"
-      });
+      }), 15000, "The game Bridge did not respond in time.");
     } catch {
       showGateError("The game Bridge could not be reached. Check the connection and try again.");
       return;
