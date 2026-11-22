@@ -7,11 +7,96 @@ import { contentSetV2Schema } from "./zod";
 export interface ValidationIssue {
   path: string;
   message: string;
+  code: string;
+  severity?: "error" | "warning";
+  hint?: string;
+  suggestions?: string[];
+  section?: string;
+  entryIndex?: number;
+  field?: string;
 }
 
 export interface ValidationResult {
   valid: boolean;
   issues: ValidationIssue[];
+}
+
+const FIELD_LABELS: Record<string, string> = {
+  itemId: "Item", speakerUnitId: "Speaker unit", escortUnitId: "Escort unit",
+  rewardContentId: "Reward", boardPreviewUnitId: "Board character",
+  playerFactionId: "Player faction", armyId: "Army", questId: "Quest",
+  enemyFactionId: "Enemy faction", targetId: "Target", contentId: "Content",
+  unitId: "Unit", decisionId: "Decision", payOutcomeId: "Pay outcome",
+  waitOutcomeId: "Wait outcome", counterId: "Counter", RootId: "Blessing",
+  outcomeId: "Choice outcome", fromNodeId: "Route from", toNodeId: "Route to",
+  trigger: "Trigger", oneShot: "Repeat mode", kind: "Kind", mode: "Floor mode",
+  objectiveKind: "Objective", rewardKind: "Reward kind", shopPoolKinds: "Shop pools",
+  shopOffers: "Shop offers", startNodeId: "Start node", sequenceId: "Sequence ID"
+};
+
+function humanize(key: string): string {
+  if (FIELD_LABELS[key]) return FIELD_LABELS[key];
+  return key.replace(/([A-Z])/g, " $1").replace(/^./, character => character.toUpperCase());
+}
+
+function entryName(set: ContentSetV2Document, section: string, index: number): string {
+  if (section === "quests") return set.quests[index]?.title.default || set.quests[index]?.id || String(index);
+  if (section === "armies") return set.armies[index]?.name.default || set.armies[index]?.id || String(index);
+  if (section === "campaigns") return set.campaigns[index]?.name.default || set.campaigns[index]?.id || String(index);
+  if (section === "dialogues") return set.dialogues[index]?.sequenceId || String(index);
+  return String(index);
+}
+
+function describePath(set: ContentSetV2Document, path: string): { label: string; section?: string; entryIndex?: number; field?: string } {
+  const segments = path.replace(/\[(\d+)\]/g, ".$1").split(".");
+  const section = ["campaigns", "quests", "armies", "dialogues"].includes(segments[0]) ? segments[0] : undefined;
+  const entryIndex = section && /^\d+$/.test(segments[1] ?? "") ? Number(segments[1]) : undefined;
+  const rest = segments.slice(entryIndex === undefined ? 1 : 2).filter(part => !/^\d+$/.test(part));
+  const field = humanize(rest.at(-1) ?? segments.at(-1) ?? "value");
+  if (section && entryIndex !== undefined) return { label: humanize(section.slice(0, -1)) + ' "' + entryName(set, section, entryIndex) + '" → ' + field, section, entryIndex, field };
+  return { label: field, section, field };
+}
+
+function tokens(value: string): string[] {
+  return value.toLowerCase().split(/[^a-z0-9]+/).filter(token => token.length >= 3);
+}
+
+function similarIds(id: string, candidates: Set<string>): string[] {
+  const parts = tokens(id);
+  if (!parts.length) return [];
+  return [...candidates]
+    .map(candidate => {
+      const candidateTokens = tokens(candidate);
+      const score = parts.filter(part => candidateTokens.includes(part)).length;
+      return { candidate, score };
+    })
+    .filter(entry => entry.score > 0)
+    .sort((left, right) => right.score - left.score || left.candidate.length - right.candidate.length)
+    .slice(0, 3)
+    .map(entry => entry.candidate);
+}
+
+function referenceIssue(
+  set: ContentSetV2Document, allowed: Set<string>,
+  path: string, id: string
+): ValidationIssue {
+  const label = id || "(empty)";
+  const suggestions = similarIds(id, allowed);
+  const description = describePath(set, path);
+  const suggestionText = suggestions.length
+    ? " Possible matches: " + suggestions.join(", ") + "."
+    : " Pick an ID from this set or from the game catalog.";
+  return {
+    path,
+    code: "unresolved-reference",
+    severity: "error",
+    message: description.label + ': "' + label + '" is an unresolved reference.',
+    hint: "This points to an item that does not exist in the set or the game catalog." + suggestionText,
+    suggestions,
+    section: description.section,
+    entryIndex: description.entryIndex,
+    field: description.field
+  };
 }
 
 function isNamedRef(value: unknown): value is NamedRef {
@@ -73,7 +158,10 @@ function capabilityIds(capabilities: GameCapabilities): Set<string> {
 function enumIssue(value: unknown, allowed: readonly string[], path: string, label: string): ValidationIssue | null {
   if (value === undefined) return null;
   if (typeof value !== "string" || !allowed.includes(value))
-    return { path, message: label + " must be one of: " + allowed.join(", ") };
+    return {
+      path, code: "unknown-enum", message: label + ' "' + String(value ?? "") + '" is not a supported value.',
+      hint: "Choose one of: " + allowed.join(", ") + ".", suggestions: [...allowed]
+    };
   return null;
 }
 
@@ -86,24 +174,37 @@ function pushEnumList(issues: ValidationIssue[], values: readonly string[], allo
   values.forEach((value, index) => pushEnum(issues, value, allowed, path + "[" + index + "]", label));
 }
 
-/** Strict validation: schema shape, reference resolution, registries and capability limits. */
+/** Strict validation with friendly, actionable messages. */
 export function validateContentSet(value: unknown, capabilities: GameCapabilities): ValidationResult {
   const issues: ValidationIssue[] = [];
   const parsed = contentSetV2Schema.safeParse(value);
   if (!parsed.success) {
-    for (const issue of parsed.error.issues)
-      issues.push({ path: issue.path.join("."), message: issue.message });
+    for (const issue of parsed.error.issues) {
+      const description = describePath({ ...(value as ContentSetV2Document), quests: [], armies: [], campaigns: [], dialogues: [] }, issue.path.join("."));
+      issues.push({
+        path: issue.path.join("."),
+        code: "schema",
+        message: description.label + ": " + issue.message,
+        hint: "This field has the wrong shape or type. Check the value shown in the editor.",
+        section: description.section
+      });
+    }
     return { valid: false, issues };
   }
   const set = parsed.data as ContentSetV2Document;
 
   set.quests.forEach((quest, questIndex) => {
-    pushEnum(issues, quest.objectiveKind, capabilities.enums.objectiveKind, "quests[" + questIndex + "].objectiveKind", "objectiveKind");
-    pushEnum(issues, quest.rewardKind, capabilities.enums.rewardKind, "quests[" + questIndex + "].rewardKind", "rewardKind");
+    pushEnum(issues, quest.objectiveKind, capabilities.enums.objectiveKind, "quests[" + questIndex + "].objectiveKind", "Objective");
+    pushEnum(issues, quest.rewardKind, capabilities.enums.rewardKind, "quests[" + questIndex + "].rewardKind", "Reward kind");
   });
 
-  if (set.campaigns.length === 0)
-    issues.push({ path: "campaigns", message: "A set must contain at least one campaign (§1)." });
+  // Dialogue-only sets are valid (tutorial dialogue collections do not need a campaign).
+  if (set.campaigns.length === 0 && set.dialogues.length === 0)
+    issues.push({
+      path: "campaigns", code: "empty-set", severity: "warning",
+      message: "This set is empty.",
+      hint: "Add a campaign for game content, or add a dialogue if this is a dialogue collection."
+    });
 
   const local = localIds(set);
   const allowed = new Set([...local, ...capabilityIds(capabilities)]);
@@ -115,99 +216,148 @@ export function validateContentSet(value: unknown, capabilities: GameCapabilitie
     ...set.campaigns.map(campaign => ["campaign", campaign.id, "campaigns"] as const),
     ...set.dialogues.map(dialogue => ["dialogue", dialogue.sequenceId, "dialogues"] as const)
   ]) {
-    if (seenIds.has(id)) issues.push({ path, message: "duplicate " + kind + " id '" + id + "'" });
+    if (seenIds.has(id)) issues.push({
+      path, code: "duplicate-id", message: 'Duplicate ' + kind + ' ID "' + id + '".',
+      hint: "Every item needs its own ID. Rename one of them."
+    });
     seenIds.set(id, kind);
   }
 
   walk(set, "", (node, path) => {
     if (isNamedRef(node) && !allowed.has(node.id))
-      issues.push({ path: path + ".id", message: "unresolved reference '" + node.id + "'" });
+      issues.push(referenceIssue(set, allowed, path + ".id", node.id));
   });
 
   for (const campaignId of set.set.campaignOrder)
     if (!set.campaigns.some(campaign => campaign.id === campaignId))
-      issues.push({ path: "set.campaignOrder", message: "campaignOrder references unknown campaign '" + campaignId + "'" });
+      issues.push(referenceIssue(set, allowed, "set.campaignOrder", campaignId));
 
   set.campaigns.forEach((campaign, campaignIndex) => {
     const campaignPath = "campaigns[" + campaignIndex + "]";
-    pushEnumList(issues, campaign.settings.shopPoolKinds, capabilities.enums.shopPoolKind, campaignPath + ".settings.shopPoolKinds", "shopPoolKind");
+    pushEnumList(issues, campaign.settings.shopPoolKinds, capabilities.enums.shopPoolKind, campaignPath + ".settings.shopPoolKinds", "Shop pool");
     campaign.floors.forEach((floor, floorIndex) => {
       const floorPath = campaignPath + ".floors[" + floorIndex + "]";
-      pushEnum(issues, floor.mode, capabilities.enums.floorMode, floorPath + ".mode", "floorMode");
-      pushEnumList(issues, floor.shopPoolKinds, capabilities.enums.shopPoolKind, floorPath + ".shopPoolKinds", "shopPoolKind");
+      pushEnum(issues, floor.mode, capabilities.enums.floorMode, floorPath + ".mode", "Floor mode");
+      pushEnumList(issues, floor.shopPoolKinds, capabilities.enums.shopPoolKind, floorPath + ".shopPoolKinds", "Shop pool");
       floor.nodes.forEach((node, nodeIndex) => {
-        pushEnum(issues, node.kind, capabilities.enums.nodeKind, floorPath + ".nodes[" + nodeIndex + "].kind", "nodeKind");
-        pushEnum(issues, node.rewardKind, capabilities.enums.rewardKind, floorPath + ".nodes[" + nodeIndex + "].rewardKind", "rewardKind");
+        pushEnum(issues, node.kind, capabilities.enums.nodeKind, floorPath + ".nodes[" + nodeIndex + "].kind", "Node kind");
+        pushEnum(issues, node.rewardKind, capabilities.enums.rewardKind, floorPath + ".nodes[" + nodeIndex + "].rewardKind", "Reward kind");
         node.shopOffers.forEach((offer, offerIndex) => pushEnum(issues, offer.kind,
-          capabilities.enums.shopOfferKind, floorPath + ".nodes[" + nodeIndex + "].shopOffers[" + offerIndex + "].kind", "shopOfferKind"));
+          capabilities.enums.shopOfferKind, floorPath + ".nodes[" + nodeIndex + "].shopOffers[" + offerIndex + "].kind", "Offer kind"));
       });
       if (floor.nodes.length > capabilities.limits.maxAuthoredNodesPerFloor)
         issues.push({
-          path: floorPath + ".nodes",
-          message: "floor has " + floor.nodes.length + " nodes; limit is " + capabilities.limits.maxAuthoredNodesPerFloor
+          path: floorPath + ".nodes", code: "node-limit",
+          message: 'Campaign "' + campaign.name.default + '" floor ' + floor.number + ' has ' + floor.nodes.length +
+            ' nodes, but the game supports ' + capabilities.limits.maxAuthoredNodesPerFloor + '.',
+          hint: "Remove nodes from this floor or move some to another floor.",
+          section: "campaigns", entryIndex: campaignIndex
         });
       for (const questRef of floor.questPoolIds)
         if (!set.quests.some(quest => quest.id === questRef.id))
-          issues.push({ path: floorPath + ".questPoolIds", message: "unknown quest '" + questRef.id + "'" });
+          issues.push(referenceIssue(set, allowed, floorPath + ".questPoolIds", questRef.id));
       const nodeIds = new Set(floor.nodes.map(node => node.id));
       for (const route of floor.routes) {
         if (!nodeIds.has(route.fromNodeId))
-          issues.push({ path: floorPath + ".routes", message: "route source '" + route.fromNodeId + "' is not a node on this floor" });
+          issues.push({
+            path: floorPath + ".routes", code: "broken-route",
+            message: 'Route "' + route.id + '" starts at "' + route.fromNodeId + '", which is not a node on floor ' + floor.number + '.',
+            hint: "Choose an existing node on this floor as the route start.",
+            section: "campaigns", entryIndex: campaignIndex
+          });
         if (!nodeIds.has(route.toNodeId))
-          issues.push({ path: floorPath + ".routes", message: "route target '" + route.toNodeId + "' is not a node on this floor" });
+          issues.push({
+            path: floorPath + ".routes", code: "broken-route",
+            message: 'Route "' + route.id + '" ends at "' + route.toNodeId + '", which is not a node on floor ' + floor.number + '.',
+            hint: "Choose an existing node on this floor as the route target.",
+            section: "campaigns", entryIndex: campaignIndex
+          });
       }
     });
     campaign.events.forEach((event, eventIndex) => {
       const eventPath = campaignPath + ".events[" + eventIndex + "]";
-      // `node-cleared` is internal-only for author pickers but is a known trigger in stored,
-      // imported and v1-migrated content (§7.1), so validation must accept it.
       if (!isKnownTrigger(event.trigger))
-        issues.push({ path: eventPath + ".trigger", message: "unknown trigger '" + event.trigger + "'" });
+        issues.push({
+          path: eventPath + ".trigger", code: "unknown-trigger",
+          message: 'Event "' + event.id + '" uses trigger "' + event.trigger + '", which is not supported.',
+          hint: "Choose a trigger from the list in the advanced view.",
+          section: "campaigns", entryIndex: campaignIndex
+        });
       for (const condition of event.conditions) {
         const entry = findCondition(condition.key);
         if (!entry) {
-          issues.push({ path: eventPath + ".conditions", message: "unknown condition '" + condition.key + "'" });
+          issues.push({
+            path: eventPath + ".conditions", code: "unknown-condition",
+            message: 'Event "' + event.id + '" uses unknown condition "' + condition.key + '".',
+            hint: "Choose a condition from the list in the advanced view.",
+            section: "campaigns", entryIndex: campaignIndex
+          });
           continue;
         }
-        // §5.5 encodes a condition as a Parameter whose `key` is the condition kind;
-        // §7.2 defines its value type (and enum/reference constraints).
         if (entry.parameters.length === 0) {
           if (condition.value !== null)
-            issues.push({ path: eventPath + ".conditions", message: condition.key + ": parameterless conditions require value: null" });
+            issues.push({
+              path: eventPath + ".conditions", code: "condition-value",
+              message: 'Condition "' + condition.key + '" takes no value.',
+              hint: "Set its value to null in the advanced view.",
+              section: "campaigns", entryIndex: campaignIndex
+            });
           continue;
         }
         const descriptor = entry.parameters[0];
         const conditionValue = condition.value;
         for (const error of parameterErrors(entry, [{ key: descriptor.key, value: conditionValue }], capabilities.enums))
-          issues.push({ path: eventPath + ".conditions", message: condition.key + ": " + error });
+          issues.push({
+            path: eventPath + ".conditions", code: "condition-parameter",
+            message: 'Condition "' + condition.key + '": ' + error + '.',
+            hint: "Check the condition value in the advanced view.",
+            section: "campaigns", entryIndex: campaignIndex
+          });
         if (descriptor.refKind === "blessing" && isNamedRef(conditionValue)
             && !capabilities.ids.blessings.includes(conditionValue.id))
-          issues.push({ path: eventPath + ".conditions", message: condition.key + ": unknown blessing '" + conditionValue.id + "'" });
+          issues.push(referenceIssue(set, allowed, eventPath + ".conditions", conditionValue.id));
         if (descriptor.refKind === "quest" && isNamedRef(conditionValue)
             && !set.quests.some(quest => quest.id === conditionValue.id))
-          issues.push({ path: eventPath + ".conditions", message: condition.key + ": unknown quest '" + conditionValue.id + "'" });
+          issues.push(referenceIssue(set, allowed, eventPath + ".conditions", conditionValue.id));
         if (condition.key === "choice-outcome" && typeof condition.value === "string"
             && !local.has(condition.value))
-          issues.push({ path: eventPath + ".conditions", message: condition.key + ": unknown outcomeId '" + condition.value + "'" });
+          issues.push(referenceIssue(set, allowed, eventPath + ".conditions", condition.value));
       }
       for (const action of event.actions) {
         const entry = findAction(action.kind);
         if (!entry) {
-          issues.push({ path: eventPath + ".actions", message: "unknown action '" + action.kind + "'" });
+          issues.push({
+            path: eventPath + ".actions", code: "unknown-action",
+            message: 'Event "' + event.id + '" uses unknown action "' + action.kind + '".',
+            hint: "Choose an action from the list in the advanced view.",
+            section: "campaigns", entryIndex: campaignIndex
+          });
           continue;
         }
         for (const error of parameterErrors(entry, action.parameters))
-          issues.push({ path: eventPath + ".actions", message: action.kind + ": " + error });
+          issues.push({
+            path: eventPath + ".actions", code: "action-parameter",
+            message: 'Action "' + action.kind + '": ' + error + '.',
+            hint: "Check the action parameters in the advanced view.",
+            section: "campaigns", entryIndex: campaignIndex
+          });
       }
     });
   });
 
   set.dialogues.forEach((dialogue, dialogueIndex) => {
-    const dialoguePath = "dialogues[" + dialogueIndex + "]";
     const nodeIds = new Set(dialogue.nodes.map(node => node.id));
     if (!nodeIds.has(dialogue.startNodeId))
-      issues.push({ path: dialoguePath + ".startNodeId", message: "startNodeId is not a node in this dialogue" });
+      issues.push({
+        path: "dialogues[" + dialogueIndex + "].startNodeId", code: "broken-start-node",
+        message: 'Dialogue "' + dialogue.sequenceId + '" starts at "' + dialogue.startNodeId + '", which is not one of its nodes.',
+        hint: "Choose a start node from the dialogue's node list.",
+        section: "dialogues", entryIndex: dialogueIndex
+      });
   });
 
-  return { valid: issues.length === 0, issues };
+  return {
+    valid: !issues.some(issue => (issue.severity ?? "error") === "error"),
+    issues
+  };
 }

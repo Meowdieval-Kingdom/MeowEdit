@@ -38,5 +38,24 @@
 .guided-list-item span { flex: 1; }
 .guided-error { color: var(--red); font-size: 11px; }
 .guided-status { color: var(--green-dark); font-size: 12px; min-height: 1em; }
-.validation-list { max-height: 190px; overflow: auto; padding: 12px 14px; background: var(--red-pale); border-radius: 8px; color: #8c4438; font-size: 11px; }
-.validation-list ul { margin: 0; padding-left: 18px; }
+.rich-columns { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(220px, 1fr); gap: 14px; align-items: start; }
+.rich-columns .card h4 { margin: 16px 0 8px; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-soft); }
+.army-grid, .campaign-grid { display: grid; gap: 3px; width: max-content; margin: 10px 0; }
+.army-grid { grid-template-columns: repeat(5, 34px); }
+.campaign-grid { grid-template-columns: repeat(5, 34px); }
+.army-cell, .campaign-cell { width: 34px; height: 34px; border: 1px solid var(--line); border-radius: 5px; background: var(--paper); color: var(--muted); font-size: 11px; font-weight: 700; }
+.army-cell.filled, .campaign-cell.filled { background: var(--green-pale); border-color: var(--green); color: var(--green-dark); }
+.dialogue-preview-line { padding: 8px 10px; margin: 0 0 6px; background: var(--gold-pale); border-radius: 7px; color: var(--ink); font-size: 12px; line-height: 1.5; }
+
+.version-tag { color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: .02em; }
+
+.validation-panel { display: grid; gap: 12px; max-height: 340px; overflow: auto; }
+.validation-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: #8c4438; font-size: 12px; }
+.validation-group { padding: 10px 12px; background: var(--red-pale); border-radius: 8px; }
+.validation-group h3 { margin: 0 0 8px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: #8c4438; }
+.validation-group h3 span { color: #b08b83; }
+.validation-issue { padding: 8px 0; border-top: 1px solid #eed8d2; }
+.validation-issue:first-of-type { border-top: 0; }
+.validation-issue-title { color: #7b3c32; font-size: 11px; font-weight: 600; }
+.validation-issue-hint { margin-top: 4px; color: #95746c; font-size: 10px; line-height: 1.45; }
+.validation-issue-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 7px; }

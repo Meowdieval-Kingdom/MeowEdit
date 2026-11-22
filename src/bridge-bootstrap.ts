@@ -5,6 +5,7 @@ import {
   resetBridgeFetch, resetBridgeState, setBridgeFetch, setBridgeState, type BridgeActions
 } from "./bridge-context";
 import { escapeHtml } from "./v2/html";
+import { APP_VERSION } from "./v2/version";
 
 type AuthUser = { id: string };
 type AuthResult<T> = { data?: T | null; error?: { message?: string } | null };
@@ -19,13 +20,13 @@ const apiUrl = (import.meta.env.VITE_GAME_API_BASE_URL?.trim() ?? "").replace(/\
 
 function gateTopbar(): string {
   return '<div class="topbar"><div class="topbar-context"><span class="brand-mark">M</span><strong>MeowEdit</strong>' +
-    '<span class="context-divider">/</span><span class="context-crumb">TACTICS BRIDGE</span></div></div>';
+    '<span class="context-divider">/</span><span class="context-crumb">' + APP_VERSION + '</span></div></div>';
 }
 
 function renderGate(message: string, mode: "signin" | "config" = "signin"): void {
   app!.innerHTML = '<main class="bridge-gate">' + gateTopbar() + (mode === "config"
-    ? '<section class="bridge-panel"><div class="card bridge-card"><span class="eyebrow">MeowEdit · Tactics Bridge</span><h1>Editor sign-in is not configured</h1><p class="bridge-copy">Set the public Neon Auth URL and game API URL in the deployment environment, then rebuild the editor. No authoring workspace is loaded until authentication is available.</p></div></section>'
-    : '<section class="bridge-panel"><form class="card bridge-card" id="bridge-signin"><span class="eyebrow">MeowEdit · Tactics Bridge</span>' +
+    ? '<section class="bridge-panel"><div class="card bridge-card"><span class="eyebrow">MeowEdit content studio</span><h1>Editor sign-in is not configured</h1><p class="bridge-copy">Set the public Neon Auth URL and game API URL in the deployment environment, then rebuild the editor. No authoring workspace is loaded until authentication is available.</p></div></section>'
+    : '<section class="bridge-panel"><form class="card bridge-card" id="bridge-signin"><span class="eyebrow">MeowEdit content studio</span>' +
       '<h1>Sign in to MeowEdit</h1><p class="bridge-copy">Use an account provisioned for the content studio. Sign-up is not offered here.</p>' +
       '<div class="form-grid"><label class="field"><span class="field-label">Email</span><input name="email" type="email" autocomplete="username" required></label>' +
       '<label class="field"><span class="field-label">Password</span><input name="password" type="password" autocomplete="current-password" required></label></div>' +

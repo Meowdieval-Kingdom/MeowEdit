@@ -25,7 +25,7 @@ For a play-event completion effect, the game records its event ID on the run so 
 
 ## Install a package manually
 
-1. In MeowEdit, export a workspace ZIP that contains at least one campaign. Review the package README and run MeowEdit validation first.
+1. In MeowEdit, validate and publish a content set. Dialogue-only sets are valid; game content needs at least one campaign.
 2. Extract the contents of the ZIP's meowdieval-content folder into a new, uniquely named folder under:
    Assets/Meowdieval/Resources/AdventureContent/<immutable-revision>/
    Keep the package subfolders (manifest.json, quests, armies, campaigns, dialogues, and extensions) intact.

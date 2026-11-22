@@ -54,7 +54,7 @@ describe("v2 contract fixtures", () => {
     ["invalid-condition-key.json", "Invalid option"],
     ["invalid-condition-type.json", "wrong value type"],
     ["invalid-condition-enum.json", "enum(nodeKind)"],
-    ["invalid-condition-null.json", "require value: null"]
+    ["invalid-condition-null.json", "takes no value"]
   ])("rejects %s", (file, expected) => {
     const result = validateContentSet(patched(file), capabilities);
     expect(result.valid).toBe(false);
@@ -65,7 +65,7 @@ describe("v2 contract fixtures", () => {
     const limited: GameCapabilities = { ...capabilities, limits: { maxAuthoredNodesPerFloor: 1 } };
     const result = validateContentSet(validSet, limited);
     expect(result.valid).toBe(false);
-    expect(result.issues.some(issue => issue.message.includes("limit is 1"))).toBe(true);
+    expect(result.issues.some(issue => issue.code === "node-limit" && issue.message.includes("supports 1"))).toBe(true);
   });
 
   it("covers every registry trigger, condition and action parameter", () => {
@@ -102,6 +102,31 @@ describe("v2 contract fixtures", () => {
       expect(parameterErrors(action, valid, capabilities.enums)).toEqual([]);
       expect(parameterErrors(action, [{ key: "bogus", value: "x" }], capabilities.enums)).toContain("unknown parameter key 'bogus'");
     }
+  });
+
+  it("returns actionable issues with hints and suggestions", () => {
+    const result = validateContentSet(patched("invalid-broken-ref.json"), capabilities);
+    expect(result.valid).toBe(false);
+    const issue = result.issues.find(item => item.code === "unresolved-reference")!;
+    expect(issue).toBeDefined();
+    expect(issue.message).toContain("unresolved reference");
+    expect(issue.hint).toContain("does not exist");
+    expect(issue.field).toBeTruthy();
+  });
+
+  it("accepts dialogue-only sets and only warns on a completely empty set", () => {
+    const dialogueOnly = structuredClone(validSet) as ContentSetV2Document;
+    dialogueOnly.campaigns = [];
+    dialogueOnly.set.campaignOrder = [];
+    dialogueOnly.quests = [];
+    dialogueOnly.armies = [];
+    expect(validateContentSet(dialogueOnly, capabilities).valid).toBe(true);
+
+    const empty = structuredClone(dialogueOnly) as ContentSetV2Document;
+    empty.dialogues = [];
+    const result = validateContentSet(empty, capabilities);
+    expect(result.valid).toBe(true);
+    expect(result.issues.some(issue => issue.code === "empty-set" && issue.severity === "warning")).toBe(true);
   });
 
   it("includes after-battle as an author-selectable migration trigger", () => {

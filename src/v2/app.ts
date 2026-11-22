@@ -8,7 +8,9 @@ import {
 import { DETAIL_SECTIONS, detailItemCount, renderDetailSection, type DetailSection } from "./details";
 import { emptyContentSet, localized, namedRef } from "./factory";
 import { escapeHtml } from "./html";
+import { APP_VERSION } from "./version";
 import { packContentSet } from "./packer";
+import { renderRichEditor, richItemLabel, type RichState } from "./rich";
 import { ACTIONS, CONDITIONS, TRIGGERS } from "./registries";
 import type { CampaignEvent, ContentSetV2Document, GameCapabilities } from "./types";
 import { validateContentSet, type ValidationResult } from "./validation";
@@ -33,6 +35,8 @@ interface AppState {
   view: "browser" | "wizard" | "set";
   focus: DetailSection;
   entry: { section: DetailSection; index: number } | null;
+  rich: RichState;
+  rawFields: boolean;
   adding: boolean;
   addName: string;
   addId: string;
@@ -167,6 +171,7 @@ function renderBrowser(container: HTMLElement, state: AppState): void {
   container.innerHTML = '<main class="editor-shell"><div class="topbar"><div class="topbar-context">' +
     '<span class="brand-mark">M</span><strong>MeowEdit</strong><span class="context-divider">/</span>' +
     '<span class="context-crumb">CONTENT SETS</span></div><div class="topbar-actions">' +
+    '<span class="version-tag">' + APP_VERSION + '</span>' +
     '<button type="button" class="text-button" data-sign-out>Sign out</button></div></div>' +
     '<div class="editor-main"><div class="editor-heading"><div><h1>Your content sets</h1>' +
     "<p>Create, rename, open and publish sets. Drafts stay private until you publish.</p></div>" +
@@ -390,8 +395,7 @@ function renderEditor(container: HTMLElement, state: AppState): void {
   } else {
     fields.push(state.validation.valid
       ? '<p class="step-copy">Ready. Save uploads a private draft; Publish makes it available to players.</p>'
-      : '<div class="validation-list"><ul>' + state.validation.issues.map(issue =>
-        "<li>" + escapeHtml(issue.path + ": " + issue.message) + "</li>").join("") + "</ul></div>");
+      : renderValidationPanel(state));
   }
 
   const progress = '<div class="guided-progress">' + STEP_TITLES.map((_, index) =>
@@ -413,6 +417,7 @@ function renderEditor(container: HTMLElement, state: AppState): void {
     '<div class="topbar-actions">' + statusBadge +
     '<button type="button" class="text-button" data-advanced>Advanced controls</button>' +
     '<button type="button" class="text-button" data-back-browser>Sets</button>' +
+    '<span class="version-tag">' + APP_VERSION + '</span>' +
     '<button type="button" class="text-button" data-sign-out>Sign out</button></div></div>' +
     '<div class="editor-main"><div class="editor-heading"><div><h1>' + escapeHtml(STEP_TITLES[step]) + "</h1>" +
     "<p>" + escapeHtml(STEP_COPY[step]) + "</p></div><span class=\"guided-step-count\">Step " + (step + 1) + " of " + STEP_TITLES.length + "</span></div>" +
@@ -456,10 +461,54 @@ function renderEditor(container: HTMLElement, state: AppState): void {
   }));
   container.querySelector<HTMLElement>("[data-save]")?.addEventListener("click", () => { void saveDraft(container, state); });
   container.querySelector<HTMLElement>("[data-publish]")?.addEventListener("click", () => { void publishDraft(container, state); });
+  container.querySelectorAll<HTMLElement>("[data-fix-ref]").forEach(button => button.addEventListener("click", () => {
+    applySuggestedFix(state, button.dataset.fixRef!, button.dataset.suggestion!);
+    renderEditor(container, state);
+  }));
+  container.querySelectorAll<HTMLElement>("[data-fix-nav]").forEach(button => button.addEventListener("click", () => {
+    state.view = "set";
+    state.focus = button.dataset.fixNav as DetailSection;
+    state.entry = { section: state.focus, index: Number(button.dataset.index) };
+    renderSetView(container, state);
+  }));
   container.onchange = event => {
     applyChange(state, event);
     flashStatus(container, state);
   };
+}
+
+function renderValidationPanel(state: AppState): string {
+  const issues = state.validation.issues;
+  if (!issues.length) return '<p class="step-copy">No contract issues. This set is ready to upload.</p>';
+  const groups = new Map<string, typeof issues>();
+  for (const issue of issues) {
+    const key = issue.section ? issue.section.charAt(0).toUpperCase() + issue.section.slice(1) : "Set";
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(issue);
+  }
+  const fixable = issues.filter(issue => issue.code === "unresolved-reference" && issue.suggestions?.length);
+  const sections = [...groups].map(([name, items]) =>
+    '<div class="validation-group"><h3>' + escapeHtml(name) + ' <span>(' + items.length + ')</span></h3>' +
+    items.map(issue => '<div class="validation-issue ' + (issue.severity === "warning" ? "warning" : "") + '">' +
+      '<div class="validation-issue-title">' + escapeHtml(issue.message) + '</div>' +
+      (issue.hint ? '<div class="validation-issue-hint">' + escapeHtml(issue.hint) + '</div>' : "") +
+      '<div class="validation-issue-actions">' +
+      (issue.section && issue.entryIndex !== undefined
+        ? '<button type="button" class="button button-small" data-fix-nav="' + escapeHtml(issue.section) + '" data-index="' + issue.entryIndex + '">Open entry</button>' : "") +
+      (issue.suggestions ?? []).map(suggestion =>
+        '<button type="button" class="button button-small" data-fix-ref="' + escapeHtml(issue.path) + '" data-suggestion="' + escapeHtml(suggestion) + '">Use ' + escapeHtml(suggestion) + '</button>').join("") +
+      "</div></div>").join("") + "</div>").join("");
+  return '<div class="validation-panel">' +
+    '<div class="validation-top"><strong>' + issues.length + ' item' + (issues.length === 1 ? "" : "s") + ' to check</strong>' +
+    (fixable.length ? '<button type="button" class="button button-small" data-fix-all>Apply ' + fixable.length + ' suggested fix' + (fixable.length === 1 ? "" : "es") + '</button>' : "") +
+    "</div>" + sections + "</div>";
+}
+
+function applySuggestedFix(state: AppState, path: string, suggestion: string): void {
+  const target = path.endsWith(".id") ? path.slice(0, -3) : path;
+  setByPath(state.draft, target, path.endsWith(".id") ? namedRef(suggestion) : suggestion);
+  state.validation = validateContentSet(state.draft, state.capabilities);
+  persistLocal(state);
 }
 
 function entryLabel(draft: ContentSetV2Document, section: DetailSection, index: number): string {
@@ -479,6 +528,7 @@ function renderSetView(container: HTMLElement, state: AppState): void {
     '<span class="brand-mark">M</span><strong>MeowEdit</strong><span class="context-divider">/</span>' +
     '<span class="context-crumb">' + escapeHtml(state.setId) + "</span></div><div class=\"topbar-actions\">" +
     '<button type="button" class="text-button" data-back-browser>Sets</button>' +
+    '<span class="version-tag">' + APP_VERSION + '</span>' +
     '<button type="button" class="text-button" data-sign-out>Sign out</button></div></div>';
   const heading = '<div class="editor-heading"><div><h1>' + escapeHtml(draft.set.name.default || state.setId) + "</h1>" +
     "<p>" + draft.campaigns.length + " campaigns · " + draft.quests.length + " quests · " +
@@ -500,10 +550,15 @@ function renderSetView(container: HTMLElement, state: AppState): void {
   } else if (state.entry) {
     const { section, index } = state.entry;
     body = heading +
-      '<section class="v2-details"><h2>Edit ' + section.slice(0, -1) + ': ' + escapeHtml(entryLabel(draft, section, index)) + "</h2>" +
+      '<div class="guided-actions"><button type="button" class="button button-outline" data-entry-back>← Back to list</button>' +
+      '<button type="button" class="button button-small" data-toggle-raw>' +
+      (state.rawFields ? "Guided editor" : "Raw fields") + "</button></div>" +
+      '<section class="v2-details"><h2>Edit ' + section.slice(0, -1) + ': ' + escapeHtml(richItemLabel(draft, section, index)) + "</h2>" +
       '<p class="step-copy">Changes save locally as you type. Return to the list to upload or publish.</p>' +
-      renderDetailSection({ draft, capabilities: state.capabilities }, section, index) +
-      '<div class="guided-actions"><button type="button" class="button button-outline" data-entry-back>← Back to list</button></div></section>';
+      (state.rawFields
+        ? renderDetailSection({ draft, capabilities: state.capabilities }, section, index)
+        : renderRichEditor({ draft, capabilities: state.capabilities, rich: state.rich })) +
+      "</section>";
   } else {
     const count = detailItemCount(draft, focus);
     const rows = Array.from({ length: count }, (_, index) =>
@@ -513,10 +568,7 @@ function renderSetView(container: HTMLElement, state: AppState): void {
           focus === "quests" ? draft.quests[index].id : draft.armies[index].id) + "</small></div>" +
       '<button type="button" class="text-button" data-entry-edit="' + index + '">Edit</button>' +
       '<button type="button" class="text-button danger-text" data-entry-remove="' + index + '">Remove</button></div>').join("");
-    const validation = state.validation.valid
-      ? '<p class="step-copy">No contract issues.</p>'
-      : '<div class="validation-list"><ul>' + state.validation.issues.map(issue =>
-        "<li>" + escapeHtml(issue.path + ": " + issue.message) + "</li>").join("") + "</ul></div>";
+    const validation = renderValidationPanel(state);
     body = heading +
       '<div class="guided-actions">' + tabs +
       '<button type="button" class="button button-primary" data-add="' + focus + '">+ Add ' + focus.slice(0, -1) + "</button></div>" +
@@ -543,7 +595,10 @@ function renderSetView(container: HTMLElement, state: AppState): void {
     renderSetView(container, state);
   }));
   container.querySelectorAll<HTMLElement>("[data-entry-edit]").forEach(button => button.addEventListener("click", () => {
-    state.entry = { section: focus, index: Number(button.dataset.entryEdit) };
+    const index = Number(button.dataset.entryEdit);
+    state.entry = { section: focus, index };
+    state.rich = { section: focus, index, step: 0, nodeIndex: 0, floorIndex: 0 };
+    state.rawFields = false;
     renderSetView(container, state);
   }));
   container.querySelectorAll<HTMLElement>("[data-entry-remove]").forEach(button => button.addEventListener("click", () => {
@@ -556,6 +611,11 @@ function renderSetView(container: HTMLElement, state: AppState): void {
     state.entry = null;
     renderSetView(container, state);
   });
+  container.querySelector<HTMLElement>("[data-toggle-raw]")?.addEventListener("click", () => {
+    state.rawFields = !state.rawFields;
+    renderSetView(container, state);
+  });
+  wireRichActions(container, state);
   container.querySelector<HTMLElement>("[data-add]")?.addEventListener("click", () => {
     state.adding = true;
     state.addName = "";
@@ -577,6 +637,23 @@ function renderSetView(container: HTMLElement, state: AppState): void {
   }));
   container.querySelector<HTMLElement>("[data-save]")?.addEventListener("click", () => { void saveDraft(container, state); });
   container.querySelector<HTMLElement>("[data-publish]")?.addEventListener("click", () => { void publishDraft(container, state); });
+  container.querySelectorAll<HTMLElement>("[data-fix-ref]").forEach(button => button.addEventListener("click", () => {
+    applySuggestedFix(state, button.dataset.fixRef!, button.dataset.suggestion!);
+    renderSetView(container, state);
+  }));
+  container.querySelectorAll<HTMLElement>("[data-fix-nav]").forEach(button => button.addEventListener("click", () => {
+    state.focus = button.dataset.fixNav as DetailSection;
+    state.entry = { section: state.focus, index: Number(button.dataset.index) };
+    renderSetView(container, state);
+  }));
+  container.querySelector<HTMLElement>("[data-fix-all]")?.addEventListener("click", () => {
+    const before = state.validation.issues.length;
+    for (const issue of [...state.validation.issues])
+      if (issue.code === "unresolved-reference" && issue.suggestions?.length)
+        applySuggestedFix(state, issue.path, issue.suggestions[0]);
+    state.status = "Applied " + (before - state.validation.issues.length) + " suggested reference fix(es).";
+    renderSetView(container, state);
+  });
   wireDetailActions(container, state);
   container.onchange = event => {
     applyChange(state, event);
@@ -734,6 +811,99 @@ function wireDetailActions(container: HTMLElement, state: AppState): void {
   }));
 }
 
+function wireRichActions(container: HTMLElement, state: AppState): void {
+  const rich = state.rich;
+  const capabilities = state.capabilities;
+  const draft = state.draft;
+  const campaign = draft.campaigns[rich.index];
+  const quest = draft.quests[rich.index];
+  const army = draft.armies[rich.index];
+  const dialogue = draft.dialogues[rich.index];
+  const floor = campaign?.floors[rich.floorIndex];
+  const dialogueNode = dialogue?.nodes[rich.nodeIndex];
+
+  container.querySelectorAll<HTMLSelectElement>("[data-rich-select]").forEach(select => select.addEventListener("change", () => {
+    rich.selectedUnit = select.value;
+  }));
+  container.querySelectorAll<HTMLElement>("[data-rich-action]").forEach(button => button.addEventListener("click", () => {
+    const action = button.dataset.richAction!;
+    const index = Number(button.dataset.index ?? 0);
+    const x = Number(button.dataset.x ?? 0);
+    const y = Number(button.dataset.y ?? 0);
+
+    if (action === "prev-step") rich.step = Math.max(0, rich.step - 1);
+    else if (action === "next-step") rich.step = Math.min(3, rich.step + 1);
+    else if (action === "select-node") rich.nodeIndex = index;
+    else if (action === "select-floor") rich.floorIndex = index;
+    else if (action === "add-dialogue-node" && dialogue) dialogue.nodes.push({
+      id: "node-" + (dialogue.nodes.length + 1), headline: localized("New node"), textSpeed: 30,
+      speakers: [], segments: [], actions: []
+    });
+    else if (action === "add-speaker" && dialogueNode) dialogueNode.speakers.push({
+      id: "speaker-" + (dialogueNode.speakers.length + 1),
+      unitId: namedRef(rich.selectedUnit || capabilities.ids.units[0] || "unit"),
+      displayName: localized("Speaker"), side: "right", mood: "Normal"
+    });
+    else if (action === "remove-speaker" && dialogueNode) dialogueNode.speakers.splice(index, 1);
+    else if (action === "add-segment" && dialogueNode) dialogueNode.segments.push({
+      speakerIds: dialogueNode.speakers.map(speaker => speaker.id), text: localized("New line")
+    });
+    else if (action === "remove-segment" && dialogueNode) dialogueNode.segments.splice(index, 1);
+    else if (action === "add-dialogue-action" && dialogueNode) dialogueNode.actions.push({
+      label: localized("Continue"), targetNodeId: dialogueNode.id,
+      meowEdit: { decision: { id: "decision", label: localized("Decision"), outcomeId: "outcome", outcomeLabel: localized("Outcome") }, defaultContinue: true }
+    });
+    else if (action === "remove-dialogue-action" && dialogueNode) dialogueNode.actions.splice(index, 1);
+    else if (action === "toggle-cell" && army) {
+      const existing = army.units.findIndex(unit => unit.x === x && unit.y === y);
+      if (existing >= 0) army.units.splice(existing, 1);
+      else army.units.push({
+        unitId: namedRef(rich.selectedUnit || capabilities.ids.units[0] || "unit"),
+        x, y, spellIds: []
+      });
+    }
+    else if (action === "add-spell" && army) army.spellIds.push(namedRef(capabilities.ids.spells[0] ?? "spell"));
+    else if (action === "remove-spell" && army) army.spellIds.splice(index, 1);
+    else if (action === "add-blessing" && army) army.blessingIds.push(namedRef(capabilities.ids.blessings[0] ?? "blessing"));
+    else if (action === "remove-blessing" && army) army.blessingIds.splice(index, 1);
+    else if (action === "add-floor" && campaign) campaign.floors.push({
+      id: "floor-" + (campaign.floors.length + 1), number: campaign.floors.length + 1,
+      mode: capabilities.enums.floorMode[0], questPoolMode: "campaign", questPoolIds: [],
+      shopPoolMode: "campaign", shopPoolKinds: [capabilities.enums.shopPoolKind[0]], shopLevel: 1,
+      randomSettings: { nodeCount: 12, questNodeCount: 2, shopNodeCount: 3 }, nodes: [], routes: []
+    });
+    else if (action === "toggle-node" && floor) {
+      const existing = floor.nodes.findIndex(node => node.x === x && node.y === y);
+      if (existing >= 0) floor.nodes.splice(existing, 1);
+      else floor.nodes.push({
+        id: "node-" + (floor.nodes.length + 1), label: localized("Node"),
+        kind: capabilities.enums.nodeKind[1] ?? capabilities.enums.nodeKind[0], x, y,
+        armyId: namedRef("army"), questId: namedRef("quest"),
+        enemyFactionId: namedRef(capabilities.ids.factions[0] ?? "faction"),
+        rewardKind: capabilities.enums.rewardKind[0], rewardAmount: 0,
+        rewardContentId: namedRef("reward"), shopOfferMode: "generated", shopOffers: []
+      });
+    }
+    else if (action === "add-route" && floor) floor.routes.push({
+      id: "route-" + (floor.routes.length + 1),
+      fromNodeId: floor.nodes[0]?.id ?? "", toNodeId: floor.nodes.at(-1)?.id ?? "", oneWay: false
+    });
+    else if (action === "remove-route" && floor) floor.routes.splice(index, 1);
+    else if (action === "add-event" && campaign) campaign.events.push({
+      id: "event-" + (campaign.events.length + 1), trigger: TRIGGERS[0], conditions: [],
+      actions: [{ kind: ACTIONS[0].kind, parameters: ACTIONS[0].parameters.map(parameter => ({
+        key: parameter.key, value: parameter.type === "int" ? 1 : ""
+      })) }], oneShot: "per-run"
+    });
+    else if (action === "remove-event" && campaign) campaign.events.splice(index, 1);
+    else if (action === "add-quest-link" && quest) return;
+    else return;
+    state.validation = validateContentSet(draft, capabilities);
+    persistLocal(state);
+    renderSetView(container, state);
+  }));
+}
+
 function applyChange(state: AppState, event: Event): void {
   const element = event.target as HTMLInputElement | HTMLSelectElement;
   const bind = element.dataset.v2Bind;
@@ -873,6 +1043,8 @@ export async function mountApp(container: HTMLElement): Promise<void> {
   const capabilities = await loadCapabilities();
   const state: AppState = {
     capabilities, sets: [], view: "browser", focus: "campaigns", entry: null,
+    rich: { section: "campaigns", index: 0, step: 0, nodeIndex: 0, floorIndex: 0 },
+    rawFields: false,
     adding: false, addName: "", addId: "",
     setId: "", draft: emptyContentSet("", ""),
     draftVersion: 0, step: 0, contentKind: null, draftTitle: "", draftSecondary: "",

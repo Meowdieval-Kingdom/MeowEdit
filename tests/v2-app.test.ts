@@ -170,15 +170,13 @@ describe("v2-only editor app", () => {
   it("adds and removes nested items only inside the selected entry", async () => {
     await openPublished(container);
     container.querySelector<HTMLElement>('[data-entry-edit="0"]')!.click();
-    container.querySelector<HTMLElement>('[data-detail-action="add-node"]')!.click();
-    expect(container.querySelectorAll('[data-detail-action="remove-node"]')).toHaveLength(1);
-    container.querySelector<HTMLElement>('[data-detail-action="remove-node"]')!.click();
-    expect(container.querySelectorAll('[data-detail-action="remove-node"]')).toHaveLength(0);
-    container.querySelector<HTMLElement>('[data-detail-action="add-event"]')!.click();
-    container.querySelector<HTMLElement>('[data-detail-action="add-condition"]')!.click();
-    container.querySelector<HTMLElement>('[data-detail-action="add-action"]')!.click();
-    expect(container.querySelectorAll('[data-detail-action="remove-condition"]')).toHaveLength(1);
-    expect(container.querySelectorAll('[data-detail-action="remove-action"]').length).toBeGreaterThanOrEqual(1);
+    expect(container.querySelector('[data-rich-action="toggle-node"]')).not.toBeNull();
+    container.querySelector<HTMLElement>('[data-rich-action="toggle-node"]')!.click();
+    container.querySelector<HTMLElement>('[data-rich-action="add-route"]')!.click();
+    container.querySelector<HTMLElement>('[data-rich-action="add-event"]')!.click();
+    expect(container.querySelectorAll('[data-rich-action="remove-event"]')).toHaveLength(1);
+    container.querySelector<HTMLElement>('[data-rich-action="remove-event"]')!.click();
+    expect(container.querySelectorAll('[data-rich-action="remove-event"]')).toHaveLength(0);
   });
 
   it("edits nested quest, army and dialogue fields consistently", async () => {
@@ -188,7 +186,7 @@ describe("v2-only editor app", () => {
       container.querySelector<HTMLElement>('[data-focus="' + section + '"]')!.click();
       container.querySelector<HTMLElement>('[data-entry-edit="0"]')!.click();
       expect(container.querySelectorAll("[data-v2-bind]").length).toBeGreaterThan(0);
-      expect(container.querySelectorAll("[data-detail-action]").length).toBeGreaterThan(0);
+      expect(container.querySelectorAll("[data-rich-action]").length).toBeGreaterThan(0);
       container.querySelector<HTMLElement>('[data-entry-back]')!.click();
       expect(container.querySelector('[data-add="' + section + '"]')).not.toBeNull();
     }
@@ -201,6 +199,7 @@ describe("v2-only editor app", () => {
       container.querySelector<HTMLElement>('[data-focus="' + section + '"]')!.click();
       expect(container.querySelectorAll("[data-entry-edit]").length).toBeGreaterThan(0);
       container.querySelector<HTMLElement>('[data-entry-edit="0"]')!.click();
+      container.querySelector<HTMLElement>("[data-toggle-raw]")!.click();
       expect(container.querySelectorAll("[data-v2-bind]").length).toBeGreaterThan(0);
       for (const action of ["add-condition", "add-action", "add-node", "add-route", "add-offer",
         "add-fetch-item", "add-battle-target", "add-distance", "add-effect", "add-unit", "add-cell-pick",
@@ -227,6 +226,40 @@ describe("v2-only editor app", () => {
       }
       container.querySelector<HTMLElement>('[data-entry-back]')!.click();
     }
+    expect(localStorage.getItem("meowedit.v2.sets.author-1")).not.toBeNull();
+  });
+
+  it("provides rich guided editors for all four categories", async () => {
+    await mountWithDraft(container, fullSet);
+    await openPublished(container);
+    container.querySelector<HTMLElement>('[data-focus="quests"]')!.click();
+    container.querySelector<HTMLElement>('[data-entry-edit="0"]')!.click();
+    expect(container.querySelector(".guided-progress")).not.toBeNull();
+    container.querySelector<HTMLElement>('[data-rich-action="next-step"]')!.click();
+    container.querySelector<HTMLElement>('[data-rich-action="next-step"]')!.click();
+    container.querySelector<HTMLElement>('[data-rich-action="next-step"]')!.click();
+    expect(container.textContent).toContain("Review");
+    container.querySelector<HTMLElement>('[data-entry-back]')!.click();
+
+    container.querySelector<HTMLElement>('[data-focus="dialogues"]')!.click();
+    container.querySelector<HTMLElement>('[data-entry-edit="0"]')!.click();
+    expect(container.querySelector(".dialogue-preview")).not.toBeNull();
+    container.querySelector<HTMLElement>('[data-rich-action="add-dialogue-node"]')!.click();
+    container.querySelector<HTMLElement>('[data-rich-action="add-segment"]')!.click();
+    container.querySelector<HTMLElement>('[data-rich-action="add-speaker"]')!.click();
+    container.querySelector<HTMLElement>('[data-entry-back]')!.click();
+
+    container.querySelector<HTMLElement>('[data-focus="armies"]')!.click();
+    container.querySelector<HTMLElement>('[data-entry-edit="0"]')!.click();
+    expect(container.querySelectorAll(".army-cell").length).toBe(25);
+    container.querySelector<HTMLElement>('[data-rich-action="toggle-cell"]')!.click();
+    container.querySelector<HTMLElement>('[data-rich-action="add-spell"]')!.click();
+    container.querySelector<HTMLElement>('[data-entry-back]')!.click();
+
+    container.querySelector<HTMLElement>('[data-focus="campaigns"]')!.click();
+    container.querySelector<HTMLElement>('[data-entry-edit="0"]')!.click();
+    expect(container.querySelectorAll(".campaign-cell").length).toBe(25);
+    container.querySelector<HTMLElement>('[data-rich-action="add-floor"]')!.click();
     expect(localStorage.getItem("meowedit.v2.sets.author-1")).not.toBeNull();
   });
 
@@ -311,6 +344,35 @@ describe("v2-only editor app", () => {
     container.querySelector<HTMLElement>('[data-rename="published-set"]')!.click();
     await vi.waitFor(() => expect(container.textContent).toContain("Renamed to Renamed Set"));
     expect(calls.some(call => call.init?.method === "POST" && call.path.includes("/campaign-sets/"))).toBe(true);
+  });
+
+  it("shows the app version next to sign out and no Bridge branding", async () => {
+    expect(container.textContent).toContain("v0.1.5");
+    expect(container.textContent).not.toMatch(/tactics bridge/i);
+  });
+
+  it("applies suggested reference fixes from the validation panel", async () => {
+    const stale = structuredClone(fullSet);
+    stale.campaigns[0].boardPreviewUnitId.id = "Cats/Fighter/1";
+    setBridgeFetch(async requestPath => {
+      let body: unknown = { sets: [{ setId: "published-set", draftVersion: 3 }] };
+      if (requestPath === "/v1/editor/capabilities") body = capabilities;
+      else if (requestPath.includes("/v1/editor/campaign-sets/") && !requestPath.endsWith("/publish"))
+        body = { setId: "published-set", draftVersion: 3, draft: stale };
+      return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
+    });
+    await mountApp(container);
+    await openPublished(container);
+    const fix = container.querySelector<HTMLElement>("[data-fix-ref]");
+    expect(fix).not.toBeNull();
+    const path = fix!.dataset.fixRef!;
+    const suggestion = fix!.dataset.suggestion!;
+    fix!.click();
+    const saved = JSON.parse(localStorage.getItem("meowedit.v2.sets.author-1")!)["published-set"].draft;
+    const parts = path.replace(/\.id$/, "").replace(/\[(\d+)\]/g, ".$1").split(".");
+    let value: any = saved;
+    for (const part of parts) value = value[part];
+    expect(value.id ?? value).toBe(suggestion);
   });
 
   it("signs out and returns to the set browser", async () => {

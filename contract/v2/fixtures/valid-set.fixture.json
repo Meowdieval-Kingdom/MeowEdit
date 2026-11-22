@@ -22,7 +22,7 @@
       "objectiveKind": "Fetch",
       "targetNodeKind": "Battle",
       "targetFloorOffset": 0,
-      "itemId": { "id": "Cats/Fighter/1", "label": { "default": "Key", "locales": {} } },
+      "itemId": { "id": "Peasants/Fighter/1", "label": { "default": "Key", "locales": {} } },
       "speakerName": { "default": "Village Elder", "locales": {} },
       "offerText": { "default": "Will you help?", "locales": {} },
       "activeText": { "default": "Find the key.", "locales": {} },
@@ -58,7 +58,7 @@
         "battleTargets": [],
         "killCount": {
           "targetKind": "unit",
-          "targetId": { "id": "Cats/Fighter/1", "label": { "default": "Fighter", "locales": {} } },
+          "targetId": { "id": "Peasants/Fighter/1", "label": { "default": "Fighter", "locales": {} } },
           "count": 1
         },
         "minimumNodeDistances": []
@@ -72,14 +72,14 @@
       "name": { "default": "Village Guards", "locales": {} },
       "units": [
         {
-          "unitId": { "id": "Cats/Fighter/1", "label": { "default": "Fighter", "locales": {} } },
+          "unitId": { "id": "Peasants/Fighter/1", "label": { "default": "Fighter", "locales": {} } },
           "x": 0,
           "y": 0,
-          "spellIds": [{ "id": "spell-shield", "label": { "default": "Shield", "locales": {} } }]
+          "spellIds": [{ "id": "Sardine Ward [GrantAbility]", "label": { "default": "Shield", "locales": {} } }]
         }
       ],
       "spellIds": [],
-      "blessingIds": [{ "id": "blessing-strength", "label": { "default": "Strength", "locales": {} } }],
+      "blessingIds": [{ "id": "Blessing - Alley Flank [Cell]", "label": { "default": "Strength", "locales": {} } }],
       "CellBlessingPicks": []
     }
   ],
@@ -89,7 +89,7 @@
       "id": "first-mission",
       "name": { "default": "First Mission", "locales": {} },
       "description": { "default": "The first authored mission.", "locales": {} },
-      "boardPreviewUnitId": { "id": "Cats/Fighter/1", "label": { "default": "Fighter", "locales": {} } },
+      "boardPreviewUnitId": { "id": "Peasants/Fighter/1", "label": { "default": "Fighter", "locales": {} } },
       "questIds": [{ "id": "find-key", "label": { "default": "Find the Key", "locales": {} } }],
       "floors": [
         {
@@ -111,7 +111,7 @@
               "y": 0,
               "armyId": { "id": "guards", "label": { "default": "Village Guards", "locales": {} } },
               "questId": { "id": "find-key", "label": { "default": "Find the Key", "locales": {} } },
-              "enemyFactionId": { "id": "Cats", "label": { "default": "Cats", "locales": {} } },
+              "enemyFactionId": { "id": "Peasants", "label": { "default": "Peasants", "locales": {} } },
               "rewardKind": "Sardines",
               "rewardAmount": 0,
               "rewardContentId": { "id": "find-key", "label": { "default": "Find the Key", "locales": {} } },
@@ -126,7 +126,7 @@
               "y": 0,
               "armyId": { "id": "guards", "label": { "default": "Village Guards", "locales": {} } },
               "questId": { "id": "find-key", "label": { "default": "Find the Key", "locales": {} } },
-              "enemyFactionId": { "id": "Cats", "label": { "default": "Cats", "locales": {} } },
+              "enemyFactionId": { "id": "Peasants", "label": { "default": "Peasants", "locales": {} } },
               "rewardKind": "Sardines",
               "rewardAmount": 5,
               "rewardContentId": { "id": "find-key", "label": { "default": "Find the Key", "locales": {} } },
@@ -177,7 +177,7 @@
         "startingLives": 3,
         "startingSardines": 10,
         "startingNodeCount": 12,
-        "playerFactionId": { "id": "Cats", "label": { "default": "Cats", "locales": {} } },
+        "playerFactionId": { "id": "Peasants", "label": { "default": "Peasants", "locales": {} } },
         "factionSelectionEnabled": false,
         "battleShopEnabled": true,
         "shopPoolKinds": ["Unit"],
@@ -205,7 +205,7 @@
           "speakers": [
             {
               "id": "elder",
-              "unitId": { "id": "Cats/Fighter/1", "label": { "default": "Fighter", "locales": {} } },
+              "unitId": { "id": "Peasants/Fighter/1", "label": { "default": "Fighter", "locales": {} } },
               "displayName": { "default": "Village Elder", "locales": {} },
               "side": "right",
               "mood": "Normal"

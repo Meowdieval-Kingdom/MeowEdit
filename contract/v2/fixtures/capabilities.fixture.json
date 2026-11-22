@@ -22,10 +22,10 @@
   "limits": { "maxAuthoredNodesPerFloor": 30 },
   "locales": ["en", "de"],
   "ids": {
-    "units": ["Cats/Fighter/1"],
-    "blessings": ["blessing-strength"],
+    "units": ["Peasants/Fighter/1"],
+    "blessings": ["Blessing - Alley Flank [Cell]"],
     "curses": ["curse-greed"],
-    "spells": ["spell-shield"],
-    "factions": ["Cats"]
+    "spells": ["Sardine Ward [GrantAbility]"],
+    "factions": ["Peasants"]
   }
 }
