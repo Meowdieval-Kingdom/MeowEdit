@@ -1,8 +1,14 @@
+import { getBridgeUserId } from "../bridge-context";
 import type { ArmyCatalogKind } from "./army-catalog";
 import type { EditorMode } from "./view";
 import type { RelatedEditorReturnContext } from "./editor-navigation";
 
 export const EDITOR_SESSION_STORAGE_KEY = "meowedit.editor-session.v1";
+
+export function editorSessionKey(setId?: string): string {
+  const user = getBridgeUserId() ?? "local";
+  return setId ? `${EDITOR_SESSION_STORAGE_KEY}.${user}.${setId}` : `${EDITOR_SESSION_STORAGE_KEY}.${user}`;
+}
 
 export interface EditorSessionState {
   activeEditorStep: number;
@@ -30,10 +36,10 @@ export function defaultEditorSession(): EditorSessionState {
   };
 }
 
-export function loadEditorSession(storage: Pick<Storage, "getItem">): EditorSessionState {
+export function loadEditorSession(storage: Pick<Storage, "getItem">, setId?: string): EditorSessionState {
   const fallback = defaultEditorSession();
   try {
-    const parsed = JSON.parse(storage.getItem(EDITOR_SESSION_STORAGE_KEY) ?? "null") as Partial<EditorSessionState> | null;
+    const parsed = JSON.parse(storage.getItem(editorSessionKey(setId)) ?? "null") as Partial<EditorSessionState> | null;
     if (!parsed || typeof parsed !== "object") return fallback;
     return {
       activeEditorStep: Number.isInteger(parsed.activeEditorStep) && Number(parsed.activeEditorStep) >= 0
@@ -53,10 +59,11 @@ export function loadEditorSession(storage: Pick<Storage, "getItem">): EditorSess
   }
 }
 
-export function saveEditorSession(storage: Pick<Storage, "setItem">, session: EditorSessionState): void {
+export function saveEditorSession(storage: Pick<Storage, "setItem">, session: EditorSessionState, setId?: string): void {
   try {
-    storage.setItem(EDITOR_SESSION_STORAGE_KEY, JSON.stringify(session));
+    storage.setItem(editorSessionKey(setId), JSON.stringify(session));
   } catch {
     // Draft content has its own save warning; transient navigation can safely fall back to defaults.
   }
 }
+

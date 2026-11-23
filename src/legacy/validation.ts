@@ -37,6 +37,8 @@ export function validateDialogue(record: DialogueRecord): ValidationIssue[] {
   const nodeMap = new Map(nodes.map(node => [node.id, node]));
 
   if (!nonEmpty(sequence.sequenceId)) issues.push({ level: "error", message: "Dialogue ID is required." });
+  else if (!/^[a-z0-9][a-z0-9._-]{0,63}$/.test(sequence.sequenceId))
+    issues.push({ level: "error", message: 'Dialogue ID "' + sequence.sequenceId + '" may only use lowercase letters, numbers, -, _ and .' });
   if (nodes.length === 0) issues.push({ level: "error", message: "Add at least one dialogue node." });
   if (!uniqueValues(nodeIds)) issues.push({ level: "error", message: "Node IDs must be unique within a dialogue." });
   if (!nodeMap.has(sequence.startNodeId)) {

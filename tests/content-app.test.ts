@@ -134,7 +134,7 @@ describe("set manager and single editor", () => {
     container.querySelector<HTMLElement>('[data-open="published-set"]')!.click();
     await vi.waitFor(() => expect(container.querySelector("[data-save]")).not.toBeNull());
     container.querySelector<HTMLElement>("[data-save]")!.click();
-    expect(container.textContent).toContain("Fix the validation issues");
+    await vi.waitFor(() => expect(container.textContent).toContain("Fix the validation issues"));
   });
 
   it("restores the last set and help preference across remounts", async () => {

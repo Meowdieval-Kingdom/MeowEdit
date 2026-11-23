@@ -16,7 +16,7 @@ export default defineConfig({
       // on code we own and change.
       exclude: ["src/legacy/main.ts"],
       thresholds: {
-        // Project-wide floors cover the v2-only editor and the authenticated bootstrap.
+        // Project-wide floors cover the content editor, restored legacy modules and authenticated bootstrap.
         statements: 78,
         branches: 70,
         functions: 84,

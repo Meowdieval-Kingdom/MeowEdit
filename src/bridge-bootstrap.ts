@@ -204,6 +204,8 @@ if (!isBridgeConfigured()) {
       await withTimeout(editor.mountApp(app!), 20_000, "The editor did not finish loading in time.");
     } catch (error) {
       if (generation !== authGeneration) return;
+      resetBridgeFetch();
+      resetBridgeState();
       showGateError(error instanceof Error ? error.message : "The editor could not be loaded.");
     }
   }

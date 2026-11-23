@@ -150,6 +150,7 @@ function capabilityIds(capabilities: GameCapabilities): Set<string> {
   return new Set([
     ...capabilities.ids.units,
     ...capabilities.ids.blessings,
+    ...capabilities.ids.curses,
     ...capabilities.ids.spells,
     ...capabilities.ids.factions
   ]);
@@ -440,7 +441,7 @@ export function validateContentSet(value: unknown, capabilities: GameCapabilitie
           });
           continue;
         }
-        for (const error of parameterErrors(entry, action.parameters))
+        for (const error of parameterErrors(entry, action.parameters, capabilities.enums))
           issues.push({
             path: eventPath + ".actions", code: "action-parameter",
             message: 'Action "' + action.kind + '": ' + error + '.',

@@ -33,7 +33,7 @@ import { includeArmyUnitsInRoster } from "./roster";
 import { getBridgeActions } from "../bridge-context";
 import type { ContentSetDocument, GameCapabilities } from "../content/types";
 import { workspaceToDraft } from "./convert";
-import { loadWorkspace, saveWorkspace as persistWorkspace } from "./workspace-store";
+import { loadWorkspace, markWorkspaceDirty, saveWorkspace as persistWorkspace } from "./workspace-store";
 import {
   activeDialogueJson, activeArmyJson, activeCampaignJson, activeQuestJson,
   decodeZipText, parseImportedJson, suggestedFilename, workspacePackage
@@ -61,13 +61,15 @@ export interface LegacyMountOptions {
   draft: ContentSetDocument;
   capabilities: GameCapabilities;
   selected?: { section: string; index: number };
-  onSave(): void;
+  onSave(): Promise<string>;
   onDraftChange(): void;
   onBack(): void;
-  onPublish?(): void;
+  onPublish?(): Promise<string>;
+  canPublishEditor?(): boolean;
 }
 
 let mountOptions: LegacyMountOptions | null = null;
+let mountGeneration = 0;
 
 /**
  * Repairs stale catalog IDs (for example an old "Cats/Fighter/1" reference)
@@ -104,9 +106,11 @@ export function reconcileCatalogIds(workspaceToRepair: typeof workspace, catalog
 
 /** Mounts the restored v1 editor on its native, per-set workspace. */
 export function mountLegacyEditor(options: LegacyMountOptions): void {
+  const generation = ++mountGeneration;
   mountOptions = options;
   workspace = loadWorkspace(options.setId, options.draft, options.capabilities, options.selected);
   void Promise.all([loadRoster(), loadArmyCatalog()]).then(([loadedRoster, loadedCatalog]) => {
+    if (generation !== mountGeneration) return;
     armyCatalog = loadedCatalog;
     roster = includeArmyUnitsInRoster(loadedRoster, loadedCatalog);
     const repaired = reconcileCatalogIds(workspace, loadedCatalog);
@@ -183,6 +187,7 @@ async function loadArmyCatalog(): Promise<ArmyCatalog> {
 function saveWorkspace(): void {
   if (!mountOptions) return;
   persistWorkspace(mountOptions.setId, workspace);
+  markWorkspaceDirty(mountOptions.setId);
   persistEditorSession();
   const status = document.querySelector<HTMLElement>("#save-status");
   if (status) status.textContent = "All changes saved";
@@ -207,7 +212,7 @@ function persistEditorSession(): void {
       selectedCampaignFloorId,
       selectedCampaignNodeId,
       relatedReturnContexts: relatedReturnContexts.snapshot()
-    });
+    }, mountOptions?.setId);
   } catch {
     // Workspace persistence already reports storage failures; losing only navigation state is safe.
   }
@@ -229,6 +234,8 @@ function render(): void {
   guidedFocusAfterPath = null;
   guidedFocusExactPath = null;
   const currentRenderVersion = ++renderVersion;
+  (activeDialogueGraph as unknown as { clear?: () => void } | null)?.clear?.();
+  activeDialogueGraph = null;
   const issues = validateWorkspace(workspace, armyCatalog);
   const returnContext = relatedReturnContexts.current();
   root!.innerHTML = renderApp(workspace, roster, armyCatalog, issues, activeEditorStep, editorMode, selectedArmyPlacementId, {
@@ -242,7 +249,8 @@ function render(): void {
   }, returnContext ? {
     parent: returnContext.parentType === "campaign" ? "Campaign" : "Quest",
     label: returnContext.returnLabel
-  } : undefined, armyCatalogKind, helpVisible, { abilityId: selectedArmyBattlefieldEffectId, region: selectedArmyCellRegion }, armyAbilityFilters, armyAbilityCategory, armyAbilitySelections, selectedCampaignEventId);
+  } : undefined, armyCatalogKind, helpVisible, { abilityId: selectedArmyBattlefieldEffectId, region: selectedArmyCellRegion }, armyAbilityFilters, armyAbilityCategory, armyAbilitySelections, selectedCampaignEventId,
+    mountOptions?.canPublishEditor?.() ?? true);
   const appLayout = root!.querySelector<HTMLElement>(".app-layout");
   appLayout?.classList.toggle("is-sidebar-collapsed", sidebarCollapsed);
   appLayout?.classList.toggle("is-sidebar-open", root!.querySelector<HTMLElement>(".sidebar")?.classList.contains("is-open") ?? false);
@@ -262,7 +270,7 @@ function render(): void {
         if (redraw) window.setTimeout(render, 0);
         else refreshDerivedView();
       },
-      onNodeMoved: () => saveWorkspace()
+      onNodeMoved: () => { if (currentRenderVersion === renderVersion) saveWorkspace(); }
     })
     : null;
   document.querySelector<HTMLDialogElement>("#confirm-dialog")?.addEventListener("close", handleDeleteDialogClose);
@@ -2244,12 +2252,18 @@ function onAction(button: HTMLButtonElement): void {
     case "save-package":
       saveWorkspace();
       syncDraft();
-      mountOptions?.onSave();
+      void Promise.resolve(mountOptions?.onSave()).then(message => {
+        const status = document.querySelector<HTMLElement>("#save-status");
+        if (status && message) status.textContent = message;
+      });
       return;
     case "publish-package":
       saveWorkspace();
       syncDraft();
-      mountOptions?.onPublish?.();
+      void Promise.resolve(mountOptions?.onPublish?.()).then(message => {
+        const status = document.querySelector<HTMLElement>("#save-status");
+        if (status && message) status.textContent = message;
+      });
       return;
     case "open-content-editor":
       saveWorkspace();

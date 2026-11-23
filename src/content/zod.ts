@@ -227,7 +227,7 @@ export const campaignDocumentSchema = z.object({
 
 export const dialogueDocumentSchema = z.object({
   schemaVersion: z.literal(2),
-  sequenceId: z.string().min(1),
+  sequenceId: z.string().regex(/^[a-z0-9][a-z0-9._-]{0,63}$/),
   startNodeId: z.string().min(1),
   pauseMode: z.string(),
   defaultCharactersPerSecond: z.number(),

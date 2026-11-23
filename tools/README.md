@@ -43,7 +43,7 @@ Portraits in `public/avatars/` are captured from the game's `MainMenuPortraitCap
 
 # Updating the game capability manifest
 
-MeowEdit serves a static capability manifest at public/game-capabilities.json (Content Contract §6). It is consumed by editor pickers/validation, backend publish-time validation and Unity's admission check; CI regenerates it with `MEOWDIEVAL_BUILD_NUMBER` set. From a MeowEdit checkout beside MeowdievalKingdom, run:
+MeowEdit serves a static capability manifest at public/game-capabilities.json (Content Contract §6). It is consumed by editor pickers/validation, backend publish-time validation and Unity's admission check; Regenerate it locally with `npm run snapshot-game-capabilities` when the game build changes. From a MeowEdit checkout beside MeowdievalKingdom, run:
 
     npm run snapshot-game-capabilities
 

@@ -1885,7 +1885,8 @@ export function renderApp(
   abilityFilters: ArmyAbilityFilters = defaultArmyAbilityFilters,
   abilityCategory: ArmyAbilityKind = "spells",
   abilitySelections: ArmyAbilitySelections = defaultArmyAbilitySelections,
-  selectedCampaignEventId: string | null = null
+  selectedCampaignEventId: string | null = null,
+  publishAllowed = true
 ): string {
   const item = selectedItem(workspace);
   const guidedCompact = editorMode === "guided" && item !== null;
@@ -1893,8 +1894,8 @@ export function renderApp(
   const hasErrors = allIssues.some(issue => issue.level === "error");
   const bridgeUserId = getBridgeUserId();
   const toolbar = '<div class="topbar-actions">' +
-    (relatedReturnState ? actionButton("return-to-parent", "← " + relatedReturnState.label, "text-button return-to-parent", ' aria-label="Return to ' + escapeHtml(relatedReturnState.parent) + '" title="Return to ' + escapeHtml(relatedReturnState.parent) + '"') : "") +
-    (bridgeUserId && workspace.campaigns.length > 0 && canPublish() ? actionButton("publish-package", "Publish", "button button-primary", hasErrors ? " disabled" : "") : "") +
+    (relatedReturnState ? actionButton("return-to-parent", "← " + escapeHtml(relatedReturnState.label), "text-button return-to-parent", ' aria-label="Return to ' + escapeHtml(relatedReturnState.parent) + '" title="Return to ' + escapeHtml(relatedReturnState.parent) + '"') : "") +
+    (bridgeUserId && canPublish() ? actionButton("publish-package", "Publish", "button button-primary", publishAllowed ? "" : " disabled") : "") +
     (bridgeUserId ? actionButton("save-package", "Save / Upload", "button button-outline") : "") +
     (bridgeUserId ? actionButton("open-content-editor", "← Back to set", "text-button open-content-editor") : "") +
     (bridgeUserId ? actionButton("bridge-sign-out", "Sign out", "text-button bridge-sign-out") : "") +

@@ -39,7 +39,7 @@ describe("restored v1 editor", () => {
     else document.querySelector("#app")!.innerHTML = "";
     for (const key of Object.keys(localStorage))
       if (key.startsWith("meowedit.workspace.v1.")) localStorage.removeItem(key);
-    localStorage.setItem("meowedit.editor-session.v1", JSON.stringify({
+    localStorage.setItem("meowedit.editor-session.v1.author-1", JSON.stringify({
       activeEditorStep: 0, editorMode: "full", helpVisible: false, sidebarCollapsed: false,
       selectedArmyPlacementId: null, armyCatalogKind: "units", selectedCampaignFloorId: null,
       selectedCampaignNodeId: null, relatedReturnContexts: []
@@ -82,7 +82,7 @@ describe("restored v1 editor", () => {
     const mount = (section: string, index: number) => mountLegacyEditor({
       setId: "legacy-set",
       draft: fullSet, capabilities, selected: { section, index },
-      onSave: vi.fn(), onDraftChange: vi.fn(), onBack: vi.fn()
+      onSave: vi.fn(async () => "saved"), onDraftChange: vi.fn(), onBack: vi.fn()
     });
     mount("dialogues", 0);
     await vi.waitFor(() => expect(document.querySelector("[data-dialogue-node-graph]")).not.toBeNull());
@@ -100,7 +100,7 @@ describe("restored v1 editor", () => {
     const { mountLegacyEditor } = await import("../src/legacy/main");
     const mount = (section: string, index: number) => mountLegacyEditor({
       setId: "transfer-set", draft: fullSet, capabilities,
-      selected: { section, index }, onSave: vi.fn(), onDraftChange: vi.fn(), onBack: vi.fn()
+      selected: { section, index }, onSave: vi.fn(async () => "saved"), onDraftChange: vi.fn(), onBack: vi.fn()
     });
     for (const section of ["dialogues", "quests", "armies", "campaigns"]) {
       mount(section, 0);
@@ -231,3 +231,6 @@ describe("restored v1 editor", () => {
     expect(other.armies[0].units[0].id).toBe("placement-0");
   });
 });
+
+
+

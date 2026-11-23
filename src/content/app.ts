@@ -14,6 +14,8 @@ import { loadSession, saveSession } from "./session";
 import { gameCapabilitiesSchema } from "./zod";
 import type { ContentSetDocument, GameCapabilities } from "./types";
 import { validateContentSet, type ValidationResult } from "./validation";
+import { hasUnsyncedWorkspace, loadWorkspace, markWorkspaceSynced } from "../legacy/workspace-store";
+import { workspaceToDraft } from "../legacy/convert";
 
 interface SetSummary {
   setId: string;
@@ -109,7 +111,7 @@ function showToast(message: string, kind: "success" | "warning" | "error" = "suc
 
 /** Carries the HTTP status so callers can distinguish an unsupported route from a real failure. */
 class RequestError extends Error {
-  constructor(message: string, readonly status: number) {
+  constructor(message: string, readonly status: number, readonly body?: unknown) {
     super(message);
     this.name = "RequestError";
   }
@@ -122,7 +124,7 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
     const result = await request(path, { ...init, signal });
     return { response: result, body: await result.json().catch(() => null) as (T & { error?: string }) | null };
   }, undefined, init?.signal);
-  if (!response.ok) throw new RequestError(body?.error ?? "The request failed (" + response.status + ").", response.status);
+  if (!response.ok) throw new RequestError(body?.error ?? "The request failed (" + response.status + ").", response.status, body);
   return body as T;
 }
 
@@ -312,16 +314,22 @@ async function deleteSet(container: HTMLElement, state: AppState, setId: string)
   try {
     if (version > 0)
       await requestJson<{ deleted: boolean }>("/v1/editor/campaign-sets/" + encodeURIComponent(setId), { method: "DELETE" });
-    delete records[setId];
-    localStorage.setItem(localKey(), JSON.stringify(records));
-    state.status = "Deleted " + setId + ".";
-    await refreshSets(state);
   } catch (error) {
     const status = error instanceof RequestError ? error.status : 0;
     state.status = status === 404 || status === 405 || status === 501
       ? "Deletion is not available on this server yet. Nothing was removed."
       : error instanceof Error ? error.message : "Deletion failed. The set was not removed.";
+    renderBrowser(container, state);
+    return;
   }
+  delete records[setId];
+  try {
+    localStorage.setItem(localKey(), JSON.stringify(records));
+  } catch {
+    state.status = "Deleted " + setId + " on the server; the local cache could not be updated.";
+  }
+  if (!state.status) state.status = "Deleted " + setId + ".";
+  await refreshSets(state);
   renderBrowser(container, state);
 }
 
@@ -332,7 +340,7 @@ async function openSet(container: HTMLElement, state: AppState, setId: string): 
   let draft: ContentSetDocument | undefined;
   let version = local?.draftVersion ?? 0;
   const published = local?.publishedPackageId ?? summary?.publishedPackageId;
-  if (summary && summary.draftVersion > 0) {
+  if ((summary?.draftVersion ?? local?.draftVersion ?? 0) > 0) {
     try {
       const loaded = await requestJson<{ draftVersion: number; draft: ContentSetDocument }>(
         "/v1/editor/campaign-sets/" + encodeURIComponent(setId));
@@ -350,6 +358,19 @@ async function openSet(container: HTMLElement, state: AppState, setId: string): 
     draft = local?.draft;
   }
   state.setId = setId;
+  if (draft && hasUnsyncedWorkspace(setId)) {
+    try {
+      const workspace = loadWorkspace(setId, draft, state.capabilities);
+      workspaceToDraft(draft, workspace, state.capabilities);
+      markWorkspaceSynced(setId, version);
+      localStorage.setItem(localKey(), JSON.stringify({
+        ...storage(), [setId]: { draft, draftVersion: version, publishedPackageId: published }
+      }));
+      showToast("Restored unsaved editor changes into this set.");
+    } catch {
+      // If reconciliation fails, the cloud draft remains authoritative.
+    }
+  }
   if (!draft) {
     draft = emptyContentSet(setId, setId);
     draft.campaigns.push(newCampaign("campaign-1", "First campaign", state.capabilities));
@@ -421,8 +442,8 @@ function renderSetView(container: HTMLElement, state: AppState): void {
     const [section, index] = button.dataset.edit!.split(":");
     void openClassicEditor(container, state, { section: section as DetailSection, index: Number(index) });
   }));
-  container.querySelector<HTMLElement>("[data-save]")?.addEventListener("click", () => { void saveDraft(container, state); });
-  container.querySelector<HTMLElement>("[data-publish]")?.addEventListener("click", () => { void publishDraft(container, state); });
+  container.querySelector<HTMLElement>("[data-save]")?.addEventListener("click", () => { void saveDraft(state).then(() => flashStatus(container, state)); });
+  container.querySelector<HTMLElement>("[data-publish]")?.addEventListener("click", () => { void publishDraft(state).then(() => flashStatus(container, state)); });
 }
 
 function flashStatus(container: HTMLElement, state: AppState): void {
@@ -438,14 +459,15 @@ async function openClassicEditor(container: HTMLElement, state: AppState, select
       setId: state.setId,
       draft: state.draft,
       capabilities: state.capabilities,
-      selected: selected ?? (state.view === "set" ? undefined : undefined),
-      onSave: () => { void saveDraft(container, state); },
+      selected,
+      onSave: () => saveDraft(state),
       onDraftChange: () => {
         state.validation = validateContentSet(state.draft, state.capabilities);
         persistLocal(state);
       },
       onBack: () => renderSetView(container, state),
-      onPublish: () => { void publishDraft(container, state); }
+      onPublish: () => publishDraft(state),
+      canPublishEditor: () => state.validation.valid && canPublish()
     });
   } catch (error) {
     state.status = error instanceof Error ? error.message : "The editor could not be opened.";
@@ -453,11 +475,10 @@ async function openClassicEditor(container: HTMLElement, state: AppState, select
   }
 }
 
-async function saveDraft(container: HTMLElement, state: AppState): Promise<void> {
+async function saveDraft(state: AppState): Promise<string> {
   if (!state.validation.valid) {
     state.status = "Fix the validation issues before uploading.";
-    flashStatus(container, state);
-    return;
+    return state.status;
   }
   try {
     const creating = state.draftVersion === 0;
@@ -470,28 +491,33 @@ async function saveDraft(container: HTMLElement, state: AppState): Promise<void>
     );
     if (isDraftConflict(result)) {
       state.status = "Draft conflict: the server is at version " + result.currentVersion + ". Reopen the set to refresh.";
-      flashStatus(container, state);
-      return;
+      return state.status;
     }
     state.draftVersion = result.draftVersion;
     state.status = "Saved as private draft v" + result.draftVersion + ".";
+    markWorkspaceSynced(state.setId, state.draftVersion);
     persistLocal(state);
     await refreshSets(state);
+    return state.status;
   } catch (error) {
-    state.status = error instanceof Error ? error.message : "Upload failed.";
+    if (error instanceof RequestError && error.status === 409) {
+      const conflict = error.body as { currentVersion?: number } | undefined;
+      state.status = "Draft conflict: the server is at version " + (conflict?.currentVersion ?? "?") + ". Reopen the set to refresh.";
+    } else {
+      state.status = error instanceof Error ? error.message : "Upload failed.";
+    }
+    return state.status;
   }
-  flashStatus(container, state);
 }
 
-async function publishDraft(container: HTMLElement, state: AppState): Promise<void> {
-  if (!canPublish() || !state.validation.valid) return;
+async function publishDraft(state: AppState): Promise<string> {
+  if (!canPublish() || !state.validation.valid) return state.status;
   const confirmed = window.confirm(
     "Publishing resets tester progress. Saves with a different content hash will be deleted at the Adventure gate. Continue?"
   );
   if (!confirmed) {
     state.status = "Publish cancelled.";
-    flashStatus(container, state);
-    return;
+    return state.status;
   }
   try {
     const result = await requestJson<{ packageId: string; contentHash?: string }>(
@@ -502,12 +528,18 @@ async function publishDraft(container: HTMLElement, state: AppState): Promise<vo
     state.publishedPackageId = result.packageId;
     state.status = "Published " + result.packageId +
       (result.contentHash === packed.contentHash ? " (hash verified)" : " (HASH MISMATCH)") + ".";
+    markWorkspaceSynced(state.setId, state.draftVersion);
     persistLocal(state);
     await refreshSets(state);
+    return state.status;
   } catch (error) {
-    state.status = error instanceof Error ? error.message : "Publish failed.";
+    if (error instanceof RequestError && error.status === 409) {
+      state.status = "Draft conflict: reload the set before publishing.";
+    } else {
+      state.status = error instanceof Error ? error.message : "Publish failed.";
+    }
+    return state.status;
   }
-  flashStatus(container, state);
 }
 
 async function refreshSets(state: AppState): Promise<void> {
@@ -530,6 +562,6 @@ export async function mountApp(container: HTMLElement): Promise<void> {
   };
   await refreshSets(state);
   renderBrowser(container, state);
-  if (session.setId && state.sets.some(item => item.setId === session.setId))
+  if (session.view !== "browser" && session.setId && state.sets.some(item => item.setId === session.setId))
     await openSet(container, state, session.setId);
 }

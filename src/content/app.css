@@ -11,70 +11,20 @@
 .editor-shell .set-row-main { flex: 1; min-width: 0; }
 .editor-shell .set-row-main strong { display: block; color: var(--ink); font-size: 13px; }
 .editor-shell .set-row-main small { display: block; margin-top: 4px; color: var(--muted); font-size: 10px; }
-.editor-shell .set-badges { display: flex; gap: 6px; flex-wrap: wrap; }
 .editor-shell .set-badge { padding: 4px 8px; border-radius: 20px; font-size: 9px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; background: #eef0ea; color: #6a756c; }
 .editor-shell .set-badge.local { background: #f0f0ea; color: #7c8178; }
 .editor-shell .set-badge.draft { background: var(--gold-pale); color: #8a6a2e; }
 .editor-shell .set-badge.published { background: var(--green-pale); color: var(--green-dark); }
 .editor-shell .set-empty { padding: 30px; text-align: center; color: var(--muted); font-size: 12px; background: var(--paper); border: 1px dashed var(--line); border-radius: 10px; }
 
-.editor-shell .guided { display: grid; gap: 20px; }
-.editor-shell .guided-progress { display: flex; gap: 6px; }
-.editor-shell .guided-progress span { flex: 1; height: 4px; border-radius: 4px; background: #e4e6de; }
-.editor-shell .guided-progress span.done { background: var(--green); }
-.editor-shell .guided-progress span.current { background: var(--gold); }
-.editor-shell .guided-step { display: grid; gap: 14px; }
-.editor-shell .guided-step h2 { margin: 0; font: 800 19px "Manrope", sans-serif; color: var(--ink); }
-.editor-shell .guided-step p.step-copy { margin: 0; color: var(--ink-soft); font-size: 12px; line-height: 1.5; }
-.editor-shell .guided-fields { display: grid; gap: 12px; max-width: 460px; }
-.editor-shell .guided-advanced { max-width: 460px; border: 1px solid var(--line); border-radius: 8px; background: #fbfaf5; opacity: 0.72; }
-.editor-shell .guided-advanced:hover, .editor-shell .guided-advanced[open] { opacity: 1; }
-.editor-shell .guided-advanced summary { padding: 10px 12px; cursor: pointer; color: var(--muted); font-size: 11px; font-weight: 700; }
-.editor-shell .guided-advanced .form-grid { padding: 4px 12px 14px; }
 .editor-shell .guided-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-.editor-shell .guided-list { display: grid; gap: 8px; max-width: 560px; }
-.editor-shell .guided-list-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--paper); border: 1px solid var(--line); border-radius: 8px; font-size: 12px; }
-.editor-shell .guided-list-item span { flex: 1; }
-.editor-shell .guided-error { color: var(--red); font-size: 11px; }
 .editor-shell .guided-status { color: var(--green-dark); font-size: 12px; min-height: 1em; }
-.editor-shell .cell-focus-backdrop { position: fixed; inset: 0; z-index: 70; display: grid; place-items: center; background: #07101acc; }
-.editor-shell .cell-focus { width: min(92vw, 460px); padding: 22px; border-radius: 12px; background: var(--paper); color: var(--ink); }
-.editor-shell .cell-focus h3 { margin: 0 0 8px; font-size: 16px; }
-
-.editor-shell .dialogue-graph-tools { display: flex; align-items: center; gap: 6px; margin: 8px 0; }
-.editor-shell .dialogue-graph { position: relative; height: 220px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; background: #f7f6ef; }
-.editor-shell .dialogue-graph-canvas { position: relative; width: 600px; height: 220px; transform-origin: top left; }
-.editor-shell .dialogue-graph-lines { position: absolute; inset: 0; width: 100%; height: 100%; }
-.editor-shell .dialogue-graph-node { position: absolute; width: 130px; min-height: 56px; padding: 8px; text-align: left; border: 1px solid #dcded4; border-radius: 8px; background: var(--paper); color: var(--ink); }
-.editor-shell .dialogue-graph-node.is-active { border-color: var(--green); box-shadow: 0 0 0 2px var(--green-pale); }
-.editor-shell .dialogue-graph-node strong, .editor-shell .dialogue-graph-node small { display: block; font-size: 10px; }
-.editor-shell .dialogue-graph-node small { margin-top: 3px; color: var(--muted); }
-.editor-shell .game-screen { position: relative; min-height: 130px; padding: 12px; background: #efe6cd; border-radius: 8px; }
-.editor-shell .game-dialogue-panel { margin: 0 70px; padding: 10px 12px; background: #fffefa; border-radius: 6px; }
-.editor-shell .game-headline { margin: 0 0 6px; color: #1f140a; font-size: 12px; font-weight: 800; }
-.editor-shell .game-avatar { position: absolute; bottom: 12px; width: 60px; height: 84px; object-fit: contain; }
-.editor-shell .avatar-left { left: 12px; }
-.editor-shell .avatar-right { right: 12px; }
-
-.editor-shell .rich-columns { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(220px, 1fr); gap: 14px; align-items: start; }
-.editor-shell .rich-columns .card h4 { margin: 16px 0 8px; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-soft); }
-.editor-shell .army-grid, .editor-shell .campaign-grid { display: grid; gap: 3px; width: max-content; margin: 10px 0; }
-.editor-shell .army-grid { grid-template-columns: repeat(5, 34px); }
-.editor-shell .campaign-grid { grid-template-columns: repeat(5, 34px); }
-.editor-shell .army-cell, .editor-shell .campaign-cell { width: 34px; height: 34px; border: 1px solid var(--line); border-radius: 5px; background: var(--paper); color: var(--muted); font-size: 11px; font-weight: 700; }
-.editor-shell .army-cell.filled, .editor-shell .campaign-cell.filled { background: var(--green-pale); border-color: var(--green); color: var(--green-dark); }
-.editor-shell .dialogue-preview-line { padding: 8px 10px; margin: 0 0 6px; background: var(--gold-pale); border-radius: 7px; color: var(--ink); font-size: 12px; line-height: 1.5; }
 
 .editor-shell .help-copy { display: none; }
 .editor-shell .help-visible .help-copy { display: block; margin: 0 0 10px; color: var(--muted); font-size: 11px; line-height: 1.5; }
 
 .editor-shell .version-tag { color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: .02em; }
 
-.editor-shell .validation-panel { display: grid; gap: 12px; max-height: 340px; overflow: auto; }
-.editor-shell .validation-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: #8c4438; font-size: 12px; }
-.editor-shell .validation-group { padding: 10px 12px; background: var(--red-pale); border-radius: 8px; }
-.editor-shell .validation-group h3 { margin: 0 0 8px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: #8c4438; }
-.editor-shell .validation-group h3 span { color: #b08b83; }
 .editor-shell .validation-issue { padding: 8px 0; border-top: 1px solid #eed8d2; }
 .editor-shell .validation-issue:first-of-type { border-top: 0; }
 .editor-shell .validation-issue-title { color: #7b3c32; font-size: 11px; font-weight: 600; }

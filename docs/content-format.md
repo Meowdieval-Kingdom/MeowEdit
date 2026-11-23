@@ -139,7 +139,7 @@ The manifest lists included files. Campaign nodes refer to IDs in the quest and 
 
 ## Browser storage and sharing
 
-Local drafts are stored in localStorage, scoped to the signed-in account. Drafts themselves are never uploaded. **Save / Upload** stores a version-guarded draft on the server; **Publish** creates an immutable, validated revision for authorized accounts. The game never receives editor drafts. JSON/ZIP import and static example import were removed in structured; published sets are the live reference.
+The editor keeps a local per-set workspace in localStorage, scoped to the signed-in account. That workspace is converted to the structured draft only at the Save/Publish boundary. **Save / Upload** stores a version-guarded draft on the server; **Publish** creates an immutable, validated revision for authorized accounts. The game never receives editor drafts. JSON/ZIP transfer is available in the editor; static examples were removed, and published sets are the live reference.
 
 ## Avatar and army catalogs
 

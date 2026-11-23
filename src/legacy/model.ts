@@ -38,6 +38,8 @@ export interface DialogueNode {
   /** Workspace-only position used by the guided dialogue graph. */
   editorPosition?: { x: number; y: number; reverse?: boolean };
   textSpeed: TextSpeed | string;
+  /** Exact structured-speed value preserved across editing. */
+  originalTextSpeed?: number;
   speakers: DialogueSpeaker[];
   segments: DialogueSegment[];
   /** Label for the guaranteed single Continue button when no explicit choices exist. */
@@ -279,6 +281,9 @@ export interface CampaignEvent {
   /** Omit to apply a node/battle trigger to all matching nodes on the selected floor scope. */
   nodeId?: string;
   actions: CampaignEventAction[];
+  /** Preserved structured-event data; the classic editor does not expose these fields. */
+  conditions?: Array<{ key: string; value?: unknown }>;
+  oneShot?: string;
 }
 
 export interface CampaignRecord {
@@ -366,6 +371,10 @@ export interface QuestRecord {
   idAuto?: boolean;
   definition: AdventureQuestDefinition;
   extension: QuestExtension;
+  /** Additional dialogue links per slot preserved from the structured draft. */
+  extraDialogueLinks?: Partial<Record<"offer" | "active" | "completion" | "failure", string[]>>;
+  /** True when the structured draft had no authored kill-count objective. */
+  killCountWasNull?: boolean;
 }
 
 export interface DialogueRecord {

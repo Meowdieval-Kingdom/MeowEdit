@@ -54,7 +54,7 @@ export function draftToWorkspace(
 ): Workspace {
   const dialogues: DialogueRecord[] = draft.dialogues.map(doc => {
     return {
-      key: doc.sequenceId,
+      key: doc.sequenceId, sequenceIdAuto: true,
       sequence: {
         schemaVersion: 1,
         sequenceId: doc.sequenceId,
@@ -69,6 +69,7 @@ export function draftToWorkspace(
             continueLabel: implicit ? text(node.actions[0].label) : undefined,
             continueTargetNodeId: implicit ? node.actions[0].targetNodeId : undefined,
             textSpeed: speedToV1(node.textSpeed),
+            originalTextSpeed: node.textSpeed,
             speakers: node.speakers.map(speaker => ({
               id: speaker.id, unitId: ref(speaker.unitId), displayName: text(speaker.displayName),
               side: speaker.side === "right" ? "right" as const : "left" as const, mood: speaker.mood
@@ -106,7 +107,13 @@ export function draftToWorkspace(
       rewardAmount: doc.rewardAmount ?? 0, rewardContentId: ref(doc.rewardContentId)
     };
     return {
-      key: doc.id, definition,
+      key: doc.id, idAuto: true, definition,
+      extraDialogueLinks: {
+        offer: (ext.dialogueLinks?.offer ?? []).map(item => item.id).filter(Boolean),
+        active: (ext.dialogueLinks?.active ?? []).map(item => item.id).filter(Boolean),
+        completion: (ext.dialogueLinks?.completion ?? []).map(item => item.id).filter(Boolean),
+        failure: (ext.dialogueLinks?.failure ?? []).map(item => item.id).filter(Boolean)
+      },
       extension: {
         schemaVersion: 1,
         dialogueLinks: {
@@ -151,7 +158,7 @@ export function draftToWorkspace(
 
   const armies: ArmyRecord[] = draft.armies.map(doc => {
     return {
-      key: doc.id, id: doc.id, name: text(doc.name), previewFloor: 1,
+      key: doc.id, id: doc.id, idAuto: true, name: text(doc.name), previewFloor: 1,
       units: doc.units.map((unit, index) => ({
         id: `placement-${index}`, unitId: ref(unit.unitId),
         x: unit.x, y: unit.y, spellIds: unit.spellIds.map(item => item.id)
@@ -167,7 +174,7 @@ export function draftToWorkspace(
   });
 
   const campaigns: CampaignRecord[] = draft.campaigns.map(doc => ({
-    key: doc.id, id: doc.id, name: text(doc.name), description: text(doc.description),
+    key: doc.id, id: doc.id, idAuto: true, name: text(doc.name), description: text(doc.description),
     boardPreviewUnitId: ref(doc.boardPreviewUnitId),
     designMode: "choose",
     questIds: doc.questIds.map(item => item.id),
@@ -190,6 +197,8 @@ export function draftToWorkspace(
       id: event.id, trigger: event.trigger as CampaignRecord["events"][number]["trigger"],
       ...(event.floorNumber !== undefined ? { floorNumber: event.floorNumber } : {}),
       ...(event.nodeId !== undefined ? { nodeId: event.nodeId } : {}),
+      conditions: event.conditions?.map(condition => ({ ...condition })) ?? [],
+      oneShot: event.oneShot,
       actions: event.actions.map(action => ({
         kind: action.kind,
         ...Object.fromEntries(action.parameters.map(parameter => {
@@ -241,6 +250,14 @@ export function workspaceToDraft(
   workspace: Workspace,
   capabilities: GameCapabilities
 ): void {
+  const firstUnit = capabilities.ids.units[0] ?? "unit";
+  const firstFaction = capabilities.ids.factions[0] ?? "faction";
+  const firstSpell = capabilities.ids.spells[0] ?? "spell";
+  const firstBlessing = capabilities.ids.blessings[0] ?? "blessing";
+  const firstArmy = workspace.armies[0]?.id ?? firstUnit;
+  const firstQuest = workspace.quests[0]?.definition.id ?? firstArmy;
+  const refTo = (id: string, fallback: string) => namedRef(id || fallback);
+  const optional = (id: string) => id ? namedRef(id) : undefined;
   draft.dialogues = workspace.dialogues.map(record => {
     const sequence = record.sequence;
     const nodes = sequence.nodes.map(node => {
@@ -250,7 +267,7 @@ export function workspaceToDraft(
         : node.actions).map(action => ({
         label: localized(action.label), targetNodeId: action.targetNodeId,
         meowEdit: {
-          decision: action.decision
+          decision: action.decision && action.decision.id
             ? {
               id: action.decision.id, label: localized(action.decision.label),
               outcomeId: action.decision.outcomeId, outcomeLabel: localized(action.decision.outcomeLabel)
@@ -261,9 +278,9 @@ export function workspaceToDraft(
       }));
       return {
         id: node.id, headline: localized(node.headline),
-        textSpeed: toContentSpeed(String(node.textSpeed), sequence.defaultCharactersPerSecond),
+        textSpeed: node.originalTextSpeed ?? toContentSpeed(String(node.textSpeed), sequence.defaultCharactersPerSecond),
         speakers: node.speakers.map(speaker => ({
-          id: speaker.id, unitId: namedRef(speaker.unitId), displayName: localized(speaker.displayName),
+          id: speaker.id, unitId: refTo(speaker.unitId, firstUnit), displayName: localized(speaker.displayName),
           side: speaker.side === "right" ? "right" : "left", mood: speaker.mood
         })),
         segments: node.segments.map(segment => ({
@@ -281,35 +298,44 @@ export function workspaceToDraft(
   draft.quests = workspace.quests.map(record => {
     const definition = record.definition;
     const ext = record.extension;
-    const links = (value: string) => value ? [namedRef(value)] : [];
+    const links = (slot: "offer" | "active" | "completion" | "failure", value: string) => {
+      const ids = [...(record.extraDialogueLinks?.[slot] ?? []), ...(value ? [value] : [])]
+        .filter((id, index, all) => id && all.indexOf(id) === index);
+      return ids.map(id => namedRef(id));
+    };
     return {
       schemaVersion: 2, id: definition.id, title: localized(definition.title),
       description: localized(definition.description), sourceKind: definition.sourceKind,
       sourceSlot: String(definition.sourceSlot ?? -1), firstFloor: definition.firstFloor,
       repeatEveryFloors: definition.repeatEveryFloors, priority: definition.priority,
       objectiveKind: definition.objectiveKind, targetNodeKind: definition.targetNodeKind,
-      targetFloorOffset: definition.targetFloorOffset, escortUnitId: namedRef(definition.escortUnitId),
-      itemId: namedRef(definition.itemId), speakerUnitId: namedRef(definition.speakerUnitId),
+      targetFloorOffset: definition.targetFloorOffset,
+      ...(optional(definition.escortUnitId) ? { escortUnitId: optional(definition.escortUnitId) } : {}),
+      ...(optional(definition.itemId) ? { itemId: optional(definition.itemId) } : {}),
+      ...(optional(definition.speakerUnitId) ? { speakerUnitId: optional(definition.speakerUnitId) } : {}),
       speakerName: localized(definition.speakerName), offerText: localized(definition.offerText),
       activeText: localized(definition.activeText), acceptLabel: localized(definition.acceptLabel),
       declineLabel: localized(definition.declineLabel), autoAccept: definition.autoAccept,
       rewardKind: definition.rewardKind,
-      rewardAmount: definition.rewardAmount, rewardContentId: namedRef(definition.rewardContentId),
+      rewardAmount: definition.rewardAmount,
+      ...(optional(definition.rewardContentId) ? { rewardContentId: optional(definition.rewardContentId) } : {}),
       meowEdit: {
         schemaVersion: 2,
         dialogueLinks: {
-          offer: links(ext.dialogueLinks.offer), active: links(ext.dialogueLinks.active),
-          completion: links(ext.dialogueLinks.completion), failure: links(ext.dialogueLinks.failure)
+          offer: links("offer", ext.dialogueLinks.offer), active: links("active", ext.dialogueLinks.active),
+          completion: links("completion", ext.dialogueLinks.completion), failure: links("failure", ext.dialogueLinks.failure)
         },
         logicKind: ext.logicKind,
         timer: {
-          decisionId: namedRef(ext.timer.decisionId), payOutcomeId: namedRef(ext.timer.payOutcomeId),
-          waitOutcomeId: namedRef(ext.timer.waitOutcomeId), counterId: namedRef(ext.timer.counterId),
+          decisionId: refTo(ext.timer.decisionId, `decision-${definition.id}`),
+          payOutcomeId: refTo(ext.timer.payOutcomeId, `outcome-pay-${definition.id}`),
+          waitOutcomeId: refTo(ext.timer.waitOutcomeId, `outcome-wait-${definition.id}`),
+          counterId: refTo(ext.timer.counterId, `counter-${definition.id}`),
           counterTarget: ext.timer.counterTarget, counterLabel: localized(ext.timer.counterLabel),
           countEvent: ext.timer.countEvent, paymentResource: "sardines",
           paymentAmount: ext.timer.paymentAmount, paymentCompletesImmediately: ext.timer.paymentCompletesImmediately,
           completionEffects: ext.timer.completionEffects.map(effect => ({
-            kind: effect.kind, targetId: namedRef(effect.targetId), label: localized(effect.label)
+            kind: effect.kind, targetId: refTo(effect.targetId, firstQuest), label: localized(effect.label)
           }))
         },
         completionEffects: ext.completionEffects.map(effect => ({
@@ -320,10 +346,10 @@ export function workspaceToDraft(
         })),
         battleTargets: ext.battleTargets.map(target => ({
           id: target.id, label: localized(target.label), nodeKind: target.nodeKind,
-          floorOffset: target.floorOffset, armyId: namedRef(target.armyId)
+          floorOffset: target.floorOffset, armyId: refTo(target.armyId, firstArmy)
         })),
         killCount: ext.killCount ? {
-          targetKind: ext.killCount.targetKind, targetId: namedRef(ext.killCount.targetId), count: ext.killCount.count
+          targetKind: ext.killCount.targetKind, targetId: refTo(ext.killCount.targetId, firstUnit), count: ext.killCount.count
         } : { targetKind: "unit", targetId: namedRef(capabilities.ids.units[0] ?? "unit"), count: 1 },
         minimumNodeDistances: ext.minimumNodeDistances.map(rule => ({
           id: rule.id, fromNodeKind: rule.fromNodeKind, toNodeKind: rule.toNodeKind, minimumHops: rule.minimumHops
@@ -336,13 +362,13 @@ export function workspaceToDraft(
     return {
       schemaVersion: 2, id: record.id, name: localized(record.name),
       units: record.units.map(unit => ({
-        unitId: namedRef(unit.unitId), x: unit.x, y: unit.y,
-        spellIds: unit.spellIds.map(id => namedRef(id))
+        unitId: refTo(unit.unitId, firstUnit), x: unit.x, y: unit.y,
+        spellIds: unit.spellIds.map(id => refTo(id, firstSpell))
       })),
-      spellIds: record.spellIds.map(id => namedRef(id)),
-      blessingIds: record.blessingIds.map(id => namedRef(id)),
+      spellIds: record.spellIds.map(id => refTo(id, firstSpell)),
+      blessingIds: record.blessingIds.map(id => refTo(id, firstBlessing)),
       CellBlessingPicks: (record.cellBlessingPicks ?? []).map(pick => ({
-        RootId: namedRef(pick.rootId), Lane: String(pick.lane),
+        RootId: refTo(pick.rootId, firstBlessing), Lane: String(pick.lane),
         Cells: pick.cells as object[], Locked: pick.locked, BaneCells: pick.baneCells as object[]
       }))
     } as ContentSetDocument["armies"][number];
@@ -354,33 +380,36 @@ export function workspaceToDraft(
       id: event.id, trigger: event.trigger,
       ...(event.floorNumber !== undefined ? { floorNumber: event.floorNumber } : {}),
       ...(event.nodeId !== undefined ? { nodeId: event.nodeId } : {}),
-      conditions: [], oneShot: "per-run" as const,
+      conditions: (event.conditions ?? []).map(condition => ({
+        key: condition.key, value: condition.value ?? null
+      })),
+      oneShot: (event.oneShot as CampaignEvent["oneShot"]) ?? "per-run",
       actions: event.actions.map(action => ({
         kind: action.kind,
         parameters: Object.entries(action)
           .filter(([key]) => key !== "kind")
           .map(([key, value]) => key === "armyId"
-            ? { key: "army", value: namedRef(String(value ?? "")) }
+            ? { key: "army", value: refTo(String(value ?? ""), firstArmy) }
             : { key, value })
       }))
     }));
     return {
       schemaVersion: 2, id: record.id, name: localized(record.name), description: localized(record.description),
-      boardPreviewUnitId: namedRef(record.boardPreviewUnitId ?? ""),
-      questIds: record.questIds.map(id => namedRef(id)),
+      boardPreviewUnitId: refTo(record.boardPreviewUnitId ?? "", firstUnit),
+      questIds: record.questIds.map(id => refTo(id, firstQuest)),
       floors: record.floors.map(floor => ({
         id: floor.id, number: floor.number, mode: floor.mode,
-        questPoolMode: floor.questPoolMode, questPoolIds: floor.questPoolIds.map(id => namedRef(id)),
+        questPoolMode: floor.questPoolMode, questPoolIds: floor.questPoolIds.map(id => refTo(id, firstQuest)),
         shopPoolMode: floor.shopPoolMode, shopPoolKinds: [...floor.shopPoolKinds], shopLevel: floor.shopLevel,
         randomSettings: { ...floor.randomSettings },
         nodes: floor.nodes.map(node => ({
           id: node.id, label: localized(node.label), kind: node.kind, x: node.x, y: node.y,
-          armyId: namedRef(node.armyId), questId: namedRef(node.questId),
-          enemyFactionId: namedRef(node.enemyFactionId), rewardKind: node.rewardKind,
-          rewardAmount: node.rewardAmount, rewardContentId: namedRef(node.rewardContentId),
+          armyId: refTo(node.armyId, firstArmy), questId: refTo(node.questId, firstQuest),
+          enemyFactionId: refTo(node.enemyFactionId, firstFaction), rewardKind: node.rewardKind,
+          rewardAmount: node.rewardAmount, rewardContentId: refTo(node.rewardContentId, firstQuest),
           shopOfferMode: node.shopOfferMode,
           shopOffers: node.shopOffers.map(offer => ({
-            kind: offer.kind, contentId: namedRef(offer.contentId), price: offer.price
+            kind: offer.kind, contentId: refTo(offer.contentId, firstQuest), price: offer.price
           }))
         })),
         routes: floor.routes.map(route => ({ ...route }))
@@ -389,7 +418,7 @@ export function workspaceToDraft(
       settings: {
         startingLives: record.settings.startingLives, startingSardines: record.settings.startingSardines,
         startingNodeCount: record.settings.startingNodeCount,
-        playerFactionId: namedRef(record.settings.playerFactionId),
+        playerFactionId: refTo(record.settings.playerFactionId, firstFaction),
         factionSelectionEnabled: record.settings.factionSelectionEnabled,
         battleShopEnabled: record.settings.battleShopEnabled,
         shopPoolKinds: [...record.settings.shopPoolKinds],

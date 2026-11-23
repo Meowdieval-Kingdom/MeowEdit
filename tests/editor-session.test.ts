@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EDITOR_SESSION_STORAGE_KEY, defaultEditorSession, loadEditorSession, saveEditorSession } from "../src/legacy/editor-session";
+import { editorSessionKey, defaultEditorSession, loadEditorSession, saveEditorSession } from "../src/legacy/editor-session";
 import { EditorNavigationHistory } from "../src/legacy/editor-navigation";
 
 function storageFixture() {
@@ -32,7 +32,7 @@ describe("editor session persistence", () => {
 
     saveEditorSession(storage, session);
 
-    expect(storage.getItem(EDITOR_SESSION_STORAGE_KEY)).not.toBeNull();
+    expect(storage.getItem(editorSessionKey())).not.toBeNull();
     expect(loadEditorSession(storage)).toEqual(session);
     const history = new EditorNavigationHistory();
     history.restore(loadEditorSession(storage).relatedReturnContexts);
@@ -41,7 +41,7 @@ describe("editor session persistence", () => {
 
   it("falls back safely for malformed session data and ignores invalid return contexts", () => {
     const storage = storageFixture();
-    storage.setRaw(EDITOR_SESSION_STORAGE_KEY, "not-json");
+    storage.setRaw(editorSessionKey(), "not-json");
     expect(loadEditorSession(storage)).toEqual(defaultEditorSession());
 
     const history = new EditorNavigationHistory();
@@ -62,3 +62,4 @@ describe("editor session persistence", () => {
     expect(() => saveEditorSession(blocked, defaultEditorSession())).not.toThrow();
   });
 });
+

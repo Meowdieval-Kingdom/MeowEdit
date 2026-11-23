@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+    branches: [main]
+
+concurrency:
+  group: pages-deploy
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -33,7 +38,10 @@ jobs:
         env:
           VITE_NEON_AUTH_BASE_URL: ${{ vars.MEOWEDIT_NEON_AUTH_BASE_URL }}
           VITE_GAME_API_BASE_URL: ${{ vars.MEOWEDIT_GAME_API_BASE_URL }}
-        run: npm run build
+        run: |
+          test -n "$VITE_NEON_AUTH_BASE_URL" || { echo "MEOWEDIT_NEON_AUTH_BASE_URL is not configured"; exit 1; }
+          test -n "$VITE_GAME_API_BASE_URL" || { echo "MEOWEDIT_GAME_API_BASE_URL is not configured"; exit 1; }
+          npm run build
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v4
         with:

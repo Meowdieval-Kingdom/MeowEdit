@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -52,6 +52,11 @@ const canonicalContract = [
   "registries.json\n" + registryContents
 ].join("");
 const schemaHash = createHash("sha256").update(canonicalContract, "utf8").digest("hex");
+if (process.argv.includes("--write-hash")) {
+  writeFileSync(expectedHashPath, schemaHash + "\n", "utf8");
+  console.log("Wrote contract/content/schema.sha256: " + schemaHash);
+  process.exit(0);
+}
 if (!existsSync(expectedHashPath)) {
   throw new Error("Missing contract/content/schema.sha256. Generate it with: npm run contract:check -- --write-hash");
 }
