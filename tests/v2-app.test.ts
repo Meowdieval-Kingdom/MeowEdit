@@ -144,8 +144,10 @@ describe("v2-only editor app", () => {
       nameInput.value = name;
       nameInput.dispatchEvent(new Event("input", { bubbles: true }));
       container.querySelector<HTMLElement>("[data-add-create]")!.click();
-      expect(container.querySelectorAll("[data-entry-edit]")).toHaveLength(1);
+      expect(container.querySelector("[data-entry-back]")).not.toBeNull();
       expect(localStorage.getItem("meowedit.v2.sets.author-1")).toContain(name);
+      container.querySelector<HTMLElement>("[data-entry-back]")!.click();
+      expect(container.querySelectorAll("[data-entry-edit]")).toHaveLength(1);
     }
   });
 
@@ -176,9 +178,17 @@ describe("v2-only editor app", () => {
   it("adds and removes nested items only inside the selected entry", async () => {
     await openPublished(container);
     container.querySelector<HTMLElement>('[data-entry-edit="0"]')!.click();
+    container.querySelector<HTMLElement>('[data-rich-action="next-step"]')!.click();
+    container.querySelector<HTMLElement>('[data-rich-action="next-step"]')!.click();
     expect(container.querySelector('[data-rich-action="toggle-node"]')).not.toBeNull();
     container.querySelector<HTMLElement>('[data-rich-action="toggle-node"]')!.click();
-    container.querySelector<HTMLElement>('[data-rich-action="add-route"]')!.click();
+    container.querySelector<HTMLElement>('[data-rich-action="next-step"]')!.click();
+    container.querySelector<HTMLElement>('[data-rich-action="connect-node"]')!.click();
+    container.querySelector<HTMLElement>('[data-rich-action="next-step"]')!.click();
+    container.querySelector<HTMLElement>('[data-rich-action="next-step"]')!.click();
+    container.querySelector<HTMLElement>('[data-rich-action="next-step"]')!.click();
+    container.querySelector<HTMLElement>('[data-rich-action="next-step"]')!.click();
+    container.querySelector<HTMLElement>('[data-rich-action="next-step"]')!.click();
     container.querySelector<HTMLElement>('[data-rich-action="add-event"]')!.click();
     expect(container.querySelectorAll('[data-rich-action="remove-event"]')).toHaveLength(1);
     container.querySelector<HTMLElement>('[data-rich-action="remove-event"]')!.click();
@@ -256,15 +266,21 @@ describe("v2-only editor app", () => {
 
     container.querySelector<HTMLElement>('[data-focus="armies"]')!.click();
     container.querySelector<HTMLElement>('[data-entry-edit="0"]')!.click();
+    container.querySelector<HTMLElement>('[data-rich-action="next-step"]')!.click();
+    expect(container.querySelector('[data-rich-action="add-army-unit"]')).not.toBeNull();
+    container.querySelector<HTMLElement>('[data-rich-action="next-step"]')!.click();
     expect(container.querySelectorAll(".army-cell").length).toBe(25);
     container.querySelector<HTMLElement>('[data-rich-action="toggle-cell"]')!.click();
+    container.querySelector<HTMLElement>('[data-rich-action="next-step"]')!.click();
     container.querySelector<HTMLElement>('[data-rich-action="add-spell"]')!.click();
     container.querySelector<HTMLElement>('[data-entry-back]')!.click();
 
     container.querySelector<HTMLElement>('[data-focus="campaigns"]')!.click();
     container.querySelector<HTMLElement>('[data-entry-edit="0"]')!.click();
+    container.querySelector<HTMLElement>('[data-rich-action="next-step"]')!.click();
+    container.querySelector<HTMLElement>('[data-rich-action="next-step"]')!.click();
     expect(container.querySelectorAll(".campaign-cell").length).toBe(25);
-    container.querySelector<HTMLElement>('[data-rich-action="add-floor"]')!.click();
+    container.querySelector<HTMLElement>('[data-entry-back]')!.click();
     expect(localStorage.getItem("meowedit.v2.sets.author-1")).not.toBeNull();
   });
 
@@ -292,6 +308,28 @@ describe("v2-only editor app", () => {
     const choice = container.querySelector<HTMLElement>('[data-rich-action="preview-choice"]');
     if (choice) choice.click();
     container.querySelector<HTMLElement>('[data-rich-action="preview-reset"]')!.click();
+  });
+
+  it("walks every campaign step and its controls", async () => {
+    await mountWithDraft(container, fullSet);
+    await openPublished(container);
+    container.querySelector<HTMLElement>('[data-entry-edit="0"]')!.click();
+    for (let step = 0; step < 8; step++) {
+      expect(container.querySelector("[data-rich-action]")).not.toBeNull();
+      for (const action of ["add-floor", "toggle-node", "toggle-route-direction",
+        "toggle-quest", "add-event", "remove-event", "remove-node", "remove-floor"]) {
+        const button = container.querySelector<HTMLElement>('[data-rich-action="' + action + '"]');
+        if (button) button.click();
+      }
+      const checkboxes = container.querySelectorAll<HTMLInputElement>("[data-v2-bool]");
+      for (const box of checkboxes) {
+        box.checked = !box.checked;
+        box.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+      if (step < 7) container.querySelector<HTMLElement>('[data-rich-action="next-step"]')!.click();
+    }
+    expect(container.textContent).toContain("Review");
+    expect(localStorage.getItem("meowedit.v2.sets.author-1")).not.toBeNull();
   });
 
   it("cancels a guided add without changing the draft", async () => {

@@ -1,6 +1,7 @@
 import type { ContentSetV2Document, GameCapabilities, NamedRef } from "./types";
-import { escapeHtml } from "./html";
+import { findAbility, findLevel, type ArmyCatalogLite } from "./catalog";
 import { TRIGGERS } from "./registries";
+import { escapeHtml } from "./html";
 
 export interface RichState {
   section: "campaigns" | "quests" | "armies" | "dialogues";
@@ -9,11 +10,15 @@ export interface RichState {
   nodeIndex: number;
   floorIndex: number;
   selectedUnit?: string;
+  selectedAbility?: string;
+  selectedNodeKind?: string;
+  connectFrom?: string;
 }
 
 export interface RichContext {
   draft: ContentSetV2Document;
   capabilities: GameCapabilities;
+  catalog: ArmyCatalogLite;
   rich: RichState;
 }
 
@@ -43,7 +48,11 @@ function actionButton(label: string, dataset: string, primary = false): string {
   return '<button type="button" class="button ' + (primary ? "button-primary" : "button-outline") + '" data-rich-action="' + label + '"' + dataset + ">" + escapeHtml(label.replace("-", " ")) + "</button>";
 }
 
-const QUEST_STEPS = ["Basics", "Objective", "Quest giver", "Offer", "In progress", "Reward", "Review"];
+const QUEST_STEPS = ["Basics", "Objective", "Quest Giver", "Offer", "In Progress", "Reward", "Review"];
+
+function text(label: string, bind: string, value: unknown): string {
+  return field(label, bind, value, "number");
+}
 
 function textarea(label: string, bind: string, value: unknown): string {
   return '<label class="field"><span class="field-label">' + escapeHtml(label) + '</span><textarea rows="5" data-v2-bind="' + bind + '">' + escapeHtml(String(value ?? "")) + "</textarea></label>";
@@ -141,7 +150,7 @@ function questEditor(ctx: RichContext): string {
         button("remove-effect", "Remove", ' data-index="' + index + '"') + "</div>").join("") +
       button("add-effect", "+ Effect") + "</div></details></div>";
   }
-  return '<p class="help-copy">Each step focuses on one decision. Optional fields stay folded; use Raw fields for anything else.</p>' +
+  return '<p class="help-copy">Each step focuses on one decision. Optional fields stay folded; use Advanced for anything else.</p>' +
     '<div class="guided-progress">' + QUEST_STEPS.map((name, index) =>
     '<span class="' + (index < step ? "done" : index === step ? "current" : "") + '" title="' + escapeHtml(name) + '"></span>').join("") + "</div>" +
     '<h3>' + QUEST_STEPS[step] + '</h3><section class="guided-step">' + body +
@@ -208,72 +217,204 @@ function armyEditor(ctx: RichContext): string {
   if (!army) return "";
   const base = "armies[" + ctx.rich.index + "]";
   const units = ctx.capabilities.ids.units;
-  const cells: string[] = [];
-  for (let y = 0; y < 5; y++) {
-    for (let x = 0; x < 5; x++) {
-      const unitIndex = army.units.findIndex(unit => unit.x === x && unit.y === y);
-      const unit = army.units[unitIndex];
-      cells.push('<button type="button" class="army-cell' + (unit ? " filled" : "") + '" data-rich-action="toggle-cell" data-x="' + x + '" data-y="' + y + '"' +
-        (unitIndex >= 0 ? ' data-index="' + unitIndex + '"' : "") + ' title="' + escapeHtml(unit?.unitId.id ?? "empty") + '">' +
-        escapeHtml(unit ? unit.unitId.id.split("/").slice(-2, -1)[0] ?? "·" : "·") + "</button>");
+  const step = ctx.rich.step;
+  const selected = ctx.rich.selectedUnit || units[0] || "";
+  const level = findLevel(ctx.catalog, selected);
+  const footprint = level?.footprint ?? { width: 1, height: 1 };
+  let body: string;
+  if (step === 0) {
+    body = '<div class="guided-fields">' + field("Army name", base + ".name.default", army.name.default) +
+      field("Army ID", base + ".id", army.id) + "</div>";
+  } else if (step === 1) {
+    body = '<div class="rich-columns"><section class="card"><h3>Catalog</h3>' +
+      '<label class="field"><span class="field-label">Unit</span><select data-rich-select="unit">' + options(units, selected) + "</select></label>" +
+      actionButton("add-army-unit", "") + "<h4>Lineup</h4>" +
+      army.units.map((unit, index) => '<div class="v2-row"><strong>' + escapeHtml(unit.unitId.id) + "</strong>" +
+        button("remove-army-unit", "Remove", ' data-index="' + index + '"') + "</div>").join("") +
+      (army.units.length ? "" : '<p class="step-copy">No units yet.</p>') + "</section>" +
+      '<section class="card army-stats-card"><h3>Preview</h3><p class="eyebrow">' + escapeHtml(selected) + "</p>" +
+      '<p>' + escapeHtml(level?.description ?? "No catalog description available.") + "</p>" +
+      '<p class="army-footprint-badge">' + footprint.width + " × " + footprint.height + "</p>" +
+      '<dl class="army-stat-grid">' + Object.entries(level?.stats ?? {}).map(([key, value]) =>
+        "<dt>" + escapeHtml(key) + "</dt><dd>" + escapeHtml(String(value ?? "-")) + "</dd>").join("") + "</dl></section></div>";
+  } else if (step === 2) {
+    const width = Math.max(5, ...army.units.map(unit => unit.x + 1));
+    const height = Math.max(5, ...army.units.map(unit => unit.y + 1));
+    const cells: string[] = [];
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const index = army.units.findIndex(unit => unit.x === x && unit.y === y);
+        cells.push('<button type="button" class="army-cell' + (index >= 0 ? " filled" : "") +
+          '" data-rich-action="toggle-cell" data-x="' + x + '" data-y="' + y + '" title="' +
+          escapeHtml(army.units[index]?.unitId.id ?? "empty") + '">' +
+          escapeHtml(index >= 0 ? "●" : "·") + "</button>");
+      }
     }
+    body = '<p class="step-copy">Selected unit: ' + escapeHtml(selected) + " · footprint " + footprint.width + " × " + footprint.height + "</p>" +
+      '<div class="army-grid" style="grid-template-columns:repeat(' + width + ',34px)">' + cells.join("") + "</div>";
+  } else if (step === 3 || step === 4) {
+    const kind = step === 3 ? "spellIds" : "blessingIds";
+    const ids = step === 3 ? ctx.capabilities.ids.spells : ctx.capabilities.ids.blessings;
+    body = '<div class="guided-fields"><label class="field"><span class="field-label">' +
+      (step === 3 ? "Spell" : "Blessing") + '</span><select data-rich-select="ability">' + options(ids, ctx.rich.selectedAbility ?? "") + "</select></label>" +
+      (step === 3 ? actionButton("add-spell", "") : actionButton("add-blessing", "")) + "</div>" +
+      "<h4>Assigned</h4>" + army[kind].map((item, index) => '<div class="v2-row">' +
+        "<strong>" + escapeHtml(item.id) + "</strong><span class=\"step-copy\">" +
+        escapeHtml(findAbility(ctx.catalog, item.id)?.description ?? "") + "</span>" +
+        button(step === 3 ? "remove-spell" : "remove-blessing", "Remove", ' data-index="' + index + '"') + "</div>").join("") +
+      '<p class="step-copy">Cell-target picks are available in Raw fields.</p>';
+  } else {
+    body = '<div class="card"><h3>' + escapeHtml(army.name.default) + "</h3>" +
+      "<p>" + army.units.length + " lineup entries · " + army.spellIds.length + " spells · " + army.blessingIds.length + " blessings</p>" +
+      "<p>Lineup: " + escapeHtml(army.units.map(unit => unit.unitId.id).join(", ") || "none") + "</p>" +
+      "<p>Loadout: " + escapeHtml([...army.spellIds, ...army.blessingIds].map(item => item.id).join(", ") || "none") + "</p></div>";
   }
-  return '<p class="help-copy">Choose a unit, then click a grid cell to place it. Click a filled cell to remove it.</p>' +
-    '<div class="rich-columns"><section class="card"><h3>Formation</h3>' +
-    '<p class="step-copy">Click a cell to place or remove the selected unit.</p>' +
-    '<div class="army-grid">' + cells.join("") + "</div>" +
-    '<div class="guided-fields">' +
-    '<label class="field"><span class="field-label">Unit to place</span><select data-rich-select="unit">' +
-    options(units, ctx.rich.selectedUnit ?? "") + "</select></label>" +
-    field("Name", base + ".name.default", army.name.default) + "</div></section>" +
-    '<section class="card"><h3>Abilities</h3>' +
-    "<h4>Spells</h4>" + army.spellIds.map((spell, index) => '<div class="v2-row">' +
-      ref("Spell", base + ".spellIds[" + index + "].id", spell, ctx.capabilities.ids.spells) +
-      button("remove-spell", "Remove", ' data-index="' + index + '"') + "</div>").join("") +
-    actionButton("add-spell", "") +
-    "<h4>Blessings</h4>" + army.blessingIds.map((blessing, index) => '<div class="v2-row">' +
-      ref("Blessing", base + ".blessingIds[" + index + "].id", blessing, ctx.capabilities.ids.blessings) +
-      button("remove-blessing", "Remove", ' data-index="' + index + '"') + "</div>").join("") +
-    actionButton("add-blessing", "") +
-    '<p class="step-copy">Cell blessing picks are available in Raw fields.</p></section></div>';
+  const steps = ["Name", "Choose Units", "Arrange Grid", "Army Spells", "Blessings", "Review"];
+  return '<p class="help-copy">Each step focuses on one part of the formation. Cell-target picks are in Advanced.</p>' +
+    '<div class="guided-progress">' + steps.map((name, index) =>
+      '<span class="' + (index < step ? "done" : index === step ? "current" : "") + '" title="' + escapeHtml(name) + '"></span>').join("") + "</div>" +
+    '<h3>' + steps[step] + '</h3><section class="guided-step">' + body +
+    '<div class="guided-actions">' +
+    (step > 0 ? actionButton("prev-step", ' data-direction="back"') : "") +
+    (step < steps.length - 1 ? actionButton("next-step", ' data-direction="next"', true) : "") +
+    "</div></section>";
 }
+
+const CAMPAIGN_STEPS = ["Name", "Floors", "Map", "Node", "Quests", "Shops", "Starting Run", "Review"];
 
 function campaignEditor(ctx: RichContext): string {
   const campaign = ctx.draft.campaigns[ctx.rich.index];
   if (!campaign) return "";
   const base = "campaigns[" + ctx.rich.index + "]";
+  const step = ctx.rich.step;
   const floorIndex = Math.min(ctx.rich.floorIndex, campaign.floors.length - 1);
   const floor = campaign.floors[floorIndex];
   const floorBase = base + ".floors[" + floorIndex + "]";
   const floors = campaign.floors.map((item, index) =>
     '<button type="button" class="button button-small" data-rich-action="select-floor" data-index="' + index + '">Floor ' + item.number + "</button>").join("");
-  const nodeCells: string[] = [];
-  for (let y = -2; y <= 2; y++) {
-    for (let x = -2; x <= 2; x++) {
-      const nodeIndex = floor.nodes.findIndex(node => node.x === x && node.y === y);
-      const node = floor.nodes[nodeIndex];
-      nodeCells.push('<button type="button" class="campaign-cell' + (node ? " filled" : "") + '" data-rich-action="toggle-node" data-x="' + x + '" data-y="' + y + '"' +
-        (nodeIndex >= 0 ? ' data-index="' + nodeIndex + '"' : "") + ' title="' + escapeHtml(node?.id ?? "empty") + '">' +
-        escapeHtml(node ? node.kind.slice(0, 1) : "·") + "</button>");
+  let body: string;
+
+  if (step === 0) {
+    body = '<div class="guided-fields">' + field("Campaign name", base + ".name.default", campaign.name.default) +
+      field("ID", base + ".id", campaign.id) +
+      textarea("Description", base + ".description.default", campaign.description.default) + "</div>";
+  } else if (step === 1) {
+    body = '<div class="guided-actions">' + floors + actionButton("add-floor", "") +
+      (campaign.floors.length > 1 ? button("remove-floor", "Remove floor", ' data-index="' + floorIndex + '"') : "") + "</div>" +
+      '<div class="guided-fields">' +
+      field("Layout", floorBase + ".mode", floor.mode, "text", ctx.capabilities.enums.floorMode) +
+      field("Total nodes", floorBase + ".randomSettings.nodeCount", floor.randomSettings.nodeCount, "number") +
+      field("Quest nodes", floorBase + ".randomSettings.questNodeCount", floor.randomSettings.questNodeCount, "number") +
+      field("Shop nodes", floorBase + ".randomSettings.shopNodeCount", floor.randomSettings.shopNodeCount, "number") +
+      field("Shop tier", floorBase + ".shopLevel", floor.shopLevel, "number") + "</div>";
+  } else if (step === 2) {
+    const cells: string[] = [];
+    for (let y = -2; y <= 2; y++) {
+      for (let x = -2; x <= 2; x++) {
+        const index = floor.nodes.findIndex(node => node.x === x && node.y === y);
+        const node = floor.nodes[index];
+        cells.push('<button type="button" class="campaign-cell' + (node ? " filled" : "") +
+          '" data-rich-action="toggle-node" data-x="' + x + '" data-y="' + y + '"' +
+          (index >= 0 ? ' data-index="' + index + '"' : "") + ' title="' + escapeHtml(node?.id ?? "empty") + '">' +
+          escapeHtml(node ? node.kind.slice(0, 1) : "·") + "</button>");
+      }
     }
+    const routes = floor.routes.map((route, index) => '<div class="v2-row">' +
+      "<strong>" + escapeHtml(route.fromNodeId + " → " + route.toNodeId) + "</strong>" +
+      '<button type="button" class="button button-small" data-rich-action="toggle-route-direction" data-index="' + index + '">' +
+      (route.oneWay ? "One-way" : "Two-way") + "</button>" +
+      button("remove-route", "Disconnect", ' data-index="' + index + '"') + "</div>").join("");
+    body = '<p class="step-copy">Click an empty cell to add the selected node kind. Click a node to edit it. ' +
+      'Use "Connect" on a node, then click a neighboring node to add a route.</p>' +
+      '<div class="guided-fields"><label class="field"><span class="field-label">Node kind</span><select data-rich-select="node-kind">' +
+      options(ctx.capabilities.enums.nodeKind, ctx.rich.selectedNodeKind ?? "Battle") + "</select></label></div>" +
+      '<div class="campaign-grid">' + cells.join("") + "</div><h4>Connections</h4>" + (routes || '<p class="step-copy">No routes yet.</p>');
+  } else if (step === 3) {
+    const nodeIndex = Math.min(ctx.rich.nodeIndex, Math.max(0, floor.nodes.length - 1));
+    const node = floor.nodes[nodeIndex];
+    if (!node) body = '<p class="step-copy">Add a node in the Map step first.</p>';
+    else {
+      const nodeBase = floorBase + ".nodes[" + nodeIndex + "]";
+      body = '<div class="guided-actions">' + floor.nodes.map((item, index) =>
+        '<button type="button" class="button button-small" data-rich-action="select-node" data-index="' + index + '">' +
+        escapeHtml(item.label.default || item.id) + "</button>").join("") + "</div>" +
+        '<div class="guided-fields">' + field("Node name", nodeBase + ".label.default", node.label.default) +
+        field("Kind", nodeBase + ".kind", node.kind, "text", ctx.capabilities.enums.nodeKind) +
+        text("x", nodeBase + ".x", node.x) + text("y", nodeBase + ".y", node.y) +
+        button("connect-node", "Connect from this node", ' data-index="' + nodeIndex + '"') +
+        button("remove-node", "Remove node", ' data-index="' + nodeIndex + '"') + "</div>" +
+        (node.kind === "Battle" || node.kind === "Boss"
+          ? '<div class="guided-fields">' + ref("Enemy army", nodeBase + ".armyId", node.armyId) +
+            ref("Enemy faction", nodeBase + ".enemyFactionId", node.enemyFactionId, ctx.capabilities.ids.factions) + "</div>"
+          : "") +
+        (node.kind === "Quest"
+          ? '<div class="guided-fields">' + ref("Quest", nodeBase + ".questId", node.questId,
+            ctx.draft.quests.map(quest => quest.id)) + "</div>"
+          : "") +
+        (node.kind === "Reward"
+          ? '<div class="guided-fields">' + field("Reward", nodeBase + ".rewardKind", node.rewardKind, "text", ctx.capabilities.enums.rewardKind) +
+            field("Amount", nodeBase + ".rewardAmount", node.rewardAmount, "number") +
+            ref("Content", nodeBase + ".rewardContentId", node.rewardContentId) + "</div>"
+          : "") +
+        (node.kind === "Shop"
+          ? node.shopOffers.map((offer, offerIndex) => '<div class="v2-row">' +
+            field("Pool", nodeBase + ".shopOffers[" + offerIndex + "].kind", offer.kind, "text", ctx.capabilities.enums.shopOfferKind) +
+            ref("Item", nodeBase + ".shopOffers[" + offerIndex + "].contentId", offer.contentId) +
+            field("Price", nodeBase + ".shopOffers[" + offerIndex + "].price", offer.price, "number") +
+            button("remove-offer", "Remove", ' data-index="' + offerIndex + '" data-node="' + nodeIndex + '"') + "</div>").join("") +
+            (node.shopOffers.length < 3 ? button("add-offer", "+ Offer", ' data-index="' + nodeIndex + '"') : "")
+          : "");
+    }
+  } else if (step === 4) {
+    body = '<div class="guided-actions">' + ctx.draft.quests.map(quest =>
+      '<button type="button" class="button button-small" data-rich-action="toggle-quest" data-id="' + escapeHtml(quest.id) + '">' +
+      (campaign.questIds.some(ref => ref.id === quest.id) ? "✓ " : "+ ") + escapeHtml(quest.title.default) + "</button>").join("") +
+      "</div>" + (ctx.draft.quests.length ? "" : '<p class="step-copy">Create quests in the Quests category first.</p>');
+  } else if (step === 5) {
+    body = '<div class="guided-fields"><h4>Campaign shop pools</h4>' +
+      ctx.capabilities.enums.shopPoolKind.map((kind, index) =>
+        '<label class="campaign-check"><input type="checkbox" data-v2-bool="' + base + '.settings.shopPoolKinds[' + index + ']"' +
+        (campaign.settings.shopPoolKinds.includes(kind) ? " checked" : "") + '><span>' + escapeHtml(kind) + "</span></label>").join("") +
+      field("Floor shop tier", floorBase + ".shopLevel", floor.shopLevel, "number") + "</div>";
+  } else if (step === 6) {
+    const settings = base + ".settings";
+    body = '<div class="guided-fields">' +
+      ref("Board character", base + ".boardPreviewUnitId", campaign.boardPreviewUnitId, ctx.capabilities.ids.units) +
+      field("Starting lives", settings + ".startingLives", campaign.settings.startingLives, "number") +
+      field("Starting Sardines", settings + ".startingSardines", campaign.settings.startingSardines, "number") +
+      ref("Player faction", settings + ".playerFactionId", campaign.settings.playerFactionId, ctx.capabilities.ids.factions) +
+      '<label class="campaign-check"><input type="checkbox" data-v2-bool="' + settings + '.factionSelectionEnabled"' +
+      (campaign.settings.factionSelectionEnabled ? " checked" : "") + '><span>Allow faction selection</span></label>' +
+      '<label class="campaign-check"><input type="checkbox" data-v2-bool="' + settings + '.battleShopEnabled"' +
+      (campaign.settings.battleShopEnabled ? " checked" : "") + '><span>Keep battle shop enabled</span></label>' +
+      '<label class="campaign-check"><input type="checkbox" data-v2-bool="' + settings + '.continueWithGeneratedFloors"' +
+      (campaign.settings.continueWithGeneratedFloors ? " checked" : "") + '><span>Continue with generated floors</span></label>' +
+      field("Initial nodes", settings + ".startingNodeCount", campaign.settings.startingNodeCount, "number") +
+      field("Nodes added per floor", settings + ".nodeGrowthPerFloor", campaign.settings.nodeGrowthPerFloor, "number") + "</div>";
+  } else {
+    body = '<div class="card"><h3>' + escapeHtml(campaign.name.default) + "</h3>" +
+      "<p>" + campaign.floors.length + " floors · " + campaign.floors.reduce((sum, item) => sum + item.nodes.length, 0) + " authored nodes · " +
+      campaign.floors.reduce((sum, item) => sum + item.routes.length, 0) + " routes</p>" +
+      "<p>Quest pool: " + escapeHtml(campaign.questIds.map(ref => ref.id).join(", ") || "none") + "</p>" +
+      "<p>Starting run: " + campaign.settings.startingLives + " lives · " + campaign.settings.startingSardines +
+      " Sardines · board character " + escapeHtml(campaign.boardPreviewUnitId.id) + "</p>" +
+      "<p>Events: " + campaign.events.length + "</p>" +
+      "<h4>Campaign events</h4>" + campaign.events.map((event, eventIndex) => '<div class="v2-row">' +
+        field("ID", base + ".events[" + eventIndex + "].id", event.id) +
+        field("Trigger", base + ".events[" + eventIndex + "].trigger", event.trigger, "text", TRIGGERS) +
+        button("remove-event", "Remove", ' data-index="' + eventIndex + '"') + "</div>").join("") +
+      button("add-event", "+ Event") +
+      '<p class="step-copy">Conditions and action parameters are in Advanced. Save / Upload and Publish are in the set list.</p></div>';
   }
-  return '<div class="guided-actions">' + floors + actionButton("add-floor", "") + "</div>" +
-    '<div class="rich-columns"><section class="card"><h3>Floor ' + floor.number + '</h3>' +
-    '<div class="campaign-grid">' + nodeCells.join("") + "</div>" +
-    '<div class="guided-fields">' + field("Name", base + ".name.default", campaign.name.default) +
-    field("Floor mode", floorBase + ".mode", floor.mode, "text", ctx.capabilities.enums.floorMode) +
-    ref("Board character", base + ".boardPreviewUnitId", campaign.boardPreviewUnitId, ctx.capabilities.ids.units) + "</div>" +
-    '<h4>Routes</h4>' + floor.routes.map((route, index) => '<div class="v2-row">' +
-      field("From", floorBase + ".routes[" + index + "].fromNodeId", route.fromNodeId) +
-      field("To", floorBase + ".routes[" + index + "].toNodeId", route.toNodeId) +
-      button("remove-route", "Remove", ' data-index="' + index + '"') + "</div>").join("") +
-    actionButton("add-route", "") + "</section>" +
-    '<section class="card"><h3>Events</h3>' + campaign.events.map((event, index) => '<div class="v2-row">' +
-      field("ID", base + ".events[" + index + "].id", event.id) +
-      field("Trigger", base + ".events[" + index + "].trigger", event.trigger, "text", TRIGGERS) +
-      button("remove-event", "Remove", ' data-index="' + index + '"') + "</div>").join("") +
-    actionButton("add-event", "") +
-    '<p class="step-copy">Conditions and action parameters are available in Raw fields.</p></section></div>';
+
+  return '<p class="help-copy">Campaign work is split by task. Only the relevant floor and map controls appear in each step.</p>' +
+    '<div class="guided-progress">' + CAMPAIGN_STEPS.map((name, index) =>
+      '<span class="' + (index < step ? "done" : index === step ? "current" : "") + '" title="' + escapeHtml(name) + '"></span>').join("") + "</div>" +
+    '<h3>' + CAMPAIGN_STEPS[step] + '</h3><section class="guided-step">' + body +
+    '<div class="guided-actions">' +
+    (step > 0 ? actionButton("prev-step", ' data-direction="back"') : "") +
+    (step < CAMPAIGN_STEPS.length - 1 ? actionButton("next-step", ' data-direction="next"', true) : "") +
+    "</div></section>";
 }
 
 export function renderRichEditor(ctx: RichContext): string {

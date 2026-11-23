@@ -10,6 +10,7 @@ import { emptyContentSet, localized, namedRef } from "./factory";
 import { escapeHtml } from "./html";
 import { APP_VERSION } from "./version";
 import { packContentSet } from "./packer";
+import { loadArmyCatalog, type ArmyCatalogLite } from "./catalog";
 import { loadSession, saveSession } from "./session";
 import { renderRichEditor, richItemLabel, type RichState } from "./rich";
 import { ACTIONS, CONDITIONS, TRIGGERS } from "./registries";
@@ -32,6 +33,7 @@ interface LocalRecord {
 
 interface AppState {
   capabilities: GameCapabilities;
+  catalog: ArmyCatalogLite;
   sets: SetSummary[];
   view: "browser" | "wizard" | "set";
   focus: DetailSection;
@@ -56,6 +58,13 @@ interface AppState {
 }
 
 const STEP_TITLES = ["Set details", "Campaign", "Board character", "Content", "Review & publish"];
+const SECTION_LABELS: Record<DetailSection, { singular: string; plural: string }> = {
+  campaigns: { singular: "Campaign", plural: "Campaigns" },
+  quests: { singular: "Quest", plural: "Quests" },
+  armies: { singular: "Army", plural: "Armies" },
+  dialogues: { singular: "Dialogue", plural: "Dialogues" }
+};
+
 const STEP_COPY = [
   "Give the content set a stable ID and a name shown in the game menu.",
   "Create the first campaign in this set. You can add more later.",
@@ -569,7 +578,7 @@ function renderSetView(container: HTMLElement, state: AppState): void {
   const focus = state.focus;
   const tabs = DETAIL_SECTIONS.map(section =>
     '<button type="button" class="button ' + (focus === section && !state.entry && !state.adding ? "button-primary" : "button-outline") +
-    '" data-focus="' + section + '">' + section + " (" + detailItemCount(draft, section) + ")</button>").join("");
+    '" data-focus="' + section + '">' + SECTION_LABELS[section].plural + " (" + detailItemCount(draft, section) + ")</button>").join("");
   const topbar = '<div class="topbar"><div class="topbar-context">' +
     '<span class="brand-mark">M</span><strong>MeowEdit</strong><span class="context-divider">/</span>' +
     '<span class="context-crumb">' + escapeHtml(state.setId) + "</span></div><div class=\"topbar-actions\">" +
@@ -584,7 +593,7 @@ function renderSetView(container: HTMLElement, state: AppState): void {
   let body: string;
   if (state.adding) {
     body = heading +
-      '<section class="guided-step"><h2>Add ' + focus.slice(0, -1) + "</h2>" +
+      '<section class="guided-step"><h2>Add ' + SECTION_LABELS[focus].singular + "</h2>" +
       '<p class="step-copy">Two fields to start. Everything else can be filled in later from the advanced view.</p>' +
       '<div class="guided-fields">' +
       '<label class="field"><span class="field-label">Name</span><input data-v2-add="name" value="' + escapeHtml(state.addName) + '"></label>' +
@@ -593,18 +602,18 @@ function renderSetView(container: HTMLElement, state: AppState): void {
       '<p class="step-copy">Quests default to the first objective/reward kind; campaigns start with one floor. Adjust these in the advanced view.</p>' +
       "</div></details></div>" +
       '<div class="guided-actions"><button type="button" class="button button-outline" data-add-cancel>Cancel</button>' +
-      '<button type="button" class="button button-primary" data-add-create>Create ' + focus.slice(0, -1) + "</button></div></section>";
+      '<button type="button" class="button button-primary" data-add-create>Create ' + SECTION_LABELS[focus].singular + "</button></div></section>";
   } else if (state.entry) {
     const { section, index } = state.entry;
     body = heading +
       '<div class="guided-actions"><button type="button" class="button button-outline" data-entry-back>← Back to list</button>' +
       '<button type="button" class="button button-small" data-toggle-raw>' +
-      (state.rawFields ? "Guided editor" : "Raw fields") + "</button></div>" +
-      '<section class="v2-details"><h2>Edit ' + section.slice(0, -1) + ': ' + escapeHtml(richItemLabel(draft, section, index)) + "</h2>" +
+      (state.rawFields ? "Guided" : "Advanced") + "</button></div>" +
+      '<section class="v2-details"><h2>Edit ' + SECTION_LABELS[section].singular + ': ' + escapeHtml(richItemLabel(draft, section, index)) + "</h2>" +
       '<p class="step-copy">Changes save locally as you type. Return to the list to upload or publish.</p>' +
       (state.rawFields
         ? renderDetailSection({ draft, capabilities: state.capabilities }, section, index)
-        : renderRichEditor({ draft, capabilities: state.capabilities, rich: state.rich })) +
+        : renderRichEditor({ draft, capabilities: state.capabilities, catalog: state.catalog, rich: state.rich })) +
       "</section>";
   } else {
     const count = detailItemCount(draft, focus);
@@ -618,7 +627,7 @@ function renderSetView(container: HTMLElement, state: AppState): void {
     const validation = renderValidationPanel(state);
     body = heading +
       '<div class="guided-actions">' + tabs +
-      '<button type="button" class="button button-primary" data-add="' + focus + '">+ Add ' + focus.slice(0, -1) + "</button></div>" +
+      '<button type="button" class="button button-primary" data-add="' + focus + '">+ Add ' + SECTION_LABELS[focus].singular + "</button></div>" +
       '<div class="set-list">' + (rows || '<div class="set-empty">No ' + focus + ' yet. Add one to get started.</div>') + "</div>" +
       '<section class="v2-validation"><h2>Validation</h2>' + validation + "</section>" +
       '<div class="guided-actions"><button type="button" class="button button-outline" data-save>Save / Upload</button>' +
@@ -655,7 +664,7 @@ function renderSetView(container: HTMLElement, state: AppState): void {
   }));
   container.querySelectorAll<HTMLElement>("[data-entry-remove]").forEach(button => button.addEventListener("click", () => {
     const index = Number(button.dataset.entryRemove);
-    if (!window.confirm("Remove this " + focus.slice(0, -1) + "?")) return;
+    if (!window.confirm("Remove this " + SECTION_LABELS[focus].singular + "?")) return;
     removeEntry(state, focus, index);
     renderSetView(container, state);
   }));
@@ -681,6 +690,10 @@ function renderSetView(container: HTMLElement, state: AppState): void {
   container.querySelector<HTMLElement>("[data-add-create]")?.addEventListener("click", () => {
     addItem(state, focus, state.addName || undefined, state.addId || undefined);
     state.adding = false;
+    const index = detailItemCount(state.draft, focus) - 1;
+    state.entry = { section: focus, index };
+    state.rich = { section: focus, index, step: 1, nodeIndex: 0, floorIndex: 0 };
+    state.rawFields = false;
     renderSetView(container, state);
   });
   container.querySelectorAll<HTMLInputElement>("[data-v2-add]").forEach(input => input.addEventListener("input", () => {
@@ -875,7 +888,9 @@ function wireRichActions(container: HTMLElement, state: AppState): void {
   const dialogueNode = dialogue?.nodes[rich.nodeIndex];
 
   container.querySelectorAll<HTMLSelectElement>("[data-rich-select]").forEach(select => select.addEventListener("change", () => {
-    rich.selectedUnit = select.value;
+    if (select.dataset.richSelect === "ability") rich.selectedAbility = select.value;
+    else if (select.dataset.richSelect === "node-kind") rich.selectedNodeKind = select.value;
+    else rich.selectedUnit = select.value;
   }));
   container.querySelectorAll<HTMLElement>("[data-rich-action]").forEach(button => button.addEventListener("click", () => {
     const action = button.dataset.richAction!;
@@ -890,7 +905,7 @@ function wireRichActions(container: HTMLElement, state: AppState): void {
       else return;
     }
     else if (action === "prev-step") rich.step = Math.max(0, rich.step - 1);
-    else if (action === "next-step") rich.step = Math.min(6, rich.step + 1);
+    else if (action === "next-step") rich.step = Math.min(7, rich.step + 1);
     else if (action === "select-node") rich.nodeIndex = index;
     else if (action === "select-floor") rich.floorIndex = index;
     else if (action === "add-dialogue-node" && dialogue) dialogue.nodes.push({
@@ -912,6 +927,10 @@ function wireRichActions(container: HTMLElement, state: AppState): void {
       meowEdit: { decision: { id: "decision", label: localized("Decision"), outcomeId: "outcome", outcomeLabel: localized("Outcome") }, defaultContinue: true }
     });
     else if (action === "remove-dialogue-action" && dialogueNode) dialogueNode.actions.splice(index, 1);
+    else if (action === "add-army-unit" && army) army.units.push({
+      unitId: namedRef(rich.selectedUnit || capabilities.ids.units[0] || "unit"), x: 0, y: 0, spellIds: []
+    });
+    else if (action === "remove-army-unit" && army) army.units.splice(index, 1);
     else if (action === "toggle-cell" && army) {
       const existing = army.units.findIndex(unit => unit.x === x && unit.y === y);
       if (existing >= 0) army.units.splice(existing, 1);
@@ -920,9 +939,9 @@ function wireRichActions(container: HTMLElement, state: AppState): void {
         x, y, spellIds: []
       });
     }
-    else if (action === "add-spell" && army) army.spellIds.push(namedRef(capabilities.ids.spells[0] ?? "spell"));
+    else if (action === "add-spell" && army) army.spellIds.push(namedRef(rich.selectedAbility || (capabilities.ids.spells[0] ?? "spell")));
     else if (action === "remove-spell" && army) army.spellIds.splice(index, 1);
-    else if (action === "add-blessing" && army) army.blessingIds.push(namedRef(capabilities.ids.blessings[0] ?? "blessing"));
+    else if (action === "add-blessing" && army) army.blessingIds.push(namedRef(rich.selectedAbility || (capabilities.ids.blessings[0] ?? "blessing")));
     else if (action === "remove-blessing" && army) army.blessingIds.splice(index, 1);
     else if (action === "add-floor" && campaign) campaign.floors.push({
       id: "floor-" + (campaign.floors.length + 1), number: campaign.floors.length + 1,
@@ -930,16 +949,57 @@ function wireRichActions(container: HTMLElement, state: AppState): void {
       shopPoolMode: "campaign", shopPoolKinds: [capabilities.enums.shopPoolKind[0]], shopLevel: 1,
       randomSettings: { nodeCount: 12, questNodeCount: 2, shopNodeCount: 3 }, nodes: [], routes: []
     });
+    else if (action === "remove-floor" && campaign && campaign.floors.length > 1) {
+      campaign.floors.splice(rich.floorIndex, 1);
+      rich.floorIndex = 0;
+    }
     else if (action === "toggle-node" && floor) {
       const existing = floor.nodes.findIndex(node => node.x === x && node.y === y);
-      if (existing >= 0) floor.nodes.splice(existing, 1);
-      else floor.nodes.push({
-        id: "node-" + (floor.nodes.length + 1), label: localized("Node"),
-        kind: capabilities.enums.nodeKind[1] ?? capabilities.enums.nodeKind[0], x, y,
-        armyId: namedRef("army"), questId: namedRef("quest"),
-        enemyFactionId: namedRef(capabilities.ids.factions[0] ?? "faction"),
-        rewardKind: capabilities.enums.rewardKind[0], rewardAmount: 0,
-        rewardContentId: namedRef("reward"), shopOfferMode: "generated", shopOffers: []
+      const target = existing >= 0 ? floor.nodes[existing] : undefined;
+      if (rich.connectFrom && target && rich.connectFrom !== target.id) {
+        if (!floor.routes.some(route =>
+          (route.fromNodeId === rich.connectFrom && route.toNodeId === target.id)
+          || (route.fromNodeId === target.id && route.toNodeId === rich.connectFrom))) {
+          floor.routes.push({
+            id: "route-" + (floor.routes.length + 1),
+            fromNodeId: rich.connectFrom, toNodeId: target.id, oneWay: false
+          });
+        }
+        rich.connectFrom = undefined;
+      } else if (target) {
+        rich.nodeIndex = existing;
+        rich.step = 3;
+      } else {
+        floor.nodes.push({
+          id: "node-" + (floor.nodes.length + 1), label: localized("Node"),
+          kind: rich.selectedNodeKind || (capabilities.enums.nodeKind[1] ?? capabilities.enums.nodeKind[0]), x, y,
+          armyId: namedRef("army"), questId: namedRef("quest"),
+          enemyFactionId: namedRef(capabilities.ids.factions[0] ?? "faction"),
+          rewardKind: capabilities.enums.rewardKind[0], rewardAmount: 0,
+          rewardContentId: namedRef("reward"), shopOfferMode: "generated", shopOffers: []
+        });
+        rich.nodeIndex = floor.nodes.length - 1;
+      }
+    }
+    else if (action === "connect-node") { rich.connectFrom = floor?.nodes[index]?.id; rich.step = 2; }
+    else if (action === "toggle-route-direction" && floor) {
+      const route = floor.routes[index];
+      if (route) route.oneWay = !route.oneWay;
+    }
+    else if (action === "toggle-quest" && campaign && button.dataset.id) {
+      const existing = campaign.questIds.findIndex(item => item.id === button.dataset.id);
+      if (existing >= 0) campaign.questIds.splice(existing, 1);
+      else campaign.questIds.push(namedRef(button.dataset.id));
+    }
+    else if (action === "remove-node" && floor) floor.nodes.splice(index, 1);
+    else if (action === "remove-offer" && floor) {
+      const shopNode = floor.nodes[Number(button.dataset.node ?? 0)];
+      if (shopNode) shopNode.shopOffers.splice(index, 1);
+    }
+    else if (action === "add-offer" && floor) {
+      const node = floor.nodes[index];
+      if (node && node.shopOffers.length < 3) node.shopOffers.push({
+        kind: capabilities.enums.shopOfferKind[0], contentId: namedRef(capabilities.ids.units[0] ?? "unit"), price: 0
       });
     }
     else if (action === "add-route" && floor) floor.routes.push({
@@ -1116,10 +1176,10 @@ async function refreshSets(state: AppState): Promise<void> {
 
 /** Mounts the v2-only editor into the app root after authentication. */
 export async function mountApp(container: HTMLElement): Promise<void> {
-  const capabilities = await loadCapabilities();
+  const [capabilities, catalog] = await Promise.all([loadCapabilities(), loadArmyCatalog()]);
   const session = loadSession();
   const state: AppState = {
-    capabilities, sets: [], view: "browser", focus: "campaigns", entry: null,
+    capabilities, catalog, sets: [], view: "browser", focus: "campaigns", entry: null,
     rich: session.rich ?? { section: "campaigns", index: 0, step: 0, nodeIndex: 0, floorIndex: 0 },
     rawFields: session.rawFields,
     adding: false, addName: "", addId: "",

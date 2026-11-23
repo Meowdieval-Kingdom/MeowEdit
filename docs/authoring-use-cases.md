@@ -65,12 +65,12 @@ Core jobs: create without manual IDs, continue a draft, make a narrow edit, buil
 
 | # | Use case | Guided path | Advanced path (Raw fields) | Status |
 |---|---|---|---|---|
-| Q1 | Create a quest | Add quest → Name + ID → Objective → Dialogue links → Review | `definition.id/title/...` | **[done]** 4 guided steps |
+| Q1 | Create a quest | Add quest → Basics → Objective → Quest Giver → Offer → In Progress → Reward → Review | `definition.id/title/...` | **[done]** 7 guided steps |
 | Q2 | Basics / source / availability | Basics step: title, ID, description (foldout) | `sourceKind`, `sourceSlot`, `firstFloor`, `repeatEveryFloors`, `priority` | **[partial]** guided lacks source/availability; fields in Raw |
-| Q3 | Objective-specific forms | Objective step selects kind + reward | Fetch items / battle targets / kill count / distances as rows | **[partial]** no conditional objective forms in guided |
+| Q3 | Objective-specific forms | Objective step shows fields for the chosen kind (Fetch items, Battle targets, Kill Count, Escort, Clear Floor, Timer) | Same fields plus distance rules | **[done]** |
 | Q4 | Fetch items with counts | — | `fetchItems.I.{id,displayName,count}` | **[partial]** rows only |
 | Q5 | Battle targets + Army handoff | — | `battleTargets.I.armyId` | **[missing]** create/edit Army in context and return |
-| Q6 | Quest giver and writing | — | `speakerUnitId`, `speakerName`, `offerText`, `activeText`, `acceptLabel`, `declineLabel` | **[missing]** separate giver / offer / in-progress writing steps |
+| Q6 | Quest giver and writing | Quest Giver → Offer → In Progress steps with text areas | `speakerUnitId`, `speakerName`, `offerText`, `activeText`, `acceptLabel`, `declineLabel` | **[done]** |
 | Q7 | Reward configuration | Objective step: reward kind; foldout amount | `rewardKind`, `rewardAmount`, `rewardContentId` | **[done]** |
 | Q8 | Dialogue links | Dialogue links step: offer + active; foldout completion/failure | four link slots | **[done]** |
 | Q9 | Dialogue create/edit handoff | — | — | **[missing]** return-to-slot stack |
@@ -85,10 +85,10 @@ Core jobs: create without manual IDs, continue a draft, make a narrow edit, buil
 
 | # | Use case | Guided path | Advanced path (Raw fields) | Status |
 |---|---|---|---|---|
-| A1 | Create / name an Army | Add army → Name + ID | `id`, `name` | **[done]** |
-| A2 | Pick units from catalogs | Unit to place select + click a grid cell | `units.I.unitId` | **[partial]** one capability list; no Units/Buildings tabs or levels |
-| A3 | Preview unit stats before adding | — | — | **[missing]** entity/stat preview, footprint badge, portrait |
-| A4 | Arrange formation | 5×5 click-to-place grid | `units.I.{x,y}` | **[partial]** no footprint-aware grid, floor size or drag/swaps |
+| A1 | Create / name an Army | Add Army → Name → Choose Units → Arrange Grid → Army Spells → Blessings → Review (opens the guided editor immediately) | `id`, `name` | **[done]** |
+| A2 | Pick units from catalogs | Choose Units step: unit select + lineup + add/remove | `units.I.unitId` | **[done]** levels come from the capability catalog; buildings are not exposed in v2 |
+| A3 | Preview unit stats before adding | Choose Units step shows catalog description, footprint and stats | — | **[done]** portrait still omitted |
+| A4 | Arrange formation | Arrange Grid step: click-to-place/remove, grid grows beyond 5 | `units.I.{x,y}` | **[partial]** footprint shown but not enforced; no drag/swaps |
 | A5 | Per-entry spells | — | `units.I.spellIds` | **[partial]** no per-entry picker/preview |
 | A6 | Army-wide spells / blessings / curses | Add buttons in rich editor | `spellIds`, `blessingIds` | **[partial]** no tabs, filters, previews or chips |
 | A7 | Cell-target focus (boon/bane, lanes, rules) | — | `CellBlessingPicks` cells/lane/bool | **[partial]** data only, no overlay UI |
@@ -101,11 +101,11 @@ Core jobs: create without manual IDs, continue a draft, make a narrow edit, buil
 
 | # | Use case | Guided path | Advanced path (Raw fields) | Status |
 |---|---|---|---|---|
-| C1 | Create a campaign | Wizard / Add campaign → name + ID → one floor | `id`, `name`, `description` | **[done]** |
+| C1 | Create a campaign | Add Campaign → Name → Floors → Map → Node → Quests → Shops → Starting Run → Review | `id`, `name`, `description` | **[done]** |
 | C2 | Choose approach (randomizer-only vs custom) | — | `settings.*` | **[missing]** designMode concept in v2 |
 | C3 | Floors: add / select / remove / mode | Floor tabs + Add floor | `floors.F.{id,number,mode}` | **[partial]** no remove, no random-count controls in rich editor |
-| C4 | Adventure map authoring | 5×5 click-to-place node grid | `floors.F.nodes.*` | **[partial]** no snap lattice, plug drag, distance labels, bounds or uniqueness |
-| C5 | Routes | Add route → From/To text | `floors.F.routes.*` | **[partial]** adjacency/reachability validation exists, no visual disconnect/direction control |
+| C4 | Adventure map authoring | Map step: click empty cell to add selected node kind; click node to edit; Connect then click target | `floors.F.nodes.*` | **[partial]** no distance labels or plug dragging |
+| C5 | Routes | Connect from a node, click neighbor; one-way toggle + Disconnect in Connections list | `floors.F.routes.*` | **[done]** adjacency/reachability validated |
 | C6 | Focused node step | Entry editor (one node) | Raw fields | **[partial]** no dimmed-map focus mode or footer |
 | C7 | Node inspector by kind | Board character + floor mode | `armyId`, `questId`, `enemyFactionId`, `reward*`, `shopOffers` | **[partial]** no contextual forms or create/edit handoff |
 | C8 | Exact three shop offers | — | `shopOffers` rows | **[partial]** validation checks count, UI is generic rows |
