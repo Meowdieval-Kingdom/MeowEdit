@@ -419,11 +419,13 @@ function campaignEditor(ctx: RichContext): string {
         button("remove-node", "Remove node", ' data-index="' + nodeIndex + '"') + "</div>" +
         (node.kind === "Battle" || node.kind === "Boss"
           ? '<div class="guided-fields">' + ref("Enemy army", nodeBase + ".armyId", node.armyId) +
+            button("create-node-army", "Create Army", ' data-node="' + nodeIndex + '"') +
             ref("Enemy faction", nodeBase + ".enemyFactionId", node.enemyFactionId, ctx.capabilities.ids.factions) + "</div>"
           : "") +
         (node.kind === "Quest"
           ? '<div class="guided-fields">' + ref("Quest", nodeBase + ".questId", node.questId,
-            ctx.draft.quests.map(quest => quest.id)) + "</div>"
+            ctx.draft.quests.map(quest => quest.id)) +
+            button("create-node-quest", "Create Quest", ' data-node="' + nodeIndex + '"') + "</div>"
           : "") +
         (node.kind === "Reward"
           ? '<div class="guided-fields">' + field("Reward", nodeBase + ".rewardKind", node.rewardKind, "text", ctx.capabilities.enums.rewardKind) +

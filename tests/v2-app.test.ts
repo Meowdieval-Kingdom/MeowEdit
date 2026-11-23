@@ -374,6 +374,25 @@ describe("v2-only editor app", () => {
     }
   });
 
+  it("uses Enter to advance guided steps and restores related-record context", async () => {
+    await mountWithDraft(container, fullSet);
+    await openPublished(container);
+    container.querySelector<HTMLElement>('[data-entry-edit="0"]')!.click();
+    const field = container.querySelector<HTMLInputElement>(".guided-step input[data-v2-bind]")!;
+    field.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    expect(container.querySelector(".guided-progress .current")).not.toBeNull();
+
+    for (let index = 0; index < 2; index++)
+      container.querySelector<HTMLElement>('[data-rich-action="next-step"]')!.click();
+    const createArmy = container.querySelector<HTMLElement>('[data-rich-action="create-node-army"]');
+    if (createArmy) {
+      createArmy.click();
+      expect(container.textContent).toContain("Return to Campaign");
+      container.querySelector<HTMLElement>("[data-return-to-parent]")!.click();
+      expect(container.textContent).toContain("Edit Campaign");
+    }
+  });
+
   it("cancels a guided add without changing the draft", async () => {
     await openPublished(container);
     const before = localStorage.getItem("meowedit.v2.sets.author-1");
