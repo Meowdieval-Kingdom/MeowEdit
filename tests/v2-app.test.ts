@@ -606,6 +606,16 @@ describe("v2-only editor app", () => {
     expect(container.textContent).toContain("Your content sets");
   });
 
+  it("opens the restored classic editor from a set entry", async () => {
+    await mountWithDraft(container, fullSet);
+    await openPublished(container);
+    container.querySelector<HTMLElement>('[data-focus="armies"]')!.click();
+    container.querySelector<HTMLElement>('[data-classic-edit="0"]')!.click();
+    await vi.waitFor(() => expect(container.querySelector(".app-shell")).not.toBeNull());
+    expect(container.querySelector('[data-action="save-package"]')).not.toBeNull();
+    expect(container.querySelector('[data-action="open-v2-editor"]')).not.toBeNull();
+  });
+
   it("does not open a stale local copy when the saved draft cannot be loaded", async () => {
     setBridgeFetch(async requestPath => {
       if (requestPath === "/v1/editor/capabilities")

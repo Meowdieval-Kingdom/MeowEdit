@@ -26,7 +26,7 @@ To refresh demo copies after changing local originals, put them under `.local-as
 
 - **Content sets** are the unit of authoring and publishing: one set contains one or more campaigns plus shared quests, armies and dialogues.
 - A **guided path** focuses on one or two fields per step (set details → campaign → board character → content → review); optional fields live in folded, dimmed "More options" areas.
-- Each category has a rich editor: guided quest steps, a dialogue moment map with preview, army placement grid with catalog pickers, and a campaign floor map with routes. An **Advanced** view exposes the remaining structured fields, including registry-driven events, quest timer/effects, army cell-blessing picks and dialogue decisions.
+- Each category opens in the restored **classic editor** — the original Drawflow dialogue map with game preview, the full quest and campaign editors, and the footprint-aware army grid with drag/swap placement. **Quick fields** offers a compact v2 field view, and **Advanced** exposes the full structured contract. Set/cloud controls (Save / Upload, Publish, Back to set, Sign out) sit in the classic topbar.
 - Validation is grouped by category with plain-language explanations, suggested IDs and one-click fixes; dialogue-only sets are valid.
 - The capability manifest (`public/game-capabilities.json`) drives pickers, strict validation and enum whitelists; `npm run snapshot-game-capabilities` regenerates it from the game checkout.
 

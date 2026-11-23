@@ -694,6 +694,7 @@ function renderSetView(container: HTMLElement, state: AppState): void {
       (state.returnTo.length ? '<button type="button" class="button button-primary" data-return-to-parent>← Return to ' +
         SECTION_LABELS[state.returnTo[state.returnTo.length - 1].section].singular + "</button>" : "") +
       '<button type="button" class="button button-outline" data-entry-back>← Back to list</button>' +
+      '<button type="button" class="button button-small" data-classic-editor>Classic editor</button>' +
       '<button type="button" class="button button-small" data-toggle-raw>' +
       (state.rawFields ? "Guided" : "Advanced") + "</button></div>" +
       '<section class="v2-details"><h2>Edit ' + SECTION_LABELS[section].singular + ': ' + escapeHtml(richItemLabel(draft, section, index)) + "</h2>" +
@@ -713,7 +714,8 @@ function renderSetView(container: HTMLElement, state: AppState): void {
       "<small>" + escapeHtml(focus === "dialogues" ? draft.dialogues[index].sequenceId :
         focus === "campaigns" ? draft.campaigns[index].id :
           focus === "quests" ? draft.quests[index].id : draft.armies[index].id) + "</small></div>" +
-      '<button type="button" class="text-button" data-entry-edit="' + index + '">Edit</button>' +
+      '<button type="button" class="text-button" data-classic-edit="' + index + '">Edit</button>' +
+      '<button type="button" class="text-button" data-entry-edit="' + index + '">Quick fields</button>' +
       '<button type="button" class="text-button danger-text" data-entry-remove="' + index + '">Remove</button></div>').join("");
     const validation = renderValidationPanel(state);
     body = heading +
@@ -747,6 +749,12 @@ function renderSetView(container: HTMLElement, state: AppState): void {
     state.adding = false;
     renderSetView(container, state);
   }));
+  container.querySelectorAll<HTMLElement>("[data-classic-edit]").forEach(button => button.addEventListener("click", () => {
+    const index = Number(button.dataset.classicEdit);
+    state.entry = { section: focus, index };
+    state.rich = { section: focus, index, step: 0, nodeIndex: 0, floorIndex: 0 };
+    void openClassicEditor(container, state);
+  }));
   container.querySelectorAll<HTMLElement>("[data-entry-edit]").forEach(button => button.addEventListener("click", () => {
     const index = Number(button.dataset.entryEdit);
     state.entry = { section: focus, index };
@@ -777,6 +785,9 @@ function renderSetView(container: HTMLElement, state: AppState): void {
   container.querySelectorAll<HTMLElement>("[data-section-jump]").forEach(button => button.addEventListener("click", () => {
     container.querySelector<HTMLElement>(".v2-details .card h3")?.scrollIntoView({ block: "start", behavior: "smooth" });
   }));
+  container.querySelector<HTMLElement>("[data-classic-editor]")?.addEventListener("click", () => {
+    void openClassicEditor(container, state);
+  });
   container.querySelector<HTMLElement>("[data-toggle-raw]")?.addEventListener("click", () => {
     state.rawFields = !state.rawFields;
     renderSetView(container, state);
@@ -1367,6 +1378,28 @@ function refreshBadge(container: HTMLElement, state: AppState): void {
     : state.draftVersion > 0
       ? '<span class="set-badge draft">Draft v' + state.draftVersion + "</span>"
       : '<span class="set-badge local">Local only</span>';
+}
+
+/** Opens the restored v1 screens, with the v2 draft remaining the source of truth. */
+async function openClassicEditor(container: HTMLElement, state: AppState): Promise<void> {
+  try {
+    const { mountLegacyEditor } = await import("../legacy/main");
+    mountLegacyEditor({
+      draft: state.draft,
+      capabilities: state.capabilities,
+      selected: state.entry ? { section: state.entry.section, index: state.entry.index } : undefined,
+      onSave: () => { void saveDraft(container, state); },
+      onDraftChange: () => {
+        state.validation = validateContentSet(state.draft, state.capabilities);
+        persistLocal(state);
+      },
+      onBack: () => renderSetView(container, state),
+      onPublish: () => { void publishDraft(container, state); }
+    });
+  } catch (error) {
+    state.status = error instanceof Error ? error.message : "The classic editor could not be opened.";
+    renderSetView(container, state);
+  }
 }
 
 async function saveDraft(container: HTMLElement, state: AppState): Promise<void> {
