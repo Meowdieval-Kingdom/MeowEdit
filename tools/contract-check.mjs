@@ -64,7 +64,7 @@ if (expected !== schemaHash)
 if (process.env.MEOWEDIT_SKIP_AUTHORITY_DOC === "1") {
   console.log("Authority doc cross-check skipped (MEOWEDIT_SKIP_AUTHORITY_DOC=1); schema.sha256 is still enforced.");
 } else {
-  const contractDocPath = path.resolve(projectDirectory, "..", "MeowdievalKingdom", "Docs", "WIP", "MeowEdit-Content-Contract.md");
+  const contractDocPath = path.resolve(projectDirectory, "..", "MeowdievalKingdom", "Docs", "MeowEdit-Content-Contract.md");
   if (!existsSync(contractDocPath))
     throw new Error("Could not find the authority contract doc at " + contractDocPath + ".");
   const authorityMatch = /\*\*Contract hash \(§9\.5\):\*\*\s*`([a-f0-9]{64})`/.exec(readFileSync(contractDocPath, "utf8"));
