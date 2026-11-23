@@ -83,8 +83,9 @@ export interface ContentSetIndexEntry {
   minAppVersion: string;
   requiredCapabilities: string[];
   publishedAt: string;
-  signature: string;
-  kid: string;
+  /** Audit metadata only — no client verifies this envelope (contract §3). */
+  auditSignature: string;
+  auditKeyId: string;
 }
 
 export interface ContentSetIndexResponse {
