@@ -350,6 +350,30 @@ describe("v2-only editor app", () => {
     expect(localStorage.getItem("meowedit.v2.sets.author-1")).not.toBeNull();
   });
 
+  it("edits per-entry spells and cell targets", async () => {
+    await mountWithDraft(container, fullSet);
+    await openPublished(container);
+    container.querySelector<HTMLElement>('[data-focus="armies"]')!.click();
+    container.querySelector<HTMLElement>('[data-entry-edit="0"]')!.click();
+    container.querySelector<HTMLElement>('[data-rich-action="next-step"]')!.click();
+    const addUnit = container.querySelector<HTMLElement>('[data-rich-action="add-army-unit"]');
+    if (addUnit) addUnit.click();
+    const addSpell = container.querySelector<HTMLElement>('[data-rich-action="add-unit-spell"]');
+    if (addSpell) addSpell.click();
+    for (let index = 0; index < 3; index++)
+      container.querySelector<HTMLElement>('[data-rich-action="next-step"]')!.click();
+    const configure = container.querySelector<HTMLElement>('[data-rich-action="configure-cells"]');
+    if (configure) {
+      configure.click();
+      expect(container.querySelector(".cell-focus")).not.toBeNull();
+      const target = container.querySelector<HTMLElement>('[data-rich-action="toggle-cell-target"]');
+      if (target) target.click();
+      container.querySelector<HTMLElement>('[data-rich-action="cell-region"][data-region="bane"]')!.click();
+      container.querySelector<HTMLElement>('[data-rich-action="close-cell-focus"]')!.click();
+      expect(container.querySelector(".cell-focus")).toBeNull();
+    }
+  });
+
   it("cancels a guided add without changing the draft", async () => {
     await openPublished(container);
     const before = localStorage.getItem("meowedit.v2.sets.author-1");

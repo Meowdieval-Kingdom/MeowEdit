@@ -890,6 +890,7 @@ function wireRichActions(container: HTMLElement, state: AppState): void {
   container.querySelectorAll<HTMLSelectElement>("[data-rich-select]").forEach(select => select.addEventListener("change", () => {
     if (select.dataset.richSelect === "ability") rich.selectedAbility = select.value;
     else if (select.dataset.richSelect === "node-kind") rich.selectedNodeKind = select.value;
+    else if (select.dataset.richSelect === "unit-spell") rich.selectedUnitSpell = select.value;
     else rich.selectedUnit = select.value;
   }));
   container.querySelectorAll<HTMLElement>("[data-rich-action]").forEach(button => button.addEventListener("click", () => {
@@ -943,6 +944,32 @@ function wireRichActions(container: HTMLElement, state: AppState): void {
       meowEdit: { decision: { id: "decision", label: localized("Decision"), outcomeId: "outcome", outcomeLabel: localized("Outcome") }, defaultContinue: true }
     });
     else if (action === "remove-dialogue-action" && dialogueNode) dialogueNode.actions.splice(index, 1);
+    else if (action === "add-unit-spell" && army?.units[index]) {
+      const spell = rich.selectedUnitSpell || capabilities.ids.spells[0] || "spell";
+      if (!army.units[index].spellIds.some(item => item.id === spell)) army.units[index].spellIds.push(namedRef(spell));
+    }
+    else if (action === "remove-unit-spell" && army?.units[Number(button.dataset.unit ?? 0)])
+      army.units[Number(button.dataset.unit ?? 0)].spellIds.splice(index, 1);
+    else if (action === "configure-cells" && army) {
+      const blessing = army.blessingIds[index];
+      if (blessing) {
+        if (!army.CellBlessingPicks.some(pick => pick.RootId.id === blessing.id))
+          army.CellBlessingPicks.push({ RootId: namedRef(blessing.id), Lane: "1", Cells: [], Locked: false, BaneCells: [] });
+        rich.cellPickIndex = army.CellBlessingPicks.findIndex(pick => pick.RootId.id === blessing.id);
+        rich.cellRegion = "boon";
+      }
+    }
+    else if (action === "cell-region") rich.cellRegion = button.dataset.region === "bane" ? "bane" : "boon";
+    else if (action === "close-cell-focus") rich.cellPickIndex = undefined;
+    else if (action === "toggle-cell-target" && army && rich.cellPickIndex !== undefined) {
+      const pick = army.CellBlessingPicks[rich.cellPickIndex];
+      if (pick) {
+        const target = rich.cellRegion === "bane" ? pick.BaneCells : pick.Cells;
+        const existing = target.findIndex(cell => (cell as { x?: number }).x === x && (cell as { y?: number }).y === y);
+        if (existing >= 0) target.splice(existing, 1);
+        else target.push({ x, y });
+      }
+    }
     else if (action === "add-army-unit" && army) army.units.push({
       unitId: namedRef(rich.selectedUnit || capabilities.ids.units[0] || "unit"), x: 0, y: 0, spellIds: []
     });

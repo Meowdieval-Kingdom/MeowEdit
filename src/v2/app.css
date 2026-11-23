@@ -38,6 +38,10 @@
 .guided-list-item span { flex: 1; }
 .guided-error { color: var(--red); font-size: 11px; }
 .guided-status { color: var(--green-dark); font-size: 12px; min-height: 1em; }
+.cell-focus-backdrop { position: fixed; inset: 0; z-index: 70; display: grid; place-items: center; background: #07101acc; }
+.cell-focus { width: min(92vw, 460px); padding: 22px; border-radius: 12px; background: var(--paper); color: var(--ink); }
+.cell-focus h3 { margin: 0 0 8px; font-size: 16px; }
+
 .dialogue-graph-tools { display: flex; align-items: center; gap: 6px; margin: 8px 0; }
 .dialogue-graph { position: relative; height: 220px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; background: #f7f6ef; }
 .dialogue-graph-canvas { position: relative; width: 600px; height: 220px; transform-origin: top left; }

@@ -15,6 +15,9 @@ export interface RichState {
   connectFrom?: string;
   connectAction?: number;
   zoom?: number;
+  cellPickIndex?: number;
+  selectedUnitSpell?: string;
+  cellRegion?: "boon" | "bane";
 }
 
 export interface RichContext {
@@ -248,6 +251,34 @@ function dialogueEditor(ctx: RichContext): string {
     '<p class="step-copy">Only the default locale is rendered here; other locales stay in the document.</p></section></div>';
 }
 
+function cellFocus(ctx: RichContext, army: NonNullable<ContentSetV2Document["armies"][number]>, base: string): string {
+  const index = ctx.rich.cellPickIndex ?? 0;
+  const pick = army.CellBlessingPicks[index];
+  if (!pick) return "";
+  const region = ctx.rich.cellRegion ?? "boon";
+  const selected = region === "boon" ? pick.Cells : pick.BaneCells;
+  const cells: string[] = [];
+  for (let y = 0; y < 5; y++) {
+    for (let x = 0; x < 5; x++) {
+      const active = selected.some(cell => (cell as { x?: number }).x === x && (cell as { y?: number }).y === y);
+      cells.push('<button type="button" class="army-cell' + (active ? " filled" : "") +
+        '" data-rich-action="toggle-cell-target" data-x="' + x + '" data-y="' + y + '">' +
+        (active ? "●" : "·") + "</button>");
+    }
+  }
+  return '<div class="cell-focus-backdrop"><div class="cell-focus" role="dialog" aria-modal="true">' +
+    '<h3>Cell target · ' + escapeHtml(pick.RootId.id) + "</h3>" +
+    '<p class="step-copy">Enemy side faces upward. Choose a lane or exact fields.</p>' +
+    '<div class="guided-actions">' +
+    '<button type="button" class="button button-small" data-rich-action="cell-region" data-region="boon">Blessing fields</button>' +
+    '<button type="button" class="button button-small" data-rich-action="cell-region" data-region="bane">Bane fields</button></div>' +
+    '<div class="guided-fields">' + field("Lane", base + ".CellBlessingPicks[" + index + "].Lane", pick.Lane, "number") +
+    '<label class="campaign-check"><input type="checkbox" data-v2-bool="' + base + ".CellBlessingPicks[" + index +
+    '].Locked"' + (pick.Locked ? " checked" : "") + '><span>Locked</span></label></div>' +
+    '<div class="army-grid" style="grid-template-columns:repeat(5,34px)">' + cells.join("") + "</div>" +
+    '<div class="guided-actions">' + button("close-cell-focus", "Done") + "</div></div></div>";
+}
+
 function armyEditor(ctx: RichContext): string {
   const army = ctx.draft.armies[ctx.rich.index];
   if (!army) return "";
@@ -265,8 +296,14 @@ function armyEditor(ctx: RichContext): string {
     body = '<div class="rich-columns"><section class="card"><h3>Catalog</h3>' +
       '<label class="field"><span class="field-label">Unit</span><select data-rich-select="unit">' + options(units, selected) + "</select></label>" +
       actionButton("add-army-unit", "") + "<h4>Lineup</h4>" +
-      army.units.map((unit, index) => '<div class="v2-row"><strong>' + escapeHtml(unit.unitId.id) + "</strong>" +
-        button("remove-army-unit", "Remove", ' data-index="' + index + '"') + "</div>").join("") +
+      army.units.map((unit, index) => '<div class="v2-card"><div class="v2-row"><strong>' + escapeHtml(unit.unitId.id) + "</strong>" +
+        button("remove-army-unit", "Remove", ' data-index="' + index + '"') + "</div>" +
+        '<div class="v2-row"><select data-rich-select="unit-spell" data-index="' + index + '">' +
+        options(ctx.capabilities.ids.spells, ctx.rich.selectedUnitSpell ?? "") + "</select>" +
+        button("add-unit-spell", "Add spell", ' data-index="' + index + '"') + "</div>" +
+        '<div class="guided-actions">' + unit.spellIds.map((spell, spellIndex) =>
+          '<button type="button" class="button button-small" data-rich-action="remove-unit-spell" data-index="' +
+          spellIndex + '" data-unit="' + index + '">' + escapeHtml(spell.id) + " ×</button>").join("") + "</div></div>").join("") +
       (army.units.length ? "" : '<p class="step-copy">No units yet.</p>') + "</section>" +
       '<section class="card army-stats-card"><h3>Preview</h3><p class="eyebrow">' + escapeHtml(selected) + "</p>" +
       '<p>' + escapeHtml(level?.description ?? "No catalog description available.") + "</p>" +
@@ -297,8 +334,9 @@ function armyEditor(ctx: RichContext): string {
       "<h4>Assigned</h4>" + army[kind].map((item, index) => '<div class="v2-row">' +
         "<strong>" + escapeHtml(item.id) + "</strong><span class=\"step-copy\">" +
         escapeHtml(findAbility(ctx.catalog, item.id)?.description ?? "") + "</span>" +
+        (step === 4 ? button("configure-cells", "Configure cells", ' data-index="' + index + '"') : "") +
         button(step === 3 ? "remove-spell" : "remove-blessing", "Remove", ' data-index="' + index + '"') + "</div>").join("") +
-      '<p class="step-copy">Cell-target picks are available in Raw fields.</p>';
+      '<p class="step-copy">Cell-target picks define blessing and bane fields on the battle board.</p>';
   } else {
     body = '<div class="card"><h3>' + escapeHtml(army.name.default) + "</h3>" +
       "<p>" + army.units.length + " lineup entries · " + army.spellIds.length + " spells · " + army.blessingIds.length + " blessings</p>" +
@@ -313,7 +351,7 @@ function armyEditor(ctx: RichContext): string {
     '<div class="guided-actions">' +
     (step > 0 ? actionButton("prev-step", ' data-direction="back"') : "") +
     (step < steps.length - 1 ? actionButton("next-step", ' data-direction="next"', true) : "") +
-    "</div></section>";
+    "</div></section>" + (ctx.rich.cellPickIndex !== undefined ? cellFocus(ctx, army, base) : "");
 }
 
 const CAMPAIGN_STEPS = ["Name", "Floors", "Map", "Node", "Quests", "Shops", "Starting Run", "Review"];
