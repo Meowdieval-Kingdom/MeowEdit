@@ -10,6 +10,7 @@ import { emptyContentSet, localized, namedRef } from "./factory";
 import { escapeHtml } from "./html";
 import { APP_VERSION } from "./version";
 import { packContentSet } from "./packer";
+import { loadSession, saveSession } from "./session";
 import { renderRichEditor, richItemLabel, type RichState } from "./rich";
 import { ACTIONS, CONDITIONS, TRIGGERS } from "./registries";
 import type { CampaignEvent, ContentSetV2Document, GameCapabilities } from "./types";
@@ -50,6 +51,8 @@ interface AppState {
   draftSecondary: string;
   status: string;
   validation: ValidationResult;
+  help: boolean;
+  savedAt: string | null;
 }
 
 const STEP_TITLES = ["Set details", "Campaign", "Board character", "Content", "Review & publish"];
@@ -81,9 +84,40 @@ function persistLocal(state: AppState): void {
   };
   try {
     localStorage.setItem(localKey(), JSON.stringify(records));
+    syncSession(state);
   } catch {
     state.status = "Local storage is full; the draft could not be cached.";
+    showToast("Local storage is full. Changes may not be saved.", "warning");
   }
+}
+
+function syncSession(state: AppState): void {
+  state.savedAt = new Date().toISOString();
+  saveSession({
+    view: state.view, focus: state.focus,
+    entry: state.entry ? { section: state.entry.section, index: state.entry.index } : null,
+    rich: { ...state.rich }, rawFields: state.rawFields, step: state.step,
+    help: state.help, savedAt: state.savedAt, setId: state.setId || null
+  });
+}
+
+function showToast(message: string, kind: "success" | "warning" | "error" = "success"): void {
+  let region = document.querySelector<HTMLElement>("#toast-region");
+  if (!region) {
+    region = document.createElement("div");
+    region.id = "toast-region";
+    region.className = "toast-region";
+    region.setAttribute("aria-live", "polite");
+    document.body.append(region);
+  }
+  const toast = document.createElement("div");
+  toast.className = "toast" + (kind === "success" ? "" : " toast-" + kind);
+  toast.innerHTML = '<span class="toast-mark">' + (kind === "success" ? "✓" : "!") + "</span><span>" + escapeHtml(message) + "</span>";
+  region.append(toast);
+  window.setTimeout(() => {
+    toast.classList.add("is-leaving");
+    window.setTimeout(() => toast.remove(), 250);
+  }, 3200);
 }
 
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
@@ -172,14 +206,20 @@ function renderBrowser(container: HTMLElement, state: AppState): void {
     '<span class="brand-mark">M</span><strong>MeowEdit</strong><span class="context-divider">/</span>' +
     '<span class="context-crumb">CONTENT SETS</span></div><div class="topbar-actions">' +
     '<span class="version-tag">' + APP_VERSION + '</span>' +
+    '<button type="button" class="text-button" data-toggle-help aria-pressed="' + state.help + '">' + (state.help ? "Hide help" : "Help") + '</button>' +
     '<button type="button" class="text-button" data-sign-out>Sign out</button></div></div>' +
-    '<div class="editor-main"><div class="editor-heading"><div><h1>Your content sets</h1>' +
+    '<div class="editor-main' + (state.help ? ' help-visible' : '') + '"><div class="editor-heading"><div><h1>Your content sets</h1>' +
     "<p>Create, rename, open and publish sets. Drafts stay private until you publish.</p></div>" +
     '<button type="button" class="button button-primary" data-new-set>+ New set</button></div>' +
     '<div class="set-list">' + rows + "</div>" +
     '<p class="guided-status" data-status>' + escapeHtml(state.status) + "</p></div></main>";
 
   container.querySelector<HTMLElement>("[data-sign-out]")?.addEventListener("click", () => getBridgeActions()?.signOut());
+  container.querySelector<HTMLElement>("[data-toggle-help]")?.addEventListener("click", () => {
+    state.help = !state.help;
+    syncSession(state);
+    renderBrowser(container, state);
+  });
   container.querySelector<HTMLElement>("[data-new-set]")?.addEventListener("click", () => {
     const set = emptyContentSet("", "New content set");
     set.campaigns.push(newCampaign("campaign-1", "First campaign", state.capabilities));
@@ -418,8 +458,9 @@ function renderEditor(container: HTMLElement, state: AppState): void {
     '<button type="button" class="text-button" data-advanced>Advanced controls</button>' +
     '<button type="button" class="text-button" data-back-browser>Sets</button>' +
     '<span class="version-tag">' + APP_VERSION + '</span>' +
+    '<button type="button" class="text-button" data-toggle-help aria-pressed="' + state.help + '">' + (state.help ? "Hide help" : "Help") + '</button>' +
     '<button type="button" class="text-button" data-sign-out>Sign out</button></div></div>' +
-    '<div class="editor-main"><div class="editor-heading"><div><h1>' + escapeHtml(STEP_TITLES[step]) + "</h1>" +
+    '<div class="editor-main' + (state.help ? ' help-visible' : '') + '"><div class="editor-heading"><div><h1>' + escapeHtml(STEP_TITLES[step]) + "</h1>" +
     "<p>" + escapeHtml(STEP_COPY[step]) + "</p></div><span class=\"guided-step-count\">Step " + (step + 1) + " of " + STEP_TITLES.length + "</span></div>" +
     '<div class="guided">' + progress + '<section class="guided-step">' + fields.join("") + contentList +
     '<p class="guided-status" data-status>' + escapeHtml(state.status) + "</p>" +
@@ -441,6 +482,11 @@ function renderEditor(container: HTMLElement, state: AppState): void {
     renderBrowser(container, state);
   });
   container.querySelector<HTMLElement>("[data-sign-out]")?.addEventListener("click", () => getBridgeActions()?.signOut());
+  container.querySelector<HTMLElement>("[data-toggle-help]")?.addEventListener("click", () => {
+    state.help = !state.help;
+    syncSession(state);
+    renderEditor(container, state);
+  });
   container.querySelector<HTMLElement>("[data-prev]")?.addEventListener("click", () => {
     state.step -= 1;
     state.status = "";
@@ -529,6 +575,7 @@ function renderSetView(container: HTMLElement, state: AppState): void {
     '<span class="context-crumb">' + escapeHtml(state.setId) + "</span></div><div class=\"topbar-actions\">" +
     '<button type="button" class="text-button" data-back-browser>Sets</button>' +
     '<span class="version-tag">' + APP_VERSION + '</span>' +
+    '<button type="button" class="text-button" data-toggle-help aria-pressed="' + state.help + '">' + (state.help ? "Hide help" : "Help") + '</button>' +
     '<button type="button" class="text-button" data-sign-out>Sign out</button></div></div>';
   const heading = '<div class="editor-heading"><div><h1>' + escapeHtml(draft.set.name.default || state.setId) + "</h1>" +
     "<p>" + draft.campaigns.length + " campaigns · " + draft.quests.length + " quests · " +
@@ -580,7 +627,7 @@ function renderSetView(container: HTMLElement, state: AppState): void {
   }
 
   container.innerHTML = '<main class="editor-shell">' + topbar +
-    '<div class="editor-main">' + body +
+    '<div class="editor-main' + (state.help ? ' help-visible' : '') + '">' + body +
     '<p class="guided-status" data-status>' + escapeHtml(state.status) + "</p></div></main>";
 
   container.querySelector<HTMLElement>("[data-back-browser]")?.addEventListener("click", () => {
@@ -588,6 +635,11 @@ function renderSetView(container: HTMLElement, state: AppState): void {
     renderBrowser(container, state);
   });
   container.querySelector<HTMLElement>("[data-sign-out]")?.addEventListener("click", () => getBridgeActions()?.signOut());
+  container.querySelector<HTMLElement>("[data-toggle-help]")?.addEventListener("click", () => {
+    state.help = !state.help;
+    syncSession(state);
+    renderSetView(container, state);
+  });
   container.querySelectorAll<HTMLElement>("[data-focus]").forEach(button => button.addEventListener("click", () => {
     state.focus = button.dataset.focus as DetailSection;
     state.entry = null;
@@ -1041,15 +1093,21 @@ async function refreshSets(state: AppState): Promise<void> {
 /** Mounts the v2-only editor into the app root after authentication. */
 export async function mountApp(container: HTMLElement): Promise<void> {
   const capabilities = await loadCapabilities();
+  const session = loadSession();
   const state: AppState = {
     capabilities, sets: [], view: "browser", focus: "campaigns", entry: null,
-    rich: { section: "campaigns", index: 0, step: 0, nodeIndex: 0, floorIndex: 0 },
-    rawFields: false,
+    rich: session.rich ?? { section: "campaigns", index: 0, step: 0, nodeIndex: 0, floorIndex: 0 },
+    rawFields: session.rawFields,
     adding: false, addName: "", addId: "",
     setId: "", draft: emptyContentSet("", ""),
-    draftVersion: 0, step: 0, contentKind: null, draftTitle: "", draftSecondary: "",
-    status: "", validation: { valid: false, issues: [] }
+    draftVersion: 0, step: session.step, contentKind: null, draftTitle: "", draftSecondary: "",
+    status: "", validation: { valid: false, issues: [] },
+    help: session.help, savedAt: session.savedAt
   };
+  state.focus = (["campaigns", "quests", "armies", "dialogues"] as const).includes(session.focus as DetailSection)
+    ? session.focus as DetailSection : "campaigns";
   await refreshSets(state);
   renderBrowser(container, state);
+  if (session.setId && state.sets.some(item => item.setId === session.setId))
+    await openSet(container, state, session.setId);
 }

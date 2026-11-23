@@ -1,140 +1,131 @@
-# MeowEdit authoring use cases
+# MeowEdit authoring use cases (definitive)
 
-This document describes end-to-end authoring tasks across the Dialogue, Quest, Army, and Campaign editors. The editor stores drafts in the signed-in user's browser; packages can be exported manually or published through the authenticated Bridge. Installation and runtime behavior are documented in [game integration handoff](./game-integration-handoff.md).
+This is the single authoring checklist. It merges the v1 workflow overview with the v2 set-based layout. For each job it records the **Guided path** (focused, 1–2 inputs per step), the **Advanced path** (all fields, section jumps, stable IDs), and the **current implementation status** against the v2 screens. `docs/content-contract-v2.md`-style field rules live in the contract doc; this file is about *how an author gets work done*.
 
-## Author personas and editing jobs
+Status legend: **[done]** works in the current build · **[partial]** data/field exists but the UX is degraded · **[missing]** not built yet.
 
-- **Focused author:** starts from a content type, writes or configures only the essentials, and wants unrelated controls out of view. Guided mode is the short, sequential path for this job.
-- **Quick editor:** opens an existing entry to change one value, compare nearby settings, or make a correction. Advanced mode shows the complete record and has section links at the top so the author can jump straight to the relevant fields.
-- **Systems author:** needs IDs, availability, progress rules, effects, routes, and extension fields. Advanced mode keeps these controls visible together; validation and export sit with the full record.
-- **Campaign author:** can choose between generated settings only and a fully authored or mixed adventure. The campaign flow only exposes map, quest, and progression tasks that apply to the selected design.
-- **Reviewer / integrator:** checks the authored content and references before export, and needs a readable summary of the actual configured values rather than just a pass/fail badge.
-- **Teammate handing off work:** shares a JSON record or workspace ZIP. Drafts currently live in one browser's local storage; MeowEdit does not provide shared accounts, live collaboration, or conflict merging.
+## 1. Where work happens in v2
 
-The core authoring jobs are distinct: create a new thing without manual identifiers, continue an existing draft, make a narrow edit without stepping through a wizard, build related content without losing the parent context, check the result, and export it for the game or another teammate.
+- **Content sets** browser: create / rename / open / (admin-gated) delete a set. Badges show Local only / Draft vN / Published.
+- **New set** → 5-step guided wizard: Set details → Campaign → Board character → Content → Review & publish.
+- **Open set** → per-category list (Campaigns / Quests / Armies / Dialogues) with Add / Edit / Remove.
+- **Edit entry** → category editor with a **Raw fields** tab for full structured fields, stable IDs and registry parameters.
+- **Save / Upload** creates or updates a private draft in Neon; **Publish** makes it the latest public revision and warns that tester progress resets.
+- **Help** toggle reveals `.help-copy` hints; **version** and **Sign out** sit top-right.
 
-## Content sets
+## 2. Personas and editing jobs
 
-1. Open the **Content sets** browser. Create a new set, rename one, or open an existing draft. Deletion is reserved for accounts with the administrator permission; the server remains authoritative.
-2. New sets use a guided path with one or two fields per step. Existing sets show a list per category (campaigns, quests, armies, dialogues) with Add / Edit / Remove. Each category has its own editor: guided quest steps, dialogue nodes with preview, army formation grid, and campaign floor map. A Raw fields tab covers less common fields.
-3. Drafts autosave in this browser and are uploaded explicitly with **Save / Upload**. **Publish** is a separate action that makes the revision public.
-4. Published sets from the game backend appear in **Your content sets** with a Published badge; there is no static example import and no separate examples list.
+- **Focused author** — Guided path only; unrelated controls stay folded or hidden.
+- **Quick editor** — opens an existing entry, changes one value in Advanced, returns to the list.
+- **Systems author** — needs IDs, availability, progress rules, effects, routes and extension fields; lives in Raw fields / Advanced.
+- **Campaign author** — chooses generated-only vs custom/mixed; only relevant steps appear.
+- **Reviewer** — needs readable summaries of configured values plus validation before Publish.
 
-## Dialogue: write and branch a conversation
+Core jobs: create without manual IDs, continue a draft, make a narrow edit, build related content without losing context, check the result, publish.
 
-1. Create a dialogue. Its stable conversation ID is generated; the first moment defaults to **Moment 1** and may be renamed optionally.
-2. Add or select a moment in the graph. The graph stays visible as structural context while the selected moment is edited below it.
-3. Pick any Compendium character or any Army catalog unit/upgrade form for each speaker slot. Level labels distinguish upgrades in the picker while the game unit name fills in as the editable dialogue display name; buildings are not character choices. Choose left/right placement and a supported mood.
-4. Write one or more text segments and attribute each segment to one or more speakers. Multiple speakers on a segment represent a shared/unison line.
-5. A normal **Continue** action is always present when there are no explicit choices. Its visible label can be edited; authors do not configure whether a dialogue has a continue button. Add explicit choices only when the story needs a decision or branch.
-6. Connect choices to moments, finish the dialogue, or close playback. Reserved destinations use consistent wording and explain their runtime effect. Connections can be inspected and rewired from the graph.
-7. Preview the sequence in the game composition with the selected unit's captured portrait when available, step through its choices, and validate broken/missing destinations before exporting.
-8. Switch between Guided and Advanced at any point. The selected dialogue and moment remain the same; Guided focuses the next writing task while Advanced exposes IDs, raw structure, and full controls.
-9. In Advanced, assign named decision/outcome metadata and adjust stable node/action destinations. Guided is for narrative authoring and simple branches; decision-system fields are systems-author controls.
+---
 
-## Quest: configure an objective and its linked content
+## 3. Global jobs
 
-Guided segments this work into **Basics → Objective → Quest giver → Offer → In progress → Reward → Review**. Speaker selection and the two writing tasks each get their own screen; Advanced keeps the complete quest form together for quick corrections.
+| # | Use case | Guided path | Advanced path | Status |
+|---|---|---|---|---|
+| G1 | Create a content set | **+ New set** → 2 fields per step → Review | Set ID and name editable in set details | **[done]** |
+| G2 | Rename / delete a set | Rename button; Delete only for admin | — | **[done]** rename; **[partial]** delete (backend flag/route pending) |
+| G3 | Browse authored work | Set browser list with status badges | — | **[done]** |
+| G4 | Continue a draft after reload | Session restores last set, category, entry, step, Help | — | **[done]** for set/category/entry; **[partial]** nested return stack |
+| G5 | Save without publishing | **Save / Upload** → Draft vN | Same button in set list | **[done]** |
+| G6 | Publish | **Publish** → warning → hash verification | Same | **[done]** |
+| G7 | Validate before publish | Grouped validation panel with hints, suggestions, "Use …" / "Apply fixes" / "Open entry" | Same panel | **[done]** for schema/refs/enums/campaign graph rules; **[partial]** no full v1 dialogue/quest rule set |
+| G8 | Get help | Help toggle reveals field hints | Same toggle | **[done]** |
+| G9 | Import / export JSON or ZIP | — | — | **[missing]** (deliberately replaced by Neon drafts + publish) |
+| G10 | Static examples | — | — | **[missing]** (removed; live published sets are the reference) |
+| G11 | Toasts / save indicator | Toast region, "saved locally" in session | Same | **[partial]** implemented; not wired to every action |
+| G12 | Mode/step keyboard flow (Enter advances, Shift+Enter newline, focus first field) | — | — | **[missing]** |
 
-1. Create a quest and write its title, short description, and source.
-2. Choose an objective. The form shows fields relevant to that objective rather than every field at once:
-   - **Escort:** choose the escorted unit and its target.
-   - **Fetch:** define one or more item requirements, each with a count.
-   - **Battle:** define one or more battle targets, offsets, and optional Army references.
-   - **Clear Floor:** define the target floor behavior.
-   - **Kill Count:** specify a unit, faction, or faction's buildings and the count.
-   - **Timer project:** define the player decision, counter/event rule, payment option, and completion effects.
-3. Configure minimum node hops between relevant node types when placement constraints matter.
-4. Optionally link offer, active, completion, and failure dialogue sequences. Create or edit a dialogue from the selected link and return to that same quest slot.
-5. For a battle target, create or edit an Army in context and return to the same target. Add/remove targets without losing the quest draft.
-6. Review concrete objective targets, reward, linked dialogue slots, spacing rules, completion effects, and any timer-project summary alongside validation, then export. Complex timer setup, dialogue links, and completion effects remain Advanced authoring fields; Guided review still reports what is configured. These fields are part of the versioned package contract and are validated by the game before play.
+---
 
-## Army: build and revise a formation
+## 4. Dialogue jobs
 
-1. Name the Army. The stable ID is generated automatically and stays in Advanced.
-2. Choose entries from separate unit and building catalogs. Preview each level's description, combat stats, and grid footprint before adding it. Review a selected lineup entry in its own stats panel; replace or remove it here, and assign its per-entry spells.
-3. Arrange the lineup on a separate battle-grid screen. The grid uses the selected floor size and each entry's full footprint. Select then click an open cell or drag an entry to move it; overlapping or out-of-bounds placements are rejected.
-4. Add Army-wide spells, blessings, and curses on separate focused screens. Their current game descriptions, levels, costs, and curse-only status appear in the picker preview; unrelated Army context is dimmed while choosing.
-5. When an assigned blessing or curse targets battle cells, open its focused battlefield view. Review the game's row/column rule and linked boon/bane effects; choose the lane for a picked-column effect or the exact fields for random-cell effects. Grid expansion blessings change the formation dimensions. Other cell rules preview their actual region and remain driven by the game's rule.
-6. Review the lineup, Army-wide spells/blessings/curses, configured field targets, and each entry's assigned spells. Advanced remains available on each screen for stable IDs and the complete form. Save/export the Army for reuse by Quest targets or Campaign Battle/Boss nodes.
+| # | Use case | Guided path | Advanced path (Raw fields) | Status |
+|---|---|---|---|---|
+| D1 | Create a dialogue | Add dialogue → name + optional ID → first moment auto-created | `sequenceId`, `startNodeId` | **[done]** |
+| D2 | Name / rename a moment | Node list → selected node → Headline | `nodes.N.*.headline` | **[done]** |
+| D3 | Pick a speaker | Speaker picker from capability unit IDs; display name | `speakers.S.unitId`, `displayName`, `side`, `mood` | **[partial]** unit + name; **missing** side/mood in guided, roster-driven level labels |
+| D4 | Write lines | Lines list → Add line → text | `segments.I.text`, `speakerIds` | **[done]** |
+| D5 | Add choices | Choices list → label + target + outcome | `actions.A.{label,targetNodeId,decision.*}` | **[partial]** no default-Continue affordance or reserved-destination copy |
+| D6 | See the conversation structure | — | — | **[missing]** interactive moment map / Drawflow graph |
+| D7 | Preview in game composition | Preview pane beside node editor | — | **[partial]** text-only preview; **missing** framed portraits, clickable choices, Start over, mood art |
+| D8 | One-time decisions / outcomes | — | `decision.id/label/outcomeId/outcomeLabel` | **[partial]** fields exist, no dedicated decision box |
+| D9 | Switch guided ↔ advanced without losing selection | Guided editor ↔ Raw fields tab | — | **[done]** |
+| D10 | Dialogue-specific validation | Validation panel on review | Same | **[partial]** start-node check only |
 
-### Refresh game data
+---
 
-1. Run the local, git-ignored `tools/local/sync-game-data.ps1` against the sibling game checkout to compare units, spells, blessings, curses, and serialized mechanics with MeowEdit's checked-in snapshots.
-2. Inspect new, removed, and changed catalog entries. Rerun with `-Detailed` to list changed IDs and fields, then rerun with `-Apply` to import reviewed snapshots. The helper stages its output outside the repo first and does not write the Unity project.
+## 5. Quest jobs
 
-## Campaign: author a complete custom adventure
+| # | Use case | Guided path | Advanced path (Raw fields) | Status |
+|---|---|---|---|---|
+| Q1 | Create a quest | Add quest → Name + ID → Objective → Dialogue links → Review | `definition.id/title/...` | **[done]** 4 guided steps |
+| Q2 | Basics / source / availability | Basics step: title, ID, description (foldout) | `sourceKind`, `sourceSlot`, `firstFloor`, `repeatEveryFloors`, `priority` | **[partial]** guided lacks source/availability; fields in Raw |
+| Q3 | Objective-specific forms | Objective step selects kind + reward | Fetch items / battle targets / kill count / distances as rows | **[partial]** no conditional objective forms in guided |
+| Q4 | Fetch items with counts | — | `fetchItems.I.{id,displayName,count}` | **[partial]** rows only |
+| Q5 | Battle targets + Army handoff | — | `battleTargets.I.armyId` | **[missing]** create/edit Army in context and return |
+| Q6 | Quest giver and writing | — | `speakerUnitId`, `speakerName`, `offerText`, `activeText`, `acceptLabel`, `declineLabel` | **[missing]** separate giver / offer / in-progress writing steps |
+| Q7 | Reward configuration | Objective step: reward kind; foldout amount | `rewardKind`, `rewardAmount`, `rewardContentId` | **[done]** |
+| Q8 | Dialogue links | Dialogue links step: offer + active; foldout completion/failure | four link slots | **[done]** |
+| Q9 | Dialogue create/edit handoff | — | — | **[missing]** return-to-slot stack |
+| Q10 | Timer project | — | `timer.*`, `paymentCompletesImmediately` | **[partial]** fields exist, no dedicated progress UI |
+| Q11 | Completion effects | — | `completionEffects` rows | **[partial]** add/remove but no scope/kind UX |
+| Q12 | Minimum node distances | — | `minimumNodeDistances` rows | **[partial]** no disclosure or guided entry |
+| Q13 | Review before publish | Review step: title, objective, reward, link count | Full Raw fields | **[partial]** no concrete readable summary of targets/effects |
 
-New campaigns first ask which job the author wants to do. **Randomizer settings only** skips authored maps, node editing, and campaign Quest setup until the author opts into Quest content. **Custom campaign** keeps the full authoring path.
+---
 
-### Set up the run
+## 6. Army jobs
 
-1. Create a Campaign and enter its name. The stable ID is generated automatically; manual ID overrides are available only in Advanced. Description remains optional.
-2. Set up floors one at a time: add/select a floor, then choose authored, random, or mixed layout. Random node totals appear only when that floor mode uses them.
-3. Use the Map step to place and connect the Adventure graph. A visible snap grid shows each node's coordinates and each route's distance in 8-direction map steps, including diagonal movement. Clicking a node or placing a new one opens a focused **Node** step; a compact, dimmed map stays above its active content form. Return to the map when done or continue to campaign quests.
-4. Add reusable Quests to the campaign pool. A separate Floor pools step chooses whether random Quest nodes use the campaign pool or a narrower per-floor set.
-5. Configure generated shops from the game's four offer pools—Units, Blessings, Research, and Spell unlocks—then set each floor's shop tier and inherited or restricted pools.
-6. For a hand-placed Shop node, keep generated stock or switch to exactly three catalog items and set each Sardines price. The Node step focuses this form; Advanced keeps the same controls inside a collapsed Shop stock section.
-7. Set player starting resources/faction, then set generated-floor counts and growth on their own steps. Advanced run settings and stable IDs remain available from Advanced mode.
-8. Review every floor, its authored nodes and routes or generated counts, node Quest/Army/reward/shop references, campaign quest and shop pools, floor shop unlocks, starting run, progression rules, and validation; then export the campaign.
+| # | Use case | Guided path | Advanced path (Raw fields) | Status |
+|---|---|---|---|---|
+| A1 | Create / name an Army | Add army → Name + ID | `id`, `name` | **[done]** |
+| A2 | Pick units from catalogs | Unit to place select + click a grid cell | `units.I.unitId` | **[partial]** one capability list; no Units/Buildings tabs or levels |
+| A3 | Preview unit stats before adding | — | — | **[missing]** entity/stat preview, footprint badge, portrait |
+| A4 | Arrange formation | 5×5 click-to-place grid | `units.I.{x,y}` | **[partial]** no footprint-aware grid, floor size or drag/swaps |
+| A5 | Per-entry spells | — | `units.I.spellIds` | **[partial]** no per-entry picker/preview |
+| A6 | Army-wide spells / blessings / curses | Add buttons in rich editor | `spellIds`, `blessingIds` | **[partial]** no tabs, filters, previews or chips |
+| A7 | Cell-target focus (boon/bane, lanes, rules) | — | `CellBlessingPicks` cells/lane/bool | **[partial]** data only, no overlay UI |
+| A8 | Review lineup and loadout | — | — | **[missing]** review screen |
+| A9 | Refresh game catalogs | — | — | **[done]** `npm run snapshot-army-catalog` / capabilities |
 
-## Campaign: configure a randomizer without authored content
+---
 
-1. Create a Campaign and choose **Randomizer settings only**. The starter board becomes generated, campaign Quest counts are set to zero, and no authored nodes or Quest steps are shown.
-2. Name the campaign, then set the generated node and Shop totals for each random floor. Add more floors; they start as generated floors too.
-3. Choose the campaign-wide generated shop pools and set each floor's tier and pool overrides on separate focused screens.
-4. Set starting lives, Sardines, faction, and battle shop rules on the separate Starting run screen.
-5. Set whether generation continues and configure later floor growth on Progression. With continuation disabled, the detailed later-floor controls stay hidden.
-6. Review every generated floor's node/Quest/Shop counts, shop tier and offer pools, starting run, progression rules, and validation; then export. The optional authored Quest disclosure stays closed unless generated Quest nodes are needed.
-7. If the author changes a floor to Hand placed or Mixed, the workflow switches to the custom campaign path and exposes its map and node tasks.
+## 7. Campaign jobs
 
-### Build each floor
+| # | Use case | Guided path | Advanced path (Raw fields) | Status |
+|---|---|---|---|---|
+| C1 | Create a campaign | Wizard / Add campaign → name + ID → one floor | `id`, `name`, `description` | **[done]** |
+| C2 | Choose approach (randomizer-only vs custom) | — | `settings.*` | **[missing]** designMode concept in v2 |
+| C3 | Floors: add / select / remove / mode | Floor tabs + Add floor | `floors.F.{id,number,mode}` | **[partial]** no remove, no random-count controls in rich editor |
+| C4 | Adventure map authoring | 5×5 click-to-place node grid | `floors.F.nodes.*` | **[partial]** no snap lattice, plug drag, distance labels, bounds or uniqueness |
+| C5 | Routes | Add route → From/To text | `floors.F.routes.*` | **[partial]** adjacency/reachability validation exists, no visual disconnect/direction control |
+| C6 | Focused node step | Entry editor (one node) | Raw fields | **[partial]** no dimmed-map focus mode or footer |
+| C7 | Node inspector by kind | Board character + floor mode | `armyId`, `questId`, `enemyFactionId`, `reward*`, `shopOffers` | **[partial]** no contextual forms or create/edit handoff |
+| C8 | Exact three shop offers | — | `shopOffers` rows | **[partial]** validation checks count, UI is generic rows |
+| C9 | Quest pool + floor pools | — | `questIds`, `questPoolIds` | **[partial]** comma-separated refs only |
+| C10 | Shop pools + tiers | — | `shopPoolKinds`, `shopLevel` | **[partial]** text values only |
+| C11 | Events | Rich Events list: ID + trigger + remove | conditions/actions parameters | **[partial]** no focused event screen, floor/node targeting or army handoff |
+| C12 | Starting run / progression panels | Wizard set details + Raw fields | `settings.*` | **[partial]** no dedicated panels or conditional growth controls |
+| C13 | Review every floor | Validation panel | Raw fields | **[partial]** no readable per-floor audit |
+| C14 | Publish / revision | Publish in set list | Same | **[done]** |
 
-1. Add or select a floor. Choose **Authored**, **Random**, or **Mixed**:
-   - **Authored** stores the complete hand-built node graph.
-   - **Random** stores generator totals for nodes, Quest nodes, and Shops.
-   - **Mixed** stores authored nodes/routes plus the desired generated filler counts.
-2. For authored/mixed floors, use the Adventure-map coordinate canvas. It is an open node graph on a snap lattice, not a rectangular playable tile board. Coordinates align to the game's 8-direction map adjacency, including diagonals.
-3. Add a node: choose its type, then click an empty snap position. The new node is selected and its inspector opens. Start and Boss are unique; Start remains at `(0, 0)`.
-4. Move a node by dragging it. Occupied positions, the Start origin, and the supported map bounds are enforced with feedback. In Guided mode, clicking a node opens its focused Node step with the map dimmed above it. Remove it from that step; attached routes are removed with it.
-5. Connect nodes by dragging a node's output plug to a neighboring node's input plug. Diagonal neighbors are allowed; new links are two-way by default. Click a route line to reveal its disconnect control, or open a connected node's **Connections** list to disconnect it or make it one-way. Invalid non-neighbor and duplicate routes produce feedback and do not add a route.
-6. Configure the selected node in its focused Guided step (or the side inspector in Advanced):
-   - **Battle/Boss:** choose a faction and optionally create/edit a reusable Army in context.
-   - **Quest:** choose a Campaign quest or create one from this node. The newly created quest is added to the Campaign and assigned to this node on return.
-   - **Reward:** choose a reward type, amount, and catalog content ID where applicable.
-   - **Start/Shop:** edit the node label and graph position as needed.
-7. Add reusable quests to the Campaign pool. For each floor, inherit the Campaign pool or choose a narrower custom subset for randomly assigned Quest nodes. Hand-assigned Quest nodes keep their specific Quest ID.
-8. Repeat for later floors. Mixed floors retain authored placements and routes as fixed constraints while asking the game to generate filler; random floors contain no authored graph nodes.
+---
 
-### Validate and export
+## 8. Comparison checklist for implementation review
 
-1. Review all floor modes and contents, generated node totals, quest pools, Army/Quest/reward references, starting run/progression settings, and validation issues.
-2. Fix missing references, duplicate IDs/coordinates, unreachable nodes, invalid routes, and graph rules before export.
-3. Export the Campaign JSON or a workspace ZIP containing campaign definitions plus referenced Quests, Armies, Dialogues, and a manifest.
-4. Copy the exported package into the game's content resources and register its immutable revision as described in [game integration handoff](./game-integration-handoff.md). Invalid packages are rejected before campaign selection.
+1. For each row above, open the named v2 screen and confirm **both** the Guided and Advanced column exist.
+2. Anything marked **[partial]** must have the missing control either in the guided flow or in Raw fields with a clear label; if neither, it is **[missing]**.
+3. New features must keep the set layout: no second editor page, no duplicate Save/Publish, one entry at a time.
+4. Deprecated by the new layout (do **not** restore): ZIP import/export, static example import, PER-TYPE "publish to game" button, v1 localStorage workspace.
+5. The interactive surfaces still worth porting natively (highest impact): dialogue moment map, game-faithful preview, army catalog/grid/cell-target focus, campaign snap map with plug drag, and related-record return contexts.
 
-## Context, modes, and recovery
+## 9. Workflow-to-test map
 
-- Guided and Advanced are available throughout content editing and edit the same draft. Guided hides stable IDs and detailed extension fields until needed. Advanced shows all fields for the selected record together; Dialogue and Army keep moment/placement-specific fields attached to the current selection. Every category has direct section links for quick edits.
-- Opening a related Army, Quest, or Dialogue saves a return context. Returning restores the parent record, floor/node or quest target/link, and editor step. Nested paths such as Campaign → Quest → Army return through each parent in order.
-- Browser drafts, selected editor mode, current step, selected Campaign floor/node or Army placement, and related-editor return paths persist across reloads in the same browser.
-- Static guidance is hidden from the primary screens. Authors can toggle Help in Guided or Advanced to show field hints, workflow explanations, and interaction tips; the setting persists with the browser editor session.
-- If a parent record is removed or its target no longer exists while a related editor is open, the return action cannot attach the child record; the author can still select another entry from the workspace.
-- Validation and previews should be reachable from the content being authored rather than interrupting freeform text entry.
-
-## Workflow-to-test map
-
-| Authoring use case | Automated coverage |
-| --- | --- |
-| Dialogue moment, speaker, line, choice, decision, reserved Continue behavior | `tests/app.integration.test.ts`, `tests/dialogue-graph.test.ts`, `tests/view.test.ts` |
-| Advanced quick edit: jump to any category's detailed fields without progressing a wizard | `tests/view.test.ts`, `tests/app.integration.test.ts` |
-| Quest multi-item Fetch, Battle targets, Kill Count, minimum distance, dialogue/Army links | `tests/app.integration.test.ts`, `tests/validation.test.ts` |
-| Army unit/building catalog, footprint collisions, guided steps, replacement, ability previews, and grid dragging | `tests/app.integration.test.ts`, `tests/army-domain.test.ts`, `tests/army-catalog.test.ts`, `tests/view.test.ts`, `tests/validation.test.ts` |
-| Campaign randomizer-only path, custom/mixed/random floors, graph routes, focused node editing, node references, quest pools, shop pools, floor shop unlocks, exact shop prices, settings, review | `tests/app.integration.test.ts`, `tests/campaign-domain.test.ts`, `tests/validation.test.ts`, `tests/import-normalizers.test.ts`, `tests/view.test.ts` |
-| Guided review details for Quest objectives/links/effects, Army per-entry spells, and every Campaign floor/settings | `tests/view.test.ts` |
-| Direct plug connections, invalid/duplicate feedback, line and list disconnect, route direction, node movement, return context | `tests/app.integration.test.ts`, `tests/campaign-domain.test.ts`, `tests/editor-navigation.test.ts` |
-| Examples, import/export, persistence, deletion and validation | `tests/app.integration.test.ts`, `tests/export-zip.test.ts`, `tests/import-normalizers.test.ts` |
-| Restore editor mode, focused selection, and nested related-record return path after reload | `tests/editor-session.test.ts`, `tests/editor-navigation.test.ts`, `tests/app.integration.test.ts` |
-| Toggle optional Help in Guided and Advanced and retain the preference | `tests/editor-session.test.ts`, `tests/view.test.ts`, `tests/app.integration.test.ts` |
-
-Browser permissions and real filesystem download behavior cannot be fully verified in jsdom. Package bytes/filenames are mocked in editor integration tests; Unity tests cover game loading, campaign setup, map and encounter creation, quest progression, and revision continuation.
+Current automated coverage lives in `tests/v2-contract.test.ts` (schema, registries, fixtures), `tests/v2-schema-agreement.test.ts` (JSON Schema ↔ zod), and `tests/v2-app.test.ts` (set browser, guided wizard, per-category lists, rich editors, raw fields, validation fixes, save/publish). Tests are the executable form of this checklist; rows marked **[missing]** have no test because the screen does not exist.

@@ -114,6 +114,22 @@ describe("v2 contract fixtures", () => {
     expect(issue.field).toBeTruthy();
   });
 
+  it("checks campaign graph rules with readable messages", () => {
+    const broken = structuredClone(validSet) as ContentSetV2Document;
+    broken.campaigns[0].floors[0].nodes[1].x = 4;
+    broken.campaigns[0].floors[0].nodes[1].shopOfferMode = "exact";
+    const result = validateContentSet(broken, capabilities);
+    expect(result.valid).toBe(false);
+    const codes = result.issues.map(issue => issue.code);
+    expect(codes).toContain("route-not-adjacent");
+    expect(codes).toContain("exact-shop-offers");
+    expect(result.issues.every(issue => issue.hint && issue.message.length > 20)).toBe(true);
+
+    const disconnected = structuredClone(validSet) as ContentSetV2Document;
+    disconnected.campaigns[0].floors[0].routes = [];
+    expect(validateContentSet(disconnected, capabilities).issues.map(issue => issue.code)).toContain("unreachable-nodes");
+  });
+
   it("accepts dialogue-only sets and only warns on a completely empty set", () => {
     const dialogueOnly = structuredClone(validSet) as ContentSetV2Document;
     dialogueOnly.campaigns = [];

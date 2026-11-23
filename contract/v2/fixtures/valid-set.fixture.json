@@ -122,7 +122,7 @@
               "id": "battle-1",
               "label": { "default": "First Battle", "locales": {} },
               "kind": "Battle",
-              "x": 2,
+              "x": 1,
               "y": 0,
               "armyId": { "id": "guards", "label": { "default": "Village Guards", "locales": {} } },
               "questId": { "id": "find-key", "label": { "default": "Find the Key", "locales": {} } },

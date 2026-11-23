@@ -19,7 +19,13 @@ function makeValidDraft() {
     boardPreviewUnitId: namedRef(capabilities.ids.units[0]), questIds: [],
     floors: [{ id: "floor-1", number: 1, mode: "authored", questPoolMode: "campaign", questPoolIds: [],
       shopPoolMode: "campaign", shopPoolKinds: ["Unit"], shopLevel: 1,
-      randomSettings: { nodeCount: 12, questNodeCount: 2, shopNodeCount: 3 }, nodes: [], routes: [] }],
+      randomSettings: { nodeCount: 12, questNodeCount: 2, shopNodeCount: 3 },
+      nodes: [{
+        id: "start", label: localized("Start"), kind: "Start", x: 0, y: 0,
+        armyId: namedRef("mission-1"), questId: namedRef("mission-1"),
+        enemyFactionId: namedRef(capabilities.ids.factions[0]), rewardKind: "Sardines", rewardAmount: 0,
+        rewardContentId: namedRef("mission-1"), shopOfferMode: "generated", shopOffers: []
+      }], routes: [] }],
     events: [],
     settings: {
       startingLives: 3, startingSardines: 10, startingNodeCount: 12,
@@ -344,6 +350,17 @@ describe("v2-only editor app", () => {
     container.querySelector<HTMLElement>('[data-rename="published-set"]')!.click();
     await vi.waitFor(() => expect(container.textContent).toContain("Renamed to Renamed Set"));
     expect(calls.some(call => call.init?.method === "POST" && call.path.includes("/campaign-sets/"))).toBe(true);
+  });
+
+  it("restores the Help preference and last set across remounts", async () => {
+    await openPublished(container);
+    container.querySelector<HTMLElement>("[data-toggle-help]")!.click();
+    expect(container.querySelector(".editor-main")?.classList.contains("help-visible")).toBe(true);
+    document.body.innerHTML = '<div id="app"></div>';
+    container = document.querySelector<HTMLElement>("#app")!;
+    await mountApp(container);
+    expect(container.textContent).toContain("Mission");
+    expect(container.textContent).toContain("Hide help");
   });
 
   it("shows the app version next to sign out and no Bridge branding", async () => {

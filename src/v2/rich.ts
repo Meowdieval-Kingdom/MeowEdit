@@ -80,7 +80,8 @@ function questEditor(ctx: RichContext): string {
       " · Dialogue links: " + Object.values(quest.meowEdit.dialogueLinks).reduce((sum, list) => sum + list.length, 0) +
       "</p><p class=\"step-copy\">Use the Raw fields tab for timer, kill count, fetch items, battle targets and distance rules.</p></div>";
   }
-  return '<div class="guided-progress">' + QUEST_STEPS.map((name, index) =>
+  return '<p class="help-copy">Each step focuses on one decision. Optional fields stay folded; use Raw fields for anything else.</p>' +
+    '<div class="guided-progress">' + QUEST_STEPS.map((name, index) =>
     '<span class="' + (index < step ? "done" : index === step ? "current" : "") + '" title="' + escapeHtml(name) + '"></span>').join("") + "</div>" +
     '<h3>' + QUEST_STEPS[step] + '</h3><section class="guided-step">' + body +
     '<div class="guided-actions">' +
@@ -101,7 +102,8 @@ function dialogueEditor(ctx: RichContext): string {
     escapeHtml(item.headline.default || item.id) + "</button>").join("");
   const preview = node.segments.map(segment =>
     '<p class="dialogue-preview-line">' + escapeHtml(segment.text.default) + "</p>").join("");
-  return '<div class="guided-actions">' + list + actionButton("add-dialogue-node", "") + "</div>" +
+  return '<p class="help-copy">Pick a moment on the left, write its lines and choices, then check the preview on the right.</p>' +
+    '<div class="guided-actions">' + list + actionButton("add-dialogue-node", "") + "</div>" +
     '<div class="rich-columns"><section class="card"><h3>Node</h3>' +
     field("ID", nodeBase + ".id", node.id) +
     field("Headline", nodeBase + ".headline.default", node.headline.default) +
@@ -140,7 +142,8 @@ function armyEditor(ctx: RichContext): string {
         escapeHtml(unit ? unit.unitId.id.split("/").slice(-2, -1)[0] ?? "·" : "·") + "</button>");
     }
   }
-  return '<div class="rich-columns"><section class="card"><h3>Formation</h3>' +
+  return '<p class="help-copy">Choose a unit, then click a grid cell to place it. Click a filled cell to remove it.</p>' +
+    '<div class="rich-columns"><section class="card"><h3>Formation</h3>' +
     '<p class="step-copy">Click a cell to place or remove the selected unit.</p>' +
     '<div class="army-grid">' + cells.join("") + "</div>" +
     '<div class="guided-fields">' +

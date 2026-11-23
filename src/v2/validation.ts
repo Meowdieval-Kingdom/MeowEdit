@@ -257,6 +257,94 @@ export function validateContentSet(value: unknown, capabilities: GameCapabilitie
         if (!set.quests.some(quest => quest.id === questRef.id))
           issues.push(referenceIssue(set, allowed, floorPath + ".questPoolIds", questRef.id));
       const nodeIds = new Set(floor.nodes.map(node => node.id));
+      const coordinates = new Map<string, string>();
+      for (const node of floor.nodes) {
+        const key = node.x + "," + node.y;
+        if (coordinates.has(key))
+          issues.push({
+            path: floorPath + ".nodes", code: "duplicate-coordinate",
+            message: 'Campaign "' + campaign.name.default + '" floor ' + floor.number + ' has two nodes at (' + key + ').',
+            hint: "Move one of them to another map cell.",
+            section: "campaigns", entryIndex: campaignIndex
+          });
+        coordinates.set(key, node.id);
+      }
+      const starts = floor.nodes.filter(node => node.kind === "Start");
+      const bosses = floor.nodes.filter(node => node.kind === "Boss");
+      if (starts.length !== 1)
+        issues.push({
+          path: floorPath + ".nodes", code: "start-count",
+          message: 'Campaign "' + campaign.name.default + '" floor ' + floor.number + ' has ' + starts.length + ' Start nodes.',
+          hint: "Every authored floor needs exactly one Start node.",
+          section: "campaigns", entryIndex: campaignIndex
+        });
+      else if ((starts[0].x !== 0 || starts[0].y !== 0))
+        issues.push({
+          path: floorPath + ".nodes", code: "start-position",
+          message: 'Start node on floor ' + floor.number + ' must be at (0,0).',
+          hint: "Move the Start node to the board origin.",
+          section: "campaigns", entryIndex: campaignIndex
+        });
+      if (bosses.length > 1)
+        issues.push({
+          path: floorPath + ".nodes", code: "boss-count",
+          message: 'Floor ' + floor.number + ' has ' + bosses.length + ' Boss nodes.',
+          hint: "A floor supports at most one Boss node.",
+          section: "campaigns", entryIndex: campaignIndex
+        });
+      for (const route of floor.routes) {
+        const from = floor.nodes.find(node => node.id === route.fromNodeId);
+        const to = floor.nodes.find(node => node.id === route.toNodeId);
+        if (from && to && (Math.abs(from.x - to.x) > 1 || Math.abs(from.y - to.y) > 1 || (from.x === to.x && from.y === to.y)))
+          issues.push({
+            path: floorPath + ".routes", code: "route-not-adjacent",
+            message: 'Route "' + route.id + '" connects distant nodes on floor ' + floor.number + '.',
+            hint: "Routes may only connect neighboring cells; diagonals are allowed.",
+            section: "campaigns", entryIndex: campaignIndex
+          });
+      }
+      if (starts.length === 1 && floor.nodes.length > 1) {
+        const reached = new Set<string>([starts[0].id]);
+        let changed = true;
+        while (changed) {
+          changed = false;
+          for (const route of floor.routes) {
+            if (reached.has(route.fromNodeId) && !reached.has(route.toNodeId)) {
+              reached.add(route.toNodeId);
+              changed = true;
+            }
+            if (!route.oneWay && reached.has(route.toNodeId) && !reached.has(route.fromNodeId)) {
+              reached.add(route.fromNodeId);
+              changed = true;
+            }
+          }
+        }
+        const unreachable = floor.nodes.filter(node => !reached.has(node.id));
+        if (unreachable.length)
+          issues.push({
+            path: floorPath + ".routes", code: "unreachable-nodes",
+            message: floor.nodes.length - unreachable.length + " of " + floor.nodes.length + " nodes on floor " + floor.number + " are reachable from Start.",
+            hint: "Connect these nodes with routes: " + unreachable.map(node => node.label.default || node.id).join(", ") + ".",
+            section: "campaigns", entryIndex: campaignIndex
+          });
+      }
+      for (const node of floor.nodes) {
+        if (node.shopOfferMode === "exact" && node.shopOffers.length !== 3)
+          issues.push({
+            path: floorPath + ".nodes", code: "exact-shop-offers",
+            message: 'Shop node "' + node.label.default + '" expects exactly three offers but has ' + node.shopOffers.length + '.',
+            hint: "Adventure shops show three items. Add or remove offers until there are three.",
+            section: "campaigns", entryIndex: campaignIndex
+          });
+      }
+      const randomSettings = floor.randomSettings;
+      if (randomSettings.nodeCount % 2 !== 0 || randomSettings.nodeCount < 12 || randomSettings.nodeCount > 30)
+        issues.push({
+          path: floorPath + ".randomSettings.nodeCount", code: "random-node-count",
+          message: "Floor " + floor.number + " uses " + randomSettings.nodeCount + " random nodes.",
+          hint: "Use an even number between 12 and 30.",
+          section: "campaigns", entryIndex: campaignIndex
+        });
       for (const route of floor.routes) {
         if (!nodeIds.has(route.fromNodeId))
           issues.push({
