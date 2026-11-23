@@ -26,7 +26,7 @@ To refresh demo copies after changing local originals, put them under `.local-as
 
 - **Content sets** are the unit of authoring and publishing: one set contains one or more campaigns plus shared quests, armies and dialogues.
 - A **guided path** focuses on one or two fields per step (set details → campaign → board character → content → review); optional fields live in folded, dimmed "More options" areas.
-- Each category has a rich editor: guided quest steps, dialogue node list with line preview, army placement grid with catalog pickers, and campaign floor map with routes. A **Raw fields** tab exposes the remaining structured fields, including registry-driven events, quest timer/effects, army cell-blessing picks and dialogue decisions.
+- Each category has a rich editor: guided quest steps, a dialogue moment map with preview, army placement grid with catalog pickers, and a campaign floor map with routes. An **Advanced** view exposes the remaining structured fields, including registry-driven events, quest timer/effects, army cell-blessing picks and dialogue decisions.
 - Validation is grouped by category with plain-language explanations, suggested IDs and one-click fixes; dialogue-only sets are valid.
 - The capability manifest (`public/game-capabilities.json`) drives pickers, strict validation and enum whitelists; `npm run snapshot-game-capabilities` regenerates it from the game checkout.
 

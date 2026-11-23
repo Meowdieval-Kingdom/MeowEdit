@@ -570,7 +570,7 @@ describe("v2-only editor app", () => {
   });
 
   it("shows the app version next to sign out and no Bridge branding", async () => {
-    expect(container.textContent).toContain("v0.1.5");
+    expect(container.textContent).toContain("v0.2.0");
     expect(container.textContent).not.toMatch(/tactics bridge/i);
   });
 

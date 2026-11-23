@@ -52,7 +52,7 @@ Dialogue choice decisions store a named result alongside an action. The player-f
 
 ## Army configurations
 
-An Army has a stable ID and contains grid placements, spell IDs, blessing/curse IDs, and optional cell-target selections. Unit IDs use the game's `Faction/UnitName/level` catalog values; building IDs use the same format and can be placed in the same formation. MeowEdit reads unit/building levels, combat stats, descriptions, prefab footprints, spell and blessing effect descriptions/costs, and floor grid sizes from `public/army-catalog.json`. Those snapshots support authoring previews and footprint-aware collision checks; the Army export continues to store the catalog ID and grid anchor for each entry.
+An Army has a stable ID and contains grid placements, spell IDs, blessing/curse IDs, and optional cell-target selections. Unit IDs use the game's `Faction/UnitName/level` catalog values; building IDs use the same format and can be placed in the same formation. MeowEdit reads unit/building levels, combat stats, descriptions, footprints and spell/blessing metadata from `public/army-catalog-lite.json`, a trimmed companion generated from the full `public/army-catalog.json` snapshot. The lite file keeps authoring previews and footprint-aware collision checks cheap; the Army export continues to store the catalog ID and grid anchor for each entry.
 
 ```json
 {
@@ -115,7 +115,12 @@ Campaign events have a stable `id`, a trigger (`campaign-start`, `before-battle`
 
 Campaigns may set an optional `boardPreviewUnitId` to choose the character displayed as the player's map piece. It must resolve to a unit level in the game's catalog; an empty value uses the selected faction's default hero. This is presentation-only and does not alter the starting Army. Campaign settings include `factionSelectionEnabled`; when false, the campaign must name `playerFactionId` and the game uses that faction without showing a chooser. Missing values default to enabled for older campaign data. Other settings include starting lives, Sardines, initial random-floor node count, random Quest/Shop counts, node growth, the battle shop toggle, and whether generated floors continue after authored boards end. Generated Adventure map shops can draw from Units, Blessings, Research (unit unlocks), and Spell unlocks. Campaign settings select the general pools; each floor can inherit them or restrict its pools and set its shop tier from 1 to 4. The current Adventure run starts at tier 1, raises the tier with floor progression up to tier 4, and also supports a Shop level unlock reward. Authored, random, and mixed floors, fixed routes, quest pools, exact three-item shop stock, and campaign progression are loaded by the game.
 
-## ZIP package layout
+## v1 ZIP package layout (historical)
+
+Published v2 sets use the same closed file set below, but they are produced by the backend
+`packContentSetV2`, signed, and identified by a canonical SHA-256 content hash. They are never
+downloaded and re-imported by MeowEdit. The v1 ZIP described here is retained only for migration
+evidence.
 
 The workspace ZIP contains:
 
@@ -134,8 +139,8 @@ The manifest lists included files. Campaign nodes refer to IDs in the quest and 
 
 ## Browser storage and sharing
 
-Local drafts are stored in localStorage, scoped to the signed-in account when the Bridge is enabled; a draft saved before sign-in is copied into that account's store on first load. Drafts themselves are never uploaded. Explicit **Publish to game** uploads an immutable, validated package for authorized accounts; the game never receives editor drafts. Import a MeowEdit JSON or ZIP to continue editing on another machine. Downloaded content is meant to be reviewed and copied into the game repository by the team.
+Local drafts are stored in localStorage, scoped to the signed-in account. Drafts themselves are never uploaded. **Save / Upload** stores a version-guarded draft on the server; **Publish** creates an immutable, validated revision for authorized accounts. The game never receives editor drafts. JSON/ZIP import and static example import were removed in v2; published sets are the live reference.
 
 ## Avatar and army catalogs
 
-`public/unit-roster.json` contains stable Compendium character IDs, display names, factions, supported moods, and portrait paths. At runtime the editor adds every level form from `public/army-catalog.json`'s `units` collection to dialogue and quest character pickers; its `buildings` collection is excluded. Level forms carry their own IDs and captured preview paths, while the selected unit name remains the dialogue display-name default. The Army catalog is generated from the game snapshot and also contains spells, blessings, and battle grid sizes. Refresh catalogs from the Unity checkout with the npm snapshot commands. The editor never scans the game checkout at runtime.
+`public/unit-roster.json` contains stable Compendium character IDs, display names, factions, supported moods, and portrait paths. At runtime the editor adds every level form from `public/army-catalog-lite.json`'s `units` collection to dialogue and quest character pickers; its `buildings` collection is excluded. Level forms carry their own IDs, while the selected unit name remains the dialogue display-name default. The full `public/army-catalog.json` snapshot retains spells, blessings, mechanics and source fingerprints for integration checks; the editor never downloads it. Refresh catalogs from the Unity checkout with the npm snapshot commands. The editor never scans the game checkout at runtime.

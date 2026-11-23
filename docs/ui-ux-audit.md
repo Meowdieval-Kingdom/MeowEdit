@@ -18,7 +18,7 @@ Primary screens keep task names, field labels, authored data, and actionable sta
 | Campaign author using only generation | Choose Randomizer settings only; set generated floors and run/progression values; review/export | Separate Guided path omits authored maps and quest setup unless the campaign actually uses them. |
 | Campaign author building a custom adventure | Choose Custom; set each floor's mode; place/connect nodes; focus the selected node; set quest pools/run rules; review/export | Covered for authored, random, and mixed floors, including related Army/Quest creation. Review lists every floor, authored node/route references, generated counts, and run settings. |
 | Author making linked content in context | Create/edit Army, Quest, or Dialogue from the owning node/target; return to the exact parent slot | Covered; the return path now survives refresh in the same browser. |
-| Teammate receiving a draft | Export a record or workspace ZIP and import it in another browser | JSON/ZIP handoff is supported. Shared storage, live multi-user editing, and merge/conflict handling are not product features today. |
+| Teammate continuing a draft | Sign in on another browser; version-guarded drafts are stored in the game backend | JSON/ZIP handoff was removed in v2. Live multi-user editing and merge/conflict handling are not product features today. |
 
 ## Guided flow contracts
 
@@ -56,7 +56,7 @@ Guided focuses on the core creation path. Detailed system fields remain availabl
 ## Remaining product boundaries
 
 - Browser storage belongs to one browser profile. Team members hand off files; there is no shared cloud workspace or concurrent-edit merge.
-- The game consumes manually installed package revisions; the editor does not upload content or provide shared cloud drafts. Package validation and save-pinned revision behavior are described in [game integration handoff](./game-integration-handoff.md).
+- The game consumes published, hash-verified revisions from the backend; the editor uploads version-guarded drafts and publishes explicitly. Package validation and save-pinned revision behavior are described in [game integration handoff](./game-integration-handoff.md) (historical) and the v2 contract.
 - Automated test coverage is a regression floor and validates rendered DOM/workflows; it cannot guarantee visual legibility at every browser width or replace an in-game integration check.
 - DOM tests cover navigation, data entry, context handoffs, and export structure. They cannot fully prove browser download behavior, multi-tab races, storage-quota recovery, or Unity runtime behavior; those need browser/game acceptance checks.
 

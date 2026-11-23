@@ -33,7 +33,7 @@ export interface ArmyCatalogLite {
 let cached: Promise<ArmyCatalogLite> | null = null;
 
 export function loadArmyCatalog(): Promise<ArmyCatalogLite> {
-  if (!cached) cached = fetch("./army-catalog.json", { cache: "no-cache" })
+  if (!cached) cached = fetch("./army-catalog-lite.json", { cache: "no-cache" })
     .then(response => response.json() as Promise<ArmyCatalogLite>)
     .catch(() => ({ units: [], buildings: [], spells: [], blessings: [], curses: [] }));
   return cached;

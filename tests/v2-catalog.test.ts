@@ -3,7 +3,7 @@ import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { findAbility, findEntity, findLevel, loadArmyCatalog } from "../src/v2/catalog";
 
-const catalog = JSON.parse(readFileSync(path.resolve(process.cwd(), "public/army-catalog.json"), "utf8"));
+const catalog = JSON.parse(readFileSync(path.resolve(process.cwd(), "public/army-catalog-lite.json"), "utf8"));
 
 describe("v2 army catalog adapter", () => {
   afterEach(() => vi.unstubAllGlobals());
@@ -25,5 +25,12 @@ describe("v2 army catalog adapter", () => {
     expect(findEntity(catalog, "missing-unit")).toBeUndefined();
     expect(findLevel(catalog, "missing-level")).toBeUndefined();
     expect(findAbility(catalog, "missing-ability")).toBeUndefined();
+  });
+
+  it("ships a lite catalog without art paths, mechanics or source hashes", () => {
+    expect(catalog).not.toHaveProperty("implementationSources");
+    expect(catalog.units[0].levels[0]).not.toHaveProperty("previewImage");
+    expect(catalog.spells[0]).not.toHaveProperty("sourceHash");
+    expect(readFileSync(path.resolve(process.cwd(), "public/army-catalog-lite.json")).length).toBeLessThan(200_000);
   });
 });

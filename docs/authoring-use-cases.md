@@ -9,7 +9,7 @@ Status legend: **[done]** works in the current build · **[partial]** data/field
 - **Content sets** browser: create / rename / open / (admin-gated) delete a set. Badges show Local only / Draft vN / Published.
 - **New set** → 5-step guided wizard: Set details → Campaign → Board character → Content → Review & publish.
 - **Open set** → per-category list (Campaigns / Quests / Armies / Dialogues) with Add / Edit / Remove.
-- **Edit entry** → category editor with a **Raw fields** tab for full structured fields, stable IDs and registry parameters.
+- **Edit entry** → category editor with a **Advanced** tab for full structured fields, stable IDs and registry parameters.
 - **Save / Upload** creates or updates a private draft in Neon; **Publish** makes it the latest public revision and warns that tester progress resets.
 - **Help** toggle reveals `.help-copy` hints; **version** and **Sign out** sit top-right.
 
@@ -17,7 +17,7 @@ Status legend: **[done]** works in the current build · **[partial]** data/field
 
 - **Focused author** — Guided path only; unrelated controls stay folded or hidden.
 - **Quick editor** — opens an existing entry, changes one value in Advanced, returns to the list.
-- **Systems author** — needs IDs, availability, progress rules, effects, routes and extension fields; lives in Raw fields / Advanced.
+- **Systems author** — needs IDs, availability, progress rules, effects, routes and extension fields; lives in Advanced / Advanced.
 - **Campaign author** — chooses generated-only vs custom/mixed; only relevant steps appear.
 - **Reviewer** — needs readable summaries of configured values plus validation before Publish.
 
@@ -46,7 +46,7 @@ Core jobs: create without manual IDs, continue a draft, make a narrow edit, buil
 
 ## 4. Dialogue jobs
 
-| # | Use case | Guided path | Advanced path (Raw fields) | Status |
+| # | Use case | Guided path | Advanced path (Advanced) | Status |
 |---|---|---|---|---|
 | D1 | Create a dialogue | Add dialogue → name + optional ID → first moment auto-created | `sequenceId`, `startNodeId` | **[done]** |
 | D2 | Name / rename a moment | Node list → selected node → Headline | `nodes.N.*.headline` | **[done]** |
@@ -56,14 +56,14 @@ Core jobs: create without manual IDs, continue a draft, make a narrow edit, buil
 | D6 | See the conversation structure | Moment map with node cards, routed lines, zoom and choice connections | — | **[done]** (no free-form node dragging) |
 | D7 | Preview in game composition | Preview pane with speaker portraits, headline, lines and clickable choices + Start over | — | **[done]** (mood-specific art not yet) |
 | D8 | One-time decisions / outcomes | Choice row exposes decision ID, label and outcome ID | `decision.id/label/outcomeId/outcomeLabel` | **[done]** |
-| D9 | Switch guided ↔ advanced without losing selection | Guided editor ↔ Raw fields tab | — | **[done]** |
+| D9 | Switch guided ↔ advanced without losing selection | Guided editor ↔ Advanced tab | — | **[done]** |
 | D10 | Dialogue-specific validation | Validation panel: start node, duplicate IDs, empty headlines, broken choice targets | Same | **[done]** |
 
 ---
 
 ## 5. Quest jobs
 
-| # | Use case | Guided path | Advanced path (Raw fields) | Status |
+| # | Use case | Guided path | Advanced path (Advanced) | Status |
 |---|---|---|---|---|
 | Q1 | Create a quest | Add quest → Basics → Objective → Quest Giver → Offer → In Progress → Reward → Review | `definition.id/title/...` | **[done]** 7 guided steps |
 | Q2 | Basics / source / availability | Basics step: title, ID, description, source/floor/repeat foldout | `sourceKind`, `sourceSlot`, `firstFloor`, `repeatEveryFloors`, `priority` | **[done]** |
@@ -77,13 +77,13 @@ Core jobs: create without manual IDs, continue a draft, make a narrow edit, buil
 | Q10 | Timer project | Objective step shows decision/outcomes/counter/payment fields and completion toggle | `timer.*` | **[done]** |
 | Q11 | Completion effects | Review → effect kind picker, target and author note | `completionEffects` rows | **[done]** |
 | Q12 | Minimum node distances | Objective step → Advanced disclosure with from/to/hops rows | `minimumNodeDistances` rows | **[done]** |
-| Q13 | Review before publish | Review step with concrete targets, reward, links, rules and effects | Full Raw fields | **[done]** |
+| Q13 | Review before publish | Review step with concrete targets, reward, links, rules and effects | Full Advanced | **[done]** |
 
 ---
 
 ## 6. Army jobs
 
-| # | Use case | Guided path | Advanced path (Raw fields) | Status |
+| # | Use case | Guided path | Advanced path (Advanced) | Status |
 |---|---|---|---|---|
 | A1 | Create / name an Army | Add Army → Name → Choose Units → Arrange Grid → Army Spells → Blessings → Review (opens the guided editor immediately) | `id`, `name` | **[done]** |
 | A2 | Pick units from catalogs | Choose Units step: unit select + lineup + add/remove | `units.I.unitId` | **[done]** levels come from the capability catalog; buildings are not exposed in v2 |
@@ -99,14 +99,14 @@ Core jobs: create without manual IDs, continue a draft, make a narrow edit, buil
 
 ## 7. Campaign jobs
 
-| # | Use case | Guided path | Advanced path (Raw fields) | Status |
+| # | Use case | Guided path | Advanced path (Advanced) | Status |
 |---|---|---|---|---|
 | C1 | Create a campaign | Add Campaign → Name → Floors → Map → Node → Quests → Shops → Starting Run → Review | `id`, `name`, `description` | **[done]** |
 | C2 | Choose approach (randomizer-only vs custom) | Name step: approach buttons filter the step list | `settings.*` | **[done]** |
 | C3 | Floors: add / select / remove / mode | Floor tabs, Add/Remove floor, layout mode and generated counts | `floors.F.{id,number,mode}` | **[done]** |
 | C4 | Adventure map authoring | Map step: click empty cell to add node, click node to edit, Connect then click neighbor, distance labels | `floors.F.nodes.*` | **[done]** (click-connect, not drag-plug) |
 | C5 | Routes | Connect from a node, click neighbor; one-way toggle + Disconnect in Connections list | `floors.F.routes.*` | **[done]** adjacency/reachability validated |
-| C6 | Focused node step | Node step: node picker, contextual fields, connect/remove | Raw fields | **[done]** |
+| C6 | Focused node step | Node step: node picker, contextual fields, connect/remove | Advanced | **[done]** |
 | C7 | Node inspector by kind | Battle/Boss army+faction with Create Army; Quest with Create Quest; Reward; Shop offers | `armyId`, `questId`, `enemyFactionId`, `reward*`, `shopOffers` | **[done]** with return-to-campaign |
 | C8 | Exact three shop offers | Shop node offers: stock mode (generated/exact), pool, item, price, max 3 | `shopOffers` rows | **[done]** |
 | C9 | Quest pool + floor pools | Quests step: toggle chips for authored quests | `questIds`, `questPoolIds` | **[done]** (per-floor subset only in Advanced) |
@@ -121,7 +121,7 @@ Core jobs: create without manual IDs, continue a draft, make a narrow edit, buil
 ## 8. Comparison checklist for implementation review
 
 1. For each row above, open the named v2 screen and confirm **both** the Guided and Advanced column exist.
-2. Anything marked **[partial]** must have the missing control either in the guided flow or in Raw fields with a clear label; if neither, it is **[missing]**.
+2. Anything marked **[partial]** must have the missing control either in the guided flow or in Advanced with a clear label; if neither, it is **[missing]**.
 3. New features must keep the set layout: no second editor page, no duplicate Save/Publish, one entry at a time.
 4. Deprecated by the new layout (do **not** restore): ZIP import/export, static example import, PER-TYPE "publish to game" button, v1 localStorage workspace.
 5. The interactive surfaces still worth porting natively (highest impact): dialogue moment map, game-faithful preview, army catalog/grid/cell-target focus, campaign snap map with plug drag, and related-record return contexts.

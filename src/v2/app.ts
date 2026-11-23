@@ -33,6 +33,14 @@ interface LocalRecord {
   publishedPackageId?: string;
 }
 
+/** Carries the HTTP status so callers can distinguish an unsupported route from a real failure. */
+class RequestError extends Error {
+  constructor(message: string, readonly status: number) {
+    super(message);
+    this.name = "RequestError";
+  }
+}
+
 interface AppState {
   capabilities: GameCapabilities;
   catalog: ArmyCatalogLite;
@@ -165,7 +173,7 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
     const result = await request(path, { ...init, signal });
     return { response: result, body: await result.json().catch(() => null) as (T & { error?: string }) | null };
   }, undefined, init?.signal);
-  if (!response.ok) throw new Error(body?.error ?? "The request failed (" + response.status + ").");
+  if (!response.ok) throw new RequestError(body?.error ?? "The request failed (" + response.status + ").", response.status);
   return body as T;
 }
 
@@ -350,7 +358,10 @@ async function deleteSet(container: HTMLElement, state: AppState, setId: string)
     state.status = "Deleted " + setId + ".";
     await refreshSets(state);
   } catch (error) {
-    state.status = error instanceof Error ? error.message : "Deletion failed. The set was not removed.";
+    const status = error instanceof RequestError ? error.status : 0;
+    state.status = status === 404 || status === 405 || status === 501
+      ? "Deletion is not available on this server yet. Nothing was removed."
+      : error instanceof Error ? error.message : "Deletion failed. The set was not removed.";
   }
   renderBrowser(container, state);
 }

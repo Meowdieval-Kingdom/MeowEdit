@@ -3,7 +3,8 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     environment: "jsdom",
-    pool: "threads",
+    // Use Vitest's default forks pool. Earlier hangs were caused by dangling
+    // timeout handles in the auth bootstrap, now cleared; no pool override needed.
     include: ["tests/**/*.test.ts", "tests/**/*.test.mjs"],
     coverage: {
       provider: "v8",
