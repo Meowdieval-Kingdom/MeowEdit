@@ -1,4 +1,3 @@
-import { getBridgeUserId } from "../bridge-context";
 import { localized, namedRef } from "../v2/factory";
 import type {
   CampaignEvent,
@@ -18,49 +17,9 @@ import {
 } from "./model";
 
 /**
- * Bridges the restored v1 editor screens to the authoritative v2 draft.
- * Editor-only v1 metadata (node positions, placement IDs, design mode) lives in
- * a side-car so it never leaks into the strict v2 content contract.
+ * One-way conversion at the cloud boundary only. The editor itself uses native
+ * v1 records, so Drawflow positions, editor labels and placement IDs stay intact.
  */
-
-export interface LegacySideCar {
-  nodes: Record<string, Record<string, {
-    editorLabel?: string;
-    editorPosition?: { x: number; y: number; reverse?: boolean };
-    continueLabel?: string;
-    continueTargetNodeId?: string;
-  }>>;
-  armies: Record<string, { previewFloor?: number; placementIds?: string[] }>;
-  campaigns: Record<string, { designMode?: string }>;
-}
-
-export const emptySideCar = (): LegacySideCar => ({ nodes: {}, armies: {}, campaigns: {} });
-
-function sideCarKey(): string {
-  return "meowedit.legacy-sidecar." + (getBridgeUserId() ?? "local");
-}
-
-export function loadSideCar(): LegacySideCar {
-  try {
-    const parsed = JSON.parse(localStorage.getItem(sideCarKey()) ?? "null") as Partial<LegacySideCar> | null;
-    if (!parsed || typeof parsed !== "object") return emptySideCar();
-    return {
-      nodes: parsed.nodes && typeof parsed.nodes === "object" ? parsed.nodes : {},
-      armies: parsed.armies && typeof parsed.armies === "object" ? parsed.armies : {},
-      campaigns: parsed.campaigns && typeof parsed.campaigns === "object" ? parsed.campaigns : {}
-    };
-  } catch {
-    return emptySideCar();
-  }
-}
-
-export function saveSideCar(sideCar: LegacySideCar): void {
-  try {
-    localStorage.setItem(sideCarKey(), JSON.stringify(sideCar));
-  } catch {
-    // The draft itself reports storage failures; losing editor-only metadata is safe.
-  }
-}
 
 const text = (value: { default?: string } | undefined): string => value?.default ?? "";
 const ref = (value: { id?: string } | undefined): string => value?.id ?? "";
@@ -90,12 +49,10 @@ function speedToV2(value: string, base: number): number {
 /** Converts the authoritative v2 draft into the shape the restored v1 screens render. */
 export function draftToWorkspace(
   draft: ContentSetV2Document,
-  sideCar: LegacySideCar,
   capabilities: GameCapabilities,
   selected?: { section: string; index: number }
 ): Workspace {
   const dialogues: DialogueRecord[] = draft.dialogues.map(doc => {
-    const nodeMeta = sideCar.nodes[doc.sequenceId] ?? {};
     return {
       key: doc.sequenceId,
       sequence: {
@@ -105,15 +62,12 @@ export function draftToWorkspace(
         pauseMode: doc.pauseMode === "continue" ? "continue" : "pause",
         defaultCharactersPerSecond: doc.defaultCharactersPerSecond,
         nodes: doc.nodes.map(node => {
-          const meta = nodeMeta[node.id] ?? {};
           const implicit = node.actions.length === 1 && node.actions[0].meowEdit?.defaultContinue === true;
           return {
             id: node.id,
             headline: text(node.headline),
-            editorLabel: meta.editorLabel,
-            editorPosition: meta.editorPosition,
-            continueLabel: implicit ? text(node.actions[0].label) : meta.continueLabel,
-            continueTargetNodeId: implicit ? node.actions[0].targetNodeId : meta.continueTargetNodeId,
+            continueLabel: implicit ? text(node.actions[0].label) : undefined,
+            continueTargetNodeId: implicit ? node.actions[0].targetNodeId : undefined,
             textSpeed: speedToV1(node.textSpeed),
             speakers: node.speakers.map(speaker => ({
               id: speaker.id, unitId: ref(speaker.unitId), displayName: text(speaker.displayName),
@@ -195,11 +149,10 @@ export function draftToWorkspace(
   });
 
   const armies: ArmyRecord[] = draft.armies.map(doc => {
-    const meta = sideCar.armies[doc.id] ?? {};
     return {
-      key: doc.id, id: doc.id, name: text(doc.name), previewFloor: meta.previewFloor ?? 1,
+      key: doc.id, id: doc.id, name: text(doc.name), previewFloor: 1,
       units: doc.units.map((unit, index) => ({
-        id: meta.placementIds?.[index] ?? `placement-${index}`, unitId: ref(unit.unitId),
+        id: `placement-${index}`, unitId: ref(unit.unitId),
         x: unit.x, y: unit.y, spellIds: unit.spellIds.map(item => item.id)
       })),
       spellIds: doc.spellIds.map(item => item.id),
@@ -215,7 +168,7 @@ export function draftToWorkspace(
   const campaigns: CampaignRecord[] = draft.campaigns.map(doc => ({
     key: doc.id, id: doc.id, name: text(doc.name), description: text(doc.description),
     boardPreviewUnitId: ref(doc.boardPreviewUnitId),
-    designMode: (sideCar.campaigns[doc.id]?.designMode as CampaignRecord["designMode"]) ?? "choose",
+    designMode: "choose",
     questIds: doc.questIds.map(item => item.id),
     floors: doc.floors.map(floor => ({
       id: floor.id, number: floor.number, mode: floor.mode as CampaignRecord["floors"][number]["mode"],
@@ -277,20 +230,12 @@ export function draftToWorkspace(
 export function workspaceToDraft(
   draft: ContentSetV2Document,
   workspace: Workspace,
-  sideCar: LegacySideCar,
   capabilities: GameCapabilities
 ): void {
   draft.dialogues = workspace.dialogues.map(record => {
     const sequence = record.sequence;
     const nodes = sequence.nodes.map(node => {
       const implicit = !node.actions.length;
-      const meta: LegacySideCar["nodes"][string] = sideCar.nodes[sequence.sequenceId] ?? {};
-      meta[node.id] = {
-        editorLabel: node.editorLabel, editorPosition: node.editorPosition,
-        continueLabel: implicit ? node.continueLabel : undefined,
-        continueTargetNodeId: implicit ? node.continueTargetNodeId : undefined
-      };
-      sideCar.nodes[sequence.sequenceId] = meta;
       const actions = (implicit
         ? [{ label: node.continueLabel?.trim() || "Continue", targetNodeId: node.continueTargetNodeId ?? "", decision: undefined }]
         : node.actions).map(action => ({
@@ -378,10 +323,6 @@ export function workspaceToDraft(
   });
 
   draft.armies = workspace.armies.map(record => {
-    sideCar.armies[record.id] = {
-      previewFloor: record.previewFloor,
-      placementIds: record.units.map(unit => unit.id)
-    };
     return {
       schemaVersion: 2, id: record.id, name: localized(record.name),
       units: record.units.map(unit => ({
@@ -399,7 +340,6 @@ export function workspaceToDraft(
 
   const oldCampaigns = new Map(draft.campaigns.map(doc => [doc.id, doc]));
   draft.campaigns = workspace.campaigns.map(record => {
-    sideCar.campaigns[record.id] = { designMode: record.designMode };
     const events: CampaignEvent[] = record.events.map(event => ({
       id: event.id, trigger: event.trigger,
       ...(event.floorNumber !== undefined ? { floorNumber: event.floorNumber } : {}),

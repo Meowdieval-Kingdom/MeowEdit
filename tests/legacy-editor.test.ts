@@ -2,7 +2,8 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resetBridgeState, setBridgeState } from "../src/bridge-context";
-import { draftToWorkspace, emptySideCar, workspaceToDraft } from "../src/legacy/adapter";
+import { draftToWorkspace, workspaceToDraft } from "../src/legacy/convert";
+import { loadWorkspace, saveWorkspace } from "../src/legacy/workspace-store";
 import { emptyContentSet, localized, namedRef } from "../src/v2/factory";
 import type { ContentSetV2Document, GameCapabilities } from "../src/v2/types";
 
@@ -36,6 +37,8 @@ describe("restored v1 editor", () => {
   beforeEach(() => {
     if (!document.querySelector("#app")) document.body.innerHTML = '<div id="app"></div>';
     else document.querySelector("#app")!.innerHTML = "";
+    for (const key of Object.keys(localStorage))
+      if (key.startsWith("meowedit.workspace.v1.")) localStorage.removeItem(key);
     localStorage.setItem("meowedit.editor-session.v1", JSON.stringify({
       activeEditorStep: 0, editorMode: "full", helpVisible: false, sidebarCollapsed: false,
       selectedArmyPlacementId: null, armyCatalogKind: "units", selectedCampaignFloorId: null,
@@ -61,6 +64,7 @@ describe("restored v1 editor", () => {
     const { mountLegacyEditor } = await import("../src/legacy/main");
     const onSave = vi.fn();
     mountLegacyEditor({
+      setId: "legacy-set",
       draft: draftWithArmy(), capabilities, selected: { section: "armies", index: 0 },
       onSave, onDraftChange: vi.fn(), onBack: vi.fn()
     });
@@ -76,6 +80,7 @@ describe("restored v1 editor", () => {
     const fullSet = JSON.parse(readFileSync(path.resolve(process.cwd(), "contract/v2/fixtures/valid-set.fixture.json"), "utf8")) as ContentSetV2Document;
     const { mountLegacyEditor } = await import("../src/legacy/main");
     const mount = (section: string, index: number) => mountLegacyEditor({
+      setId: "legacy-set",
       draft: fullSet, capabilities, selected: { section, index },
       onSave: vi.fn(), onDraftChange: vi.fn(), onBack: vi.fn()
     });
@@ -104,14 +109,32 @@ describe("restored v1 editor", () => {
         blessingsEnabled: true, restoreArmyAfterLoss: true
       }
     });
-    const sideCar = emptySideCar();
-    const workspace = draftToWorkspace(draft, sideCar, capabilities, { section: "armies", index: 0 });
+    const workspace = draftToWorkspace(draft, capabilities, { section: "armies", index: 0 });
     expect(workspace.armies[0].name).toBe("Test Army");
     expect(workspace.dialogues[0].sequence.nodes[0].actions).toHaveLength(0);
     workspace.armies[0].name = "Renamed Army";
-    workspaceToDraft(draft, workspace, sideCar, capabilities);
+    workspaceToDraft(draft, workspace, capabilities);
     expect(draft.armies[0].name.default).toBe("Renamed Army");
     expect(draft.campaigns[0].settings.blessingsEnabled).toBe(true);
     expect(draft.dialogues[0].nodes[0].actions[0].meowEdit.defaultContinue).toBe(true);
+  });
+
+  it("keeps Drawflow positions and editor labels in the native, per-set workspace", () => {
+    const draft = draftWithArmy();
+    const workspace = loadWorkspace("set-a", draft, capabilities);
+    workspace.dialogues[0].sequence.nodes[0].editorPosition = { x: 320, y: 180, reverse: true };
+    workspace.dialogues[0].sequence.nodes[0].editorLabel = "Opening beat";
+    workspace.armies[0].units[0].id = "placement-custom";
+    workspace.campaigns = [];
+    saveWorkspace("set-a", workspace);
+
+    const reloaded = loadWorkspace("set-a", draft, capabilities);
+    expect(reloaded.dialogues[0].sequence.nodes[0].editorPosition).toEqual({ x: 320, y: 180, reverse: true });
+    expect(reloaded.dialogues[0].sequence.nodes[0].editorLabel).toBe("Opening beat");
+    expect(reloaded.armies[0].units[0].id).toBe("placement-custom");
+
+    const other = loadWorkspace("set-b", draft, capabilities);
+    expect(other.dialogues[0].sequence.nodes[0].editorPosition).toBeUndefined();
+    expect(other.armies[0].units[0].id).toBe("placement-0");
   });
 });

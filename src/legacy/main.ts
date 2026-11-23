@@ -44,7 +44,8 @@ import { defaultEditorSession, loadEditorSession, saveEditorSession } from "./ed
 import { includeArmyUnitsInRoster } from "./roster";
 import { getBridgeActions } from "../bridge-context";
 import type { ContentSetV2Document, GameCapabilities } from "../v2/types";
-import { draftToWorkspace, emptySideCar, loadSideCar, saveSideCar, workspaceToDraft, type LegacySideCar } from "./adapter";
+import { workspaceToDraft } from "./convert";
+import { loadWorkspace, saveWorkspace as persistWorkspace } from "./workspace-store";
 import { escapeHtml, renderApp, renderLivePreview, renderValidationSummary, renderArmyEntityPreview, renderArmyAbilityPreview, type ArmyAbilityFilters, type ArmyAbilityKind, type ArmyAbilitySelections, type EditorMode } from "./view";
 
 const initialEditorSession = (() => {
@@ -62,10 +63,10 @@ const root = document.querySelector<HTMLDivElement>("#app");
 if (!root) throw new Error("MeowEdit app root is missing.");
 
 export interface LegacyMountOptions {
+  setId: string;
   draft: ContentSetV2Document;
   capabilities: GameCapabilities;
   selected?: { section: string; index: number };
-  sideCar?: LegacySideCar;
   onSave(): void;
   onDraftChange(): void;
   onBack(): void;
@@ -73,13 +74,11 @@ export interface LegacyMountOptions {
 }
 
 let mountOptions: LegacyMountOptions | null = null;
-let sideCar: LegacySideCar = emptySideCar();
 
-/** Mounts the restored v1 screens with a v2 draft as the single source of truth. */
+/** Mounts the restored v1 editor on its native, per-set workspace. */
 export function mountLegacyEditor(options: LegacyMountOptions): void {
   mountOptions = options;
-  sideCar = options.sideCar ?? loadSideCar();
-  workspace = draftToWorkspace(options.draft, sideCar, options.capabilities, options.selected);
+  workspace = loadWorkspace(options.setId, options.draft, options.capabilities, options.selected);
   void Promise.all([loadRoster(), loadArmyCatalog()]).then(([loadedRoster, loadedCatalog]) => {
     armyCatalog = loadedCatalog;
     roster = includeArmyUnitsInRoster(loadedRoster, loadedCatalog);
@@ -152,16 +151,17 @@ async function loadArmyCatalog(): Promise<ArmyCatalog> {
 
 function saveWorkspace(): void {
   if (!mountOptions) return;
-  try {
-    workspaceToDraft(mountOptions.draft, workspace, sideCar, mountOptions.capabilities);
-    saveSideCar(sideCar);
-    mountOptions.onDraftChange();
-    persistEditorSession();
-    const status = document.querySelector<HTMLElement>("#save-status");
-    if (status) status.textContent = "All changes saved";
-  } catch (error) {
-    showToast(error instanceof Error ? error.message : "The draft could not be updated.", "warning");
-  }
+  persistWorkspace(mountOptions.setId, workspace);
+  persistEditorSession();
+  const status = document.querySelector<HTMLElement>("#save-status");
+  if (status) status.textContent = "All changes saved";
+}
+
+/** The only v2 conversion: at the cloud boundary, never during editing. */
+function syncDraft(): void {
+  if (!mountOptions) return;
+  workspaceToDraft(mountOptions.draft, workspace, mountOptions.capabilities);
+  mountOptions.onDraftChange();
 }
 
 function persistEditorSession(): void {
@@ -2361,14 +2361,17 @@ function onAction(button: HTMLButtonElement): void {
     case "export-package": exportPackage(); return;
     case "save-package":
       saveWorkspace();
+      syncDraft();
       mountOptions?.onSave();
       return;
     case "publish-package":
       saveWorkspace();
+      syncDraft();
       mountOptions?.onPublish?.();
       return;
     case "open-v2-editor":
       saveWorkspace();
+      syncDraft();
       mountOptions?.onBack();
       return;
     case "bridge-sign-out":

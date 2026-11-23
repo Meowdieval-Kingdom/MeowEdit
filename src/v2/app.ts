@@ -1385,6 +1385,7 @@ async function openClassicEditor(container: HTMLElement, state: AppState): Promi
   try {
     const { mountLegacyEditor } = await import("../legacy/main");
     mountLegacyEditor({
+      setId: state.setId,
       draft: state.draft,
       capabilities: state.capabilities,
       selected: state.entry ? { section: state.entry.section, index: state.entry.index } : undefined,
