@@ -1,38 +1,31 @@
 import type { ContentSetV2Document, GameCapabilities, NamedRef } from "./types";
 import { escapeHtml } from "./html";
 import { ACTIONS, CONDITIONS, TRIGGERS, findAction } from "./registries";
+import { boundInput, boundRef, boundRefList, boundSelect, labelled, options, smallButton } from "./fields";
 
 export interface DetailContext {
   draft: ContentSetV2Document;
   capabilities: GameCapabilities;
 }
 
-function options(values: readonly string[], selected: string): string {
-  return values.map(value => '<option value="' + escapeHtml(value) + '"' + (value === selected ? " selected" : "") + ">" + escapeHtml(value) + "</option>").join("");
-}
-
 function text(label: string, bind: string, value: unknown, type = "text"): string {
-  return '<label class="field"><span class="field-label">' + escapeHtml(label) + '</span><input type="' + type +
-    '" data-v2-bind="' + bind + '" value="' + escapeHtml(String(value ?? "")) + '"></label>';
+  return labelled(label, boundInput(bind, value, type));
 }
 
 function select(label: string, bind: string, values: readonly string[], selected: string): string {
-  return '<label class="field"><span class="field-label">' + escapeHtml(label) + '</span><select data-v2-bind="' + bind + '">' +
-    options(values, selected) + "</select></label>";
+  return labelled(label, boundSelect(bind, values, selected));
 }
 
 function ref(label: string, bind: string, value: NamedRef | undefined): string {
-  return '<label class="field"><span class="field-label">' + escapeHtml(label) + '</span><input data-v2-ref="' + bind +
-    '" value="' + escapeHtml(value?.id ?? "") + '" placeholder="id"></label>';
+  return labelled(label, boundRef(bind, value));
 }
 
 function refList(label: string, bind: string, values: NamedRef[] | undefined): string {
-  return '<label class="field"><span class="field-label">' + escapeHtml(label) + '</span><input data-v2-list="' + bind +
-    '" value="' + escapeHtml((values ?? []).map(item => item.id).join(", ")) + '" placeholder="ids, comma separated"></label>';
+  return labelled(label, boundRefList(bind, values));
 }
 
 function button(action: string, label: string, dataset = ""): string {
-  return '<button type="button" class="button button-small" data-detail-action="' + action + '"' + dataset + ">" + escapeHtml(label) + "</button>";
+  return smallButton("data-detail-action", action, label, dataset);
 }
 
 /** Inline advanced controls for one category. All actions are handled by the main app. */
@@ -96,8 +89,10 @@ export function renderDetailSection(ctx: DetailContext, section: string, onlyInd
               const registry = findAction(action.kind);
               return '<div class="v2-card"><select class="field" data-v2-bind="' + eventBase + ".actions[" + actionIndex + '].kind">' + options(ACTIONS.map(entry => entry.kind), action.kind) + "</select>" +
                 (registry?.parameters ?? []).map(parameter => {
-                  const path = eventBase + ".actions[" + actionIndex + "].parameters[" + parameter.key + "].value";
-                  const current = action.parameters.find(item => item.key === parameter.key)?.value;
+                  const parameterIndex = action.parameters.findIndex(item => item.key === parameter.key);
+                  if (parameterIndex < 0) return "";
+                  const path = eventBase + ".actions[" + actionIndex + "].parameters[" + parameterIndex + "].value";
+                  const current = action.parameters[parameterIndex].value;
                   if (parameter.type === "enum") return select(parameter.key, path, parameter.values ?? [], String(current ?? ""));
                   if (parameter.type === "NamedRef") return ref(parameter.key, path, current as NamedRef | undefined);
                   if (parameter.type === "NamedRef[]") return refList(parameter.key, path, current as NamedRef[] | undefined);

@@ -12,8 +12,9 @@ import { withDeadline } from "../request-timeout";
 import { APP_VERSION } from "./version";
 import { packContentSet } from "./packer";
 import { findLevel, loadArmyCatalog, type ArmyCatalogLite } from "./catalog";
-import { loadSession, saveSession } from "./session";
+import { loadSession, saveSession, type V2Session } from "./session";
 import { renderRichEditor, richItemLabel, type RichState } from "./rich";
+import { gameCapabilitiesSchema } from "./zod";
 import { ACTIONS, CONDITIONS, TRIGGERS } from "./registries";
 import type { CampaignEvent, ContentSetV2Document, GameCapabilities } from "./types";
 import { validateContentSet, type ValidationResult } from "./validation";
@@ -102,14 +103,19 @@ function persistLocal(state: AppState): void {
   }
 }
 
-function syncSession(state: AppState): void {
-  state.savedAt = new Date().toISOString();
+function writeSession(state: AppState): void {
   saveSession({
     view: state.view, focus: state.focus,
     entry: state.entry ? { section: state.entry.section, index: state.entry.index } : null,
     rich: { ...state.rich }, rawFields: state.rawFields, step: state.step,
-    help: state.help, savedAt: state.savedAt, setId: state.setId || null
+    help: state.help, savedAt: state.savedAt, setId: state.setId || null,
+    returnTo: state.returnTo.map(frame => ({ ...frame }))
   });
+}
+
+function syncSession(state: AppState): void {
+  state.savedAt = new Date().toISOString();
+  writeSession(state);
 }
 
 function showToast(message: string, kind: "success" | "warning" | "error" = "success"): void {
@@ -140,11 +146,14 @@ function focusFirst(container: HTMLElement): void {
 function wireKeyboard(container: HTMLElement): void {
   container.onkeydown = event => {
     const target = event.target as HTMLElement;
-    if (event.key !== "Enter" || !(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement)) return;
-    if (event.shiftKey) return;
+    if (event.key !== "Enter" || event.shiftKey) return;
+    if (!(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement)) return;
+    const step = target.closest<HTMLElement>(".guided-step");
+    if (!step || target.closest(".cell-focus")) return;
     event.preventDefault();
-    const next = container.querySelector<HTMLElement>("[data-next], [data-rich-action='next-step'], [data-add-create]");
-    next?.click();
+    const next = step.querySelector<HTMLElement>("[data-next], [data-rich-action='next-step'], [data-add-create]");
+    if (!next) return;
+    next.click();
     focusFirst(container);
   };
 }
@@ -161,14 +170,19 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 async function loadCapabilities(): Promise<GameCapabilities> {
+  let raw: unknown;
   try {
-    return await requestJson<GameCapabilities>("/v1/editor/capabilities");
+    raw = await requestJson<unknown>("/v1/editor/capabilities");
   } catch {
     const response = await withDeadline(signal =>
       fetch("./game-capabilities.json", { cache: "no-cache", signal }), 10_000);
     if (!response.ok) throw new Error("No capability manifest is available.");
-    return await response.json() as GameCapabilities;
+    raw = await response.json();
   }
+  const parsed = gameCapabilitiesSchema.safeParse(raw);
+  if (!parsed.success)
+    throw new Error("The capability manifest is invalid: " + (parsed.error.issues[0]?.message ?? "unknown shape"));
+  return parsed.data;
 }
 
 function newCampaign(id: string, name: string, capabilities: GameCapabilities): ContentSetV2Document["campaigns"][number] {
@@ -245,6 +259,7 @@ function renderBrowser(container: HTMLElement, state: AppState): void {
     '<button type="button" class="button button-primary" data-new-set>+ New set</button></div>' +
     '<div class="set-list">' + rows + "</div>" +
     '<p class="guided-status" data-status>' + escapeHtml(state.status) + "</p></div></main>";
+  writeSession(state);
 
   container.querySelector<HTMLElement>("[data-sign-out]")?.addEventListener("click", () => getBridgeActions()?.signOut());
   container.querySelector<HTMLElement>("[data-toggle-help]")?.addEventListener("click", () => {
@@ -340,13 +355,18 @@ async function deleteSet(container: HTMLElement, state: AppState, setId: string)
   renderBrowser(container, state);
 }
 
-async function openSet(container: HTMLElement, state: AppState, setId: string): Promise<void> {
+async function openSet(
+  container: HTMLElement,
+  state: AppState,
+  setId: string,
+  restore?: V2Session
+): Promise<void> {
   const records = storage();
   const local = records[setId];
   const summary = state.sets.find(item => item.setId === setId);
-  let draft = local?.draft;
+  let draft: ContentSetV2Document | undefined;
   let version = local?.draftVersion ?? 0;
-  let published = local?.publishedPackageId ?? summary?.publishedPackageId;
+  const published = local?.publishedPackageId ?? summary?.publishedPackageId;
   if (summary && summary.draftVersion > 0) {
     try {
       const loaded = await requestJson<{ draftVersion: number; draft: ContentSetV2Document }>(
@@ -354,8 +374,15 @@ async function openSet(container: HTMLElement, state: AppState, setId: string): 
       draft = loaded.draft;
       version = loaded.draftVersion;
     } catch (error) {
-      state.status = error instanceof Error ? error.message : "The draft could not be loaded.";
+      state.status = error instanceof Error
+        ? "The saved draft could not be loaded: " + error.message
+        : "The saved draft could not be loaded. The local copy was not opened.";
+      showToast("Could not load the saved draft. The local copy was not opened.", "error");
+      renderBrowser(container, state);
+      return;
     }
+  } else {
+    draft = local?.draft;
   }
   state.setId = setId;
   if (!draft) {
@@ -374,6 +401,26 @@ async function openSet(container: HTMLElement, state: AppState, setId: string): 
   const existing = version > 0 || draft.campaigns.length > 0 || draft.quests.length > 0
     || draft.armies.length > 0 || draft.dialogues.length > 0;
   state.view = existing ? "set" : "wizard";
+  if (restore && restore.setId === setId && state.view === "set") {
+    if (restore.entry) {
+      const section = restore.entry.section as DetailSection;
+      if (DETAIL_SECTIONS.includes(section)
+        && restore.entry.index >= 0 && restore.entry.index < detailItemCount(draft, section)) {
+        state.focus = section;
+        state.entry = { section, index: restore.entry.index };
+        state.rich = { section, index: restore.entry.index, step: 0, nodeIndex: 0, floorIndex: 0 };
+      }
+    }
+    if (restore.rich && DETAIL_SECTIONS.includes(restore.rich.section)) {
+      state.rich = { ...restore.rich };
+      if (state.entry && (state.rich.section !== state.entry.section || state.rich.index !== state.entry.index))
+        state.rich = { section: state.entry.section, index: state.entry.index, step: 0, nodeIndex: 0, floorIndex: 0 };
+    }
+    state.rawFields = restore.rawFields;
+    state.step = restore.step;
+    state.returnTo = (restore.returnTo ?? []).filter(frame => DETAIL_SECTIONS.includes(frame.section as DetailSection))
+      .map(frame => ({ section: frame.section as DetailSection, index: frame.index, step: frame.step }));
+  }
   state.validation = validateContentSet(state.draft, state.capabilities);
   if (state.view === "set") renderSetView(container, state);
   else renderEditor(container, state);
@@ -503,6 +550,7 @@ function renderEditor(container: HTMLElement, state: AppState): void {
       : '<button type="button" class="button button-outline" data-save>Save / Upload</button>' +
         '<button type="button" class="button button-primary" data-publish' + (canPublish() && state.validation.valid ? "" : " disabled") + '>Publish</button>') +
     "</div></section></div></div></main>";
+  writeSession(state);
 
   container.querySelector<HTMLElement>("[data-advanced]")?.addEventListener("click", () => {
     state.view = "set";
@@ -670,6 +718,7 @@ function renderSetView(container: HTMLElement, state: AppState): void {
   container.innerHTML = '<main class="editor-shell">' + topbar +
     '<div class="editor-main' + (state.help ? ' help-visible' : '') + '">' + body +
     '<p class="guided-status" data-status>' + escapeHtml(state.status) + "</p></div></main>";
+  writeSession(state);
 
   container.querySelector<HTMLElement>("[data-back-browser]")?.addEventListener("click", () => {
     state.view = "browser";
@@ -1246,7 +1295,10 @@ function applyChange(state: AppState, event: Event): void {
   });
   if (path === "draftTitle") state.draftTitle = element.value;
   else if (path === "draftSecondary") state.draftSecondary = element.value;
-  else setByPath(state.draft, path, value);
+  else if (!setByPath(state.draft, path, value)) {
+    state.status = "This field could not be updated (" + path + "). Reload the set and try again.";
+    showToast("This field is no longer available. Reload the set.", "warning");
+  }
   if (path === "campaigns[0].id" && state.draft.campaigns[0]) state.draft.set.campaignOrder = [state.draft.campaigns[0].id];
   state.validation = validateContentSet(state.draft, state.capabilities);
   persistLocal(state);
@@ -1264,16 +1316,31 @@ function emptyEvent(): CampaignEvent {
   };
 }
 
-function setByPath(root: unknown, path: string, value: unknown): void {
+const PATH_SEGMENT = /^(?:[A-Za-z_$][A-Za-z0-9_$]*|\d+)$/;
+const BLOCKED_PATH_PARTS = new Set(["__proto__", "prototype", "constructor"]);
+
+/**
+ * Writes through an already-existing object graph. Missing intermediate nodes
+ * are rejected rather than invented, so a stale DOM binding can never create
+ * stray properties or mutate the prototype chain.
+ */
+function setByPath(root: unknown, path: string, value: unknown): boolean {
   const parts = path.replace(/\[(\d+)\]/g, ".$1").split(".").filter(Boolean);
-  let cursor = root as Record<string, unknown>;
+  if (!parts.length || parts.length > 12
+    || parts.some(part => !PATH_SEGMENT.test(part) || BLOCKED_PATH_PARTS.has(part))) return false;
+  let cursor: unknown = root;
   for (let index = 0; index < parts.length - 1; index++) {
     const part = parts[index];
-    if (cursor[part] === undefined)
-      cursor[part] = /^\d+$/.test(parts[index + 1]) ? [] : {};
-    cursor = cursor[part] as Record<string, unknown>;
+    if (typeof cursor !== "object" || cursor === null
+      || !Object.prototype.hasOwnProperty.call(cursor, part)) return false;
+    cursor = (cursor as Record<string, unknown>)[part];
   }
-  cursor[parts.at(-1)!] = value;
+  const leaf = parts.at(-1)!;
+  if (typeof cursor !== "object" || cursor === null) return false;
+  if (/^\d+$/.test(leaf) && Array.isArray(cursor) && !Object.prototype.hasOwnProperty.call(cursor, leaf))
+    return false;
+  (cursor as Record<string, unknown>)[leaf] = value;
+  return true;
 }
 
 function flashStatus(container: HTMLElement, state: AppState): void {
@@ -1373,10 +1440,10 @@ export async function mountApp(container: HTMLElement): Promise<void> {
     status: "", validation: { valid: false, issues: [] },
     help: session.help, savedAt: session.savedAt, returnTo: []
   };
-  state.focus = (["campaigns", "quests", "armies", "dialogues"] as const).includes(session.focus as DetailSection)
+  state.focus = DETAIL_SECTIONS.includes(session.focus as DetailSection)
     ? session.focus as DetailSection : "campaigns";
   await refreshSets(state);
   renderBrowser(container, state);
   if (session.setId && state.sets.some(item => item.setId === session.setId))
-    await openSet(container, state, session.setId);
+    await openSet(container, state, session.setId, session);
 }

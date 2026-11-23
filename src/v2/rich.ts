@@ -2,6 +2,7 @@ import type { ContentSetV2Document, GameCapabilities, NamedRef } from "./types";
 import { findAbility, findLevel, type ArmyCatalogLite } from "./catalog";
 import { TRIGGERS } from "./registries";
 import { escapeHtml } from "./html";
+import { boundInput, boundRef, boundSelect, labelled, options, smallButton } from "./fields";
 
 export interface RichState {
   section: "campaigns" | "quests" | "armies" | "dialogues";
@@ -29,26 +30,18 @@ export interface RichContext {
   rich: RichState;
 }
 
-function options(values: readonly string[], selected: string): string {
-  return values.map(value => '<option value="' + escapeHtml(value) + '"' + (value === selected ? " selected" : "") + ">" + escapeHtml(value) + "</option>").join("");
-}
-
 function field(label: string, bind: string, value: unknown, type = "text", values?: readonly string[]): string {
-  const control = values
-    ? '<select data-v2-bind="' + bind + '">' + options(values, String(value ?? "")) + "</select>"
-    : '<input type="' + type + '" data-v2-bind="' + bind + '" value="' + escapeHtml(String(value ?? "")) + '">';
-  return '<label class="field"><span class="field-label">' + escapeHtml(label) + "</span>" + control + "</label>";
+  return labelled(label, values
+    ? boundSelect(bind, values, String(value ?? ""))
+    : boundInput(bind, value, type));
 }
 
 function ref(label: string, bind: string, value: NamedRef | undefined, values?: readonly string[]): string {
-  const control = values
-    ? '<select data-v2-ref="' + bind + '">' + options(values, value?.id ?? "") + "</select>"
-    : '<input data-v2-ref="' + bind + '" value="' + escapeHtml(value?.id ?? "") + '" placeholder="id">';
-  return '<label class="field"><span class="field-label">' + escapeHtml(label) + "</span>" + control + "</label>";
+  return labelled(label, boundRef(bind, value, values));
 }
 
 function button(action: string, label: string, dataset = ""): string {
-  return '<button type="button" class="button button-small" data-rich-action="' + action + '"' + dataset + ">" + escapeHtml(label) + "</button>";
+  return smallButton("data-rich-action", action, label, dataset);
 }
 
 function actionButton(label: string, dataset: string, primary = false): string {
@@ -62,7 +55,8 @@ function text(label: string, bind: string, value: unknown): string {
 }
 
 function textarea(label: string, bind: string, value: unknown): string {
-  return '<label class="field"><span class="field-label">' + escapeHtml(label) + '</span><textarea rows="5" data-v2-bind="' + bind + '">' + escapeHtml(String(value ?? "")) + "</textarea></label>";
+  return labelled(label, '<textarea rows="5" data-v2-bind="' + escapeHtml(bind) + '">' +
+    escapeHtml(String(value ?? "")) + "</textarea>");
 }
 
 function objectiveFields(ctx: RichContext, quest: NonNullable<ContentSetV2Document["quests"][number]>, base: string): string {

@@ -7,7 +7,8 @@ const runtime = vi.hoisted(() => ({
   access: { authorized: true, canPublish: true, userId: "server-user" } as unknown,
   getSession: vi.fn(),
   signInEmail: vi.fn(),
-  signOut: vi.fn(async () => undefined)
+  signOut: vi.fn(async () => undefined),
+  mountApp: vi.fn(async () => undefined)
 }));
 
 vi.mock("@neondatabase/auth", () => ({
@@ -23,7 +24,7 @@ vi.mock("@neondatabase/auth", () => ({
 
 vi.mock("../src/v2/app", () => {
   runtime.appLoaded += 1;
-  return { mountApp: vi.fn() };
+  return { mountApp: runtime.mountApp };
 });
 
 describe("Bridge bootstrap (v2-only)", () => {
@@ -38,6 +39,7 @@ describe("Bridge bootstrap (v2-only)", () => {
     }));
     runtime.signInEmail.mockReset().mockImplementation(async () => ({ data: { user: { id: "signed-in-user" } } }));
     runtime.signOut.mockReset().mockImplementation(async () => undefined);
+    runtime.mountApp.mockReset().mockImplementation(async () => undefined);
     vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, status: 200, json: async () => runtime.access })));
     vi.stubGlobal("location", { reload: vi.fn() });
     vi.stubEnv("VITE_NEON_AUTH_BASE_URL", "https://auth.example.com");
@@ -123,5 +125,20 @@ describe("Bridge bootstrap (v2-only)", () => {
     vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, status: 200, json: async () => runtime.access })));
     await import("../src/bridge-bootstrap");
     await vi.waitFor(() => expect(document.querySelector(".bridge-error")?.textContent).toContain("valid sign-in token"));
+  });
+
+  it("ignores a session callback that resolves after a newer sign-in has mounted the editor", async () => {
+    let resumeSession!: (value: unknown) => void;
+    runtime.getSession.mockImplementationOnce(() => new Promise(resolve => { resumeSession = resolve; }));
+    await import("../src/bridge-bootstrap");
+    await vi.waitFor(() => expect(typeof resumeSession).toBe("function"));
+    const form = document.querySelector<HTMLFormElement>("#bridge-signin")!;
+    form.querySelector<HTMLInputElement>('[name="email"]')!.value = "author@example.com";
+    form.querySelector<HTMLInputElement>('[name="password"]')!.value = "secret";
+    form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+    await vi.waitFor(() => expect(runtime.mountApp).toHaveBeenCalledTimes(1));
+    resumeSession({ data: { user: { id: "late-user" } } });
+    await new Promise(resolve => setTimeout(resolve, 10));
+    expect(runtime.mountApp).toHaveBeenCalledTimes(1);
   });
 });

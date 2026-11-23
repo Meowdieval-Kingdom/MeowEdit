@@ -605,4 +605,50 @@ describe("v2-only editor app", () => {
     container.querySelector<HTMLElement>("[data-back-browser]")!.click();
     expect(container.textContent).toContain("Your content sets");
   });
+
+  it("does not open a stale local copy when the saved draft cannot be loaded", async () => {
+    setBridgeFetch(async requestPath => {
+      if (requestPath === "/v1/editor/capabilities")
+        return new Response(JSON.stringify(capabilities), { status: 200, headers: { "content-type": "application/json" } });
+      if (requestPath.includes("/v1/editor/campaign-sets/")) throw new Error("network down");
+      return new Response(JSON.stringify({ sets: [{ setId: "published-set", draftVersion: 3 }] }),
+        { status: 200, headers: { "content-type": "application/json" } });
+    });
+    container.querySelector<HTMLElement>('[data-open="published-set"]')!.click();
+    await vi.waitFor(() => expect(container.textContent).toContain("saved draft could not be loaded"));
+    expect(container.querySelector('[data-add="campaigns"]')).toBeNull();
+  });
+
+  it("rejects an invalid capability manifest from both the API and the fallback file", async () => {
+    const invalid = new Response(JSON.stringify({ ...capabilities, ids: undefined }),
+      { status: 200, headers: { "content-type": "application/json" } });
+    setBridgeFetch(async requestPath => requestPath === "/v1/editor/capabilities" ? invalid : invalid);
+    vi.stubGlobal("fetch", vi.fn(async () => invalid.clone()));
+    await expect(mountApp(document.createElement("div"))).rejects.toThrow("capability manifest is invalid");
+  });
+
+  it("only advances the guided flow from fields inside the guided step", () => {
+    container.querySelector<HTMLElement>("[data-new-set]")!.click();
+    const stray = document.createElement("input");
+    container.append(stray);
+    stray.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    expect(container.textContent).toContain("Step 1 of 5");
+    const field = container.querySelector<HTMLInputElement>('[data-v2-bind="set.setId"]')!;
+    field.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    expect(container.textContent).toContain("Step 2 of 5");
+  });
+
+  it("restores the last edited entry and guided step after a remount", async () => {
+    await openPublished(container);
+    container.querySelector<HTMLElement>('[data-entry-edit="0"]')!.click();
+    container.querySelector<HTMLElement>('[data-rich-action="next-step"]')!.click();
+    const session = JSON.parse(localStorage.getItem("meowedit.v2.session.author-1")!);
+    expect(session.entry).toMatchObject({ section: "campaigns", index: 0 });
+    expect(session.rich.step).toBe(1);
+    document.body.innerHTML = '<div id="app"></div>';
+    container = document.querySelector<HTMLElement>("#app")!;
+    await mountApp(container);
+    expect(container.querySelector(".v2-details")).not.toBeNull();
+    expect(container.textContent).toContain("Edit Campaign");
+  });
 });

@@ -1,14 +1,24 @@
 import { z } from "zod";
+import registry from "../../contract/v2/registries.json";
 
-/** Strict zod schemas mirroring contract/v2/schema/content-set-v2.schema.json (§9.2). */
-const nodeKinds = ["Start", "Battle", "Reward", "Boss", "Quest", "Shop"] as const;
-const objectiveKinds = ["Escort", "Fetch", "Battle", "ClearFloor", "Timer", "KillCount"] as const;
-const shopPoolKinds = ["Unit", "Blessing", "Research", "SpellUnlock"] as const;
-const floorModes = ["authored", "random", "mixed"] as const;
-const rewardKinds = ["Sardines", "ExtraLife", "Blessing", "UnitUnlock", "ShopLevelUnlock", "SpellUnlock"] as const;
-const triggers = ["campaign-start", "floor-entered", "floor-completed", "campaign-completed", "run-ended", "before-battle", "after-battle", "battle-won", "battle-lost", "battle-draw", "boss-defeated", "lives-lost", "battle-restarted", "node-revealed", "node-entered", "reward-claimed", "shop-entered", "shop-visited", "item-purchased", "shop-rerolled", "quest-accepted", "quest-completed", "quest-failed", "quest-item-collected", "quest-item-delivered", "escort-completed", "dialogue-choice-selected", "floor-exit-warning", "blessing-offered", "blessing-chosen", "curse-ticked", "node-cleared"] as const;
-const conditions = ["battle-won", "battle-lost", "battle-draw", "boss", "floor-n", "node-kind", "has-blessing", "quest-id", "lives-below", "choice-outcome"] as const;
-const actions = ["replace-player-army", "grant-blessings", "dialogue", "restart-battle", "unlock-path", "unlock-shop-item", "grant-sardines", "grant-life", "set-flag"] as const;
+/**
+ * Strict zod schemas mirroring contract/v2/schema/content-set-v2.schema.json (§9.2).
+ * Every enum below is derived from the single shared registry so this mirror
+ * cannot silently drift from the JSON Schema or the backend validator.
+ */
+function contractEnum(values: readonly string[]): [string, ...string[]] {
+  if (!values.length) throw new Error("The content contract registry contains an empty enum.");
+  return values as [string, ...string[]];
+}
+
+const nodeKinds = contractEnum(registry.enums.nodeKind);
+const objectiveKinds = contractEnum(registry.enums.objectiveKind);
+const shopPoolKinds = contractEnum(registry.enums.shopPoolKind);
+const floorModes = contractEnum(registry.enums.floorMode);
+const rewardKinds = contractEnum(registry.enums.rewardKind);
+const triggers = contractEnum([...registry.triggers, ...registry.internalTriggers]);
+const conditions = contractEnum(registry.conditions.map(entry => entry.kind));
+const actions = contractEnum(registry.actions.map(entry => entry.kind));
 
 const jsonValue = z.union([
   z.string(), z.number(), z.boolean(), z.null(),

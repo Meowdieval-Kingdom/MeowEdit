@@ -11,11 +11,12 @@ export interface V2Session {
   help: boolean;
   savedAt: string | null;
   setId: string | null;
+  returnTo: Array<{ section: string; index: number; step: number }>;
 }
 
 const DEFAULT: V2Session = {
   view: "browser", focus: "campaigns", entry: null, rich: null,
-  rawFields: false, step: 0, help: false, savedAt: null, setId: null
+  rawFields: false, step: 0, help: false, savedAt: null, setId: null, returnTo: []
 };
 
 function key(): string {
@@ -26,7 +27,11 @@ export function loadSession(): V2Session {
   try {
     const raw = localStorage.getItem(key());
     if (!raw) return { ...DEFAULT };
-    return { ...DEFAULT, ...JSON.parse(raw) as Partial<V2Session> };
+    const loaded = JSON.parse(raw) as Partial<V2Session>;
+    return {
+      ...DEFAULT, ...loaded,
+      returnTo: Array.isArray(loaded.returnTo) ? loaded.returnTo : []
+    };
   } catch {
     return { ...DEFAULT };
   }
