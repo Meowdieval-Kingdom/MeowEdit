@@ -177,6 +177,14 @@ describe("v2 contract fixtures", () => {
     expect(validateContentSet(wrongCase, capabilities).valid).toBe(false);
   });
 
+  it("matches the shared cross-repo hash vector byte for byte", async () => {
+    const vector = fixture("packer-vector.json") as { contentHash: string; packageId: string };
+    const packed = await packContentSet(validSet, capabilities);
+    expect(packed.contentHash).toBe(vector.contentHash);
+    expect(packed.packageId).toBe(vector.packageId);
+    expect(JSON.parse(packed.files.find(file => file.path === "manifest.json")!.content).files.set).toBe("set.json");
+  });
+
   it("generates the closed runtime file set and a stable canonical hash", async () => {
     const packed = await packContentSet(validSet, capabilities);
     expect(packed.files.map(file => file.path)).toEqual([

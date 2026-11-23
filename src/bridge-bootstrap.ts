@@ -5,6 +5,7 @@ import {
   resetBridgeFetch, resetBridgeState, setBridgeFetch, setBridgeState, type BridgeActions
 } from "./bridge-context";
 import { escapeHtml } from "./v2/html";
+import { NETWORK_TIMEOUT_MS, withDeadline } from "./request-timeout";
 import { APP_VERSION } from "./v2/version";
 
 type AuthUser = { id: string };
@@ -131,10 +132,11 @@ if (!isBridgeConfigured()) {
     }
     let response: Response;
     try {
-      response = await withTimeout(fetch(apiUrl + "/v1/editor/access", {
+      response = await withDeadline(signal => fetch(apiUrl + "/v1/editor/access", {
         headers: { Authorization: "Bearer " + token },
-        cache: "no-store"
-      }), 15000, "The game Bridge did not respond in time.");
+        cache: "no-store",
+        signal
+      }), 15_000, null, "The game Bridge did not respond in time.");
     } catch {
       showGateError("The game Bridge could not be reached. Check the connection and try again.");
       return;
@@ -169,12 +171,13 @@ if (!isBridgeConfigured()) {
       actions
     });
     setBridgeFetch(async (path, init) => {
-      const freshToken = await withTimeout(neonAuth.getJWTToken(), 15000, "Token request timed out.");
+      const freshToken = await withTimeout(neonAuth.getJWTToken(), 15_000, "Token request timed out.");
       if (!freshToken) throw new Error("Your sign-in expired. Sign out and sign in again.");
-      return fetch(apiUrl + path, {
+      return withDeadline(signal => fetch(apiUrl + path, {
         ...init,
-        headers: { ...(init?.headers ?? {}), Authorization: "Bearer " + freshToken }
-      });
+        headers: { ...(init?.headers ?? {}), Authorization: "Bearer " + freshToken },
+        signal
+      }), NETWORK_TIMEOUT_MS, init?.signal);
     });
     const submit = app!.querySelector<HTMLButtonElement>('#bridge-signin button[type="submit"]');
     if (submit) submit.textContent = "Loading editor…";

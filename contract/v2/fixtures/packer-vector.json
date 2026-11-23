@@ -1,0 +1,9 @@
+{
+  "description": "Shared hash vector for contract §3. Generated from contract/v2/fixtures/valid-set.fixture.json by the backend packer algorithm (Backend/Ranked/functions/content-v2.ts). All three repos must produce this hash.",
+  "fixture": "valid-set.fixture.json",
+  "algorithm": "sha256 of sorted paths, each entry as path + LF + UTF8(content) + LF",
+  "minAppVersion": "0.2.2",
+  "requiredCapabilities": [],
+  "contentHash": "fd347154db543f28b4b397dbfb2eda087f1a28bbbed66a9957c59800ea77a1fd",
+  "packageId": "test-set-fd347154db543f28"
+}

@@ -8,6 +8,7 @@ import {
 import { DETAIL_SECTIONS, detailItemCount, renderDetailSection, type DetailSection } from "./details";
 import { emptyContentSet, localized, namedRef } from "./factory";
 import { escapeHtml } from "./html";
+import { withDeadline } from "../request-timeout";
 import { APP_VERSION } from "./version";
 import { packContentSet } from "./packer";
 import { findLevel, loadArmyCatalog, type ArmyCatalogLite } from "./catalog";
@@ -151,8 +152,10 @@ function wireKeyboard(container: HTMLElement): void {
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   const request = getBridgeFetch();
   if (!request) throw new Error("The authenticated Bridge connection is unavailable.");
-  const response = await request(path, init);
-  const body = await response.json().catch(() => null) as T & { error?: string } | null;
+  const { response, body } = await withDeadline(async signal => {
+    const result = await request(path, { ...init, signal });
+    return { response: result, body: await result.json().catch(() => null) as (T & { error?: string }) | null };
+  }, undefined, init?.signal);
   if (!response.ok) throw new Error(body?.error ?? "The request failed (" + response.status + ").");
   return body as T;
 }
@@ -161,7 +164,8 @@ async function loadCapabilities(): Promise<GameCapabilities> {
   try {
     return await requestJson<GameCapabilities>("/v1/editor/capabilities");
   } catch {
-    const response = await fetch("./game-capabilities.json", { cache: "no-cache" });
+    const response = await withDeadline(signal =>
+      fetch("./game-capabilities.json", { cache: "no-cache", signal }), 10_000);
     if (!response.ok) throw new Error("No capability manifest is available.");
     return await response.json() as GameCapabilities;
   }

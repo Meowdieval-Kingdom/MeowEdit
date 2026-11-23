@@ -1,5 +1,4 @@
-import { FEATURES } from "./registries";
-import type { ContentSetV2Document, GameCapabilities } from "./types";
+import type { ContentSetV2Document } from "./types";
 
 export interface PackedFile {
   path: string;
@@ -13,6 +12,9 @@ export interface RuntimePackage {
   packageId: string;
 }
 
+/** Must match the backend packer (functions/content-v2.ts) and Tactics byte for byte. */
+export const DEFAULT_MIN_APP_VERSION = "0.2.2";
+
 function json(value: unknown): string {
   return JSON.stringify(value, null, 2) + "\n";
 }
@@ -20,68 +22,63 @@ function json(value: unknown): string {
 function extensionIndex(set: ContentSetV2Document): Record<string, unknown> {
   return {
     schemaVersion: 2,
-    quests: set.quests.map(quest => ({ questId: quest.id, ...quest.meowEdit })),
-    armies: set.armies.map(army => ({ id: army.id, name: army.name })),
-    dialogueDecisions: set.dialogues.flatMap(dialogue => dialogue.nodes.flatMap(node =>
-      node.actions.map((action, index) => ({
-        sequenceId: dialogue.sequenceId,
-        nodeId: node.id,
-        actionIndex: index,
-        ...action.meowEdit.decision
-      }))))
+    quests: set.quests.map(quest => quest.meowEdit),
+    armies: set.armies,
+    dialogueDecisions: set.quests.flatMap(quest =>
+      (quest.meowEdit as { dialogueDecisions?: unknown[] }).dialogueDecisions ?? [])
   };
 }
 
-/** Ordinal UTF-8 byte comparison, as required by §3. */
-function compareUtf8(left: string, right: string): number {
-  const encoder = new TextEncoder();
-  const a = encoder.encode(left);
-  const b = encoder.encode(right);
-  for (let index = 0; index < Math.min(a.length, b.length); index++) {
-    if (a[index] !== b[index]) return a[index] - b[index];
-  }
-  return a.length - b.length;
-}
-
-/** Generates the closed runtime file set (§2.2) and the canonical hash (§3). */
+/**
+ * Generates the closed runtime file set and the canonical hash.
+ * `capabilities` is accepted for call-site compatibility; the backend derives these
+ * values from the set document, so only set-level fields may affect the hash.
+ */
 export async function packContentSet(
   set: ContentSetV2Document,
-  capabilities: GameCapabilities
+  _capabilities?: unknown
 ): Promise<RuntimePackage> {
-  const dialoguePaths = set.dialogues.map(dialogue => "dialogues/" + dialogue.sequenceId + ".json");
+  const setDocument = set.set as ContentSetV2Document["set"] & {
+    minAppVersion?: string;
+    requiredCapabilities?: string[];
+  };
+  const minAppVersion = typeof setDocument.minAppVersion === "string"
+    ? setDocument.minAppVersion : DEFAULT_MIN_APP_VERSION;
+  const requiredCapabilities = Array.isArray(setDocument.requiredCapabilities)
+    ? setDocument.requiredCapabilities.filter((value): value is string => typeof value === "string") : [];
   const manifest = {
     format: "meowdieval-content-package",
     packageVersion: 2,
     setId: set.set.setId,
-    minAppVersion: capabilities.appVersion,
-    requiredCapabilities: FEATURES,
+    minAppVersion,
+    requiredCapabilities,
     files: {
+      set: "set.json",
       quests: "quests/Definitions.json",
       armies: "armies/ArmyConfigurations.json",
       campaigns: "campaigns/Campaigns.json",
       extensions: "extensions/meowedit-v1.json",
-      dialogues: dialoguePaths
+      dialogues: set.dialogues.map(dialogue => "dialogues/" + dialogue.sequenceId + ".json")
     }
   };
-  const files: PackedFile[] = [
-    { path: "manifest.json", content: json(manifest) },
-    { path: "quests/Definitions.json", content: json({ schemaVersion: 2, quests: set.quests }) },
-    { path: "armies/ArmyConfigurations.json", content: json({ schemaVersion: 2, armies: set.armies }) },
-    { path: "campaigns/Campaigns.json", content: json({ schemaVersion: 2, campaigns: set.campaigns }) },
-    { path: "extensions/meowedit-v1.json", content: json(extensionIndex(set)) },
-    { path: "set.json", content: json(set.set) },
-    ...set.dialogues.map(dialogue => ({
-      path: "dialogues/" + dialogue.sequenceId + ".json",
-      content: json(dialogue)
-    }))
-  ].sort((left, right) => compareUtf8(left.path, right.path));
+  const byPath: Record<string, string> = {
+    "set.json": json({ schemaVersion: 2, ...(set.set as unknown as Record<string, unknown>) }),
+    "quests/Definitions.json": json({ schemaVersion: 2, quests: set.quests }),
+    "armies/ArmyConfigurations.json": json({ schemaVersion: 2, armies: set.armies }),
+    "campaigns/Campaigns.json": json({ schemaVersion: 2, campaigns: set.campaigns }),
+    "extensions/meowedit-v1.json": json(extensionIndex(set)),
+    "manifest.json": json(manifest)
+  };
+  for (const dialogue of set.dialogues)
+    byPath["dialogues/" + dialogue.sequenceId + ".json"] = json(dialogue);
 
-  const canonical = files.map(file => file.path + "\n" + file.content + "\n").join("");
+  const paths = Object.keys(byPath).sort();
+  const canonical = paths.map(path => path + "\n" + byPath[path] + "\n").join("");
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonical));
   const contentHash = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, "0")).join("");
   return {
     manifest,
-    files,
+    files: paths.map(path => ({ path, content: byPath[path] })),
     contentHash,
     packageId: set.set.setId + "-" + contentHash.slice(0, 16)
   };

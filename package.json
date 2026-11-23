@@ -32,5 +32,9 @@
     "@neondatabase/auth": "^0.6.0-beta",
     "drawflow": "^0.0.60",
     "zod": "^4.6.7"
+  },
+  "overrides": {
+    "better-auth": "1.7.27",
+    "zod": "$zod"
   }
 }
