@@ -5,7 +5,7 @@ import { findAbility, findEntity, findLevel, loadArmyCatalog } from "../src/v2/c
 
 const catalog = JSON.parse(readFileSync(path.resolve(process.cwd(), "public/army-catalog-lite.json"), "utf8"));
 
-describe("v2 army catalog adapter", () => {
+describe("v2 army catalog", () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it("loads the checked-in catalog and finds entities, levels and abilities", async () => {

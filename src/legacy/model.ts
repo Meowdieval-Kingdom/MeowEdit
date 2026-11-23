@@ -169,7 +169,6 @@ export interface ArmyCellBlessingPick {
 
 export interface ArmyRecord {
   key: string;
-  isGameExample?: boolean;
   id: string;
   idAuto?: boolean;
   name: string;
@@ -278,7 +277,6 @@ export interface CampaignEvent {
 
 export interface CampaignRecord {
   key: string;
-  isGameExample?: boolean;
   id: string;
   idAuto?: boolean;
   name: string;
@@ -355,23 +353,17 @@ export interface ArmyCatalog {
   spells: ArmyCatalogAbility[];
   blessings: ArmyCatalogAbility[];
   curses?: ArmyCatalogAbility[];
-  implementationSources?: Array<{ id: string; classes: string[]; sourceHash: string }>;
 }
 
 export interface QuestRecord {
   key: string;
-  isGameExample?: boolean;
   idAuto?: boolean;
-  itemDisplayName?: string;
   definition: AdventureQuestDefinition;
   extension: QuestExtension;
 }
 
 export interface DialogueRecord {
   key: string;
-  isGameExample?: boolean;
-  /** Workspace-only semantic title for cataloguing bundled game examples. */
-  exampleTitle?: string;
   sequenceIdAuto?: boolean;
   sequence: DialogueSequence;
 }

@@ -56,7 +56,7 @@ Export the revised content as a new immutable revision and copy it alongside the
 
 ## MeowEdit tests versus game tests
 
-MeowEdit's Vitest suite tests the browser editor: authoring flows, validation, import/export, and package ZIP structure. It does not execute Unity.
+MeowEdit's Vitest suite tests the browser editor: authoring flows, validation, the native per-set workspace and the v2 package contract. It does not execute Unity.
 
 Meowdieval Kingdom's Unity tests cover JSON package parsing and validation, runtime references, campaign option filtering, campaign map creation, Army-backed encounter rosters, exact shop offers, quest behavior, and save-pinned revisions. Gameplay-sensitive content changes should update both a MeowEdit authoring test and a Kingdom runtime test where applicable.
 

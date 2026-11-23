@@ -191,25 +191,22 @@ function renderDocList(workspace: Workspace, type: "dialogue" | "quest"): string
     const quest = type === "quest" ? item as QuestRecord : null;
     const startNode = dialogue?.sequence.nodes.find(node => node.id === dialogue.sequence.startNodeId);
     const label = dialogue
-      ? (dialogue.exampleTitle || (startNode
-        ? dialogueMomentName(dialogue.sequence, startNode)
-        : humanizeIdentifier(dialogue.sequence.sequenceId)))
+      ? (startNode ? dialogueMomentName(dialogue.sequence, startNode) : humanizeIdentifier(dialogue.sequence.sequenceId))
       : quest!.definition.title || quest!.definition.id;
     const subtitle = dialogue
       ? (dialogue.sequence.nodes.length + " nodes")
       : (quest!.definition.objectiveKind === "Timer" ? "Timer project" : quest!.definition.objectiveKind);
-    const taggedSubtitle = (item.isGameExample ? "Game example · " : "") + subtitle;
     const active = workspace.selectedType === type && workspace.selectedKey === item.key;
     return '<div class="doc-item-row">' +
       '<button type="button" class="doc-item' + (active ? " is-active" : "") + '" data-action="select-item" data-type="' + type + '" data-key="' + escapeHtml(item.key) + '">' +
-      '<span class="doc-item-text"><strong>' + escapeHtml(label || "Untitled") + '</strong><small>' + escapeHtml(taggedSubtitle) + '</small></span>' +
+      '<span class="doc-item-text"><strong>' + escapeHtml(label || "Untitled") + '</strong><small>' + escapeHtml(subtitle) + '</small></span>' +
       '</button>' +
       '<button type="button" class="doc-item-remove" data-action="delete-item" data-type="' + type + '" data-key="' + escapeHtml(item.key) + '" aria-label="Remove ' + type + ': ' + escapeHtml(label || "Untitled") + '" title="Remove ' + escapeHtml(label || "Untitled") + '"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 4.5h10M6 4.5v-1h4v1m-5.5 0 .6 8h5.8l.6-8M6.5 6.5v4.5m3-4.5v4.5"/></svg></button>' +
       '</div>';
   }).join("");
 }
 
-function renderSidebar(hasGameExamples: boolean, hasSelectedItem: boolean): string {
+function renderSidebar(): string {
   return '<aside class="sidebar">' +
     '<div class="sidebar-brand"><span class="brand-mark">M</span><span><strong>MEOWEDIT</strong></span>' + actionButton("open-content-picker", "Browse", "sidebar-browse-button", ' aria-haspopup="dialog"') + '</div>' +
     '<div class="sidebar-section">' +
@@ -225,10 +222,6 @@ function renderSidebar(hasGameExamples: boolean, hasSelectedItem: boolean): stri
     '<div class="sidebar-section-title"><span>Campaigns</span><button type="button" aria-label="New campaign" data-action="new-campaign">+</button></div>' +
     '</div>' +
     '<div class="sidebar-footer"><span class="status-dot"></span><span>Saved in this browser</span></div>' +
-    '<div class="sidebar-transfer-actions" aria-label="Import and export">' +
-    '<div>' + actionButton("open-import", "↑ Import", "sidebar-transfer-button") + actionButton(hasGameExamples ? "remove-game-examples" : "import-game-examples", hasGameExamples ? "Remove examples" : "Import examples", "sidebar-transfer-button sidebar-examples-button") + '</div>' +
-    '<div>' + actionButton("export-active", "↓ Download JSON", "sidebar-transfer-button", hasSelectedItem ? "" : " disabled") + actionButton("export-package", "Export ZIP", "sidebar-transfer-button sidebar-export-primary") + '</div>' +
-    '</div>' +
     '</aside>';
 }
 
@@ -572,7 +565,7 @@ function renderDialogueEditor(
   const nodeIndex = Math.max(0, record.sequence.nodes.findIndex(node => node.id === workspace.activeNodeId));
   const node = record.sequence.nodes[nodeIndex];
   const startNode = record.sequence.nodes.find(candidate => candidate.id === record.sequence.startNodeId);
-  const displayTitle = record.exampleTitle || (startNode ? dialogueMomentName(record.sequence, startNode) : humanizeIdentifier(record.sequence.sequenceId) || "Dialogue");
+  const displayTitle = startNode ? dialogueMomentName(record.sequence, startNode) : humanizeIdentifier(record.sequence.sequenceId) || "Dialogue";
   const issues = validateDialogue(record);
   const sections = [
     { id: "dialogue-sequence", label: "Sequence" }, { id: "dialogue-moment", label: "Moment" },
@@ -605,7 +598,7 @@ function renderGuidedDialogueEditor(
   const node = record.sequence.nodes[nodeIndex];
   const isStartNode = node?.id === record.sequence.startNodeId;
   const startNode = record.sequence.nodes.find(candidate => candidate.id === record.sequence.startNodeId);
-  const displayTitle = record.exampleTitle || (startNode ? dialogueMomentName(record.sequence, startNode) : humanizeIdentifier(record.sequence.sequenceId) || "Dialogue");
+  const displayTitle = startNode ? dialogueMomentName(record.sequence, startNode) : humanizeIdentifier(record.sequence.sequenceId) || "Dialogue";
   const issues = validateDialogue(record);
   let screen = "";
 
@@ -660,8 +653,6 @@ function renderGuidedDialogueEditor(
       '<div class="review-validation">' + renderIssues(issues) + '</div>' +
       '<div class="guided-end-actions">' +
       actionButton("guided-add-node", "＋ Add another moment", "button button-outline") +
-      actionButton("export-active", "Download JSON", "button button-outline") +
-      actionButton("export-package", "Export ZIP", "button button-primary") +
       '</div>';
   } else {
     screen = '<div class="guided-empty"><p class="help-copy">Add a moment to start the conversation.</p>' + actionButton("guided-add-node", "＋ Add a moment", "button button-outline") + '</div>';
@@ -771,7 +762,7 @@ function renderQuestReview(record: QuestRecord, workspace: Workspace, issues: Va
   ].filter((entry): entry is [string, string] => Boolean(entry[1])).map(([label, id]) => {
     const dialogue = workspace.dialogues.find(item => item.sequence.sequenceId === id);
     const startNode = dialogue?.sequence.nodes.find(node => node.id === dialogue.sequence.startNodeId);
-    const displayName = dialogue?.exampleTitle || (dialogue && startNode ? dialogueMomentName(dialogue.sequence, startNode) : humanizeIdentifier(id));
+    const displayName = dialogue && startNode ? dialogueMomentName(dialogue.sequence, startNode) : humanizeIdentifier(id);
     return label + ": " + displayName + (displayName === id ? "" : " (" + id + ")");
   });
   const effects = (timer ? record.extension.timer.completionEffects : record.extension.completionEffects)
@@ -1521,8 +1512,6 @@ function renderCampaignEditor(
   const quests = '<section class="campaign-quest-section" id="campaign-quests"><div><h2>Available quests</h2><p class="help-copy">Quest nodes on these floors can reference these quests.</p></div>' + poolDisclosure + '</section>';
   const campaignEventsSection = '<section class="campaign-events-section" id="campaign-events"><div class="campaign-event-list-heading"><div><h2>Campaign events</h2></div>' + actionButton("campaign-add-event", "＋ Add event", "button button-outline") + '</div>' +
     (campaign.events.length ? campaign.events.map((event, index) => renderCampaignEventEditor(event, index, campaign, workspace, "full", false)).join("") : '<p class="campaign-event-empty">No campaign events yet.</p>') + '</section>';
-  const exportNote = '<div class="campaign-export-note"><strong>Campaigns are playable from an installed content package.</strong><span>Export the workspace ZIP and follow the manual install steps in the game integration guide.</span></div>';
-
   if (mode === "full") {
     const sections = [
       { id: "campaign-basics", label: "Basics" }, { id: "campaign-floors", label: "Floors" },
@@ -1531,8 +1520,8 @@ function renderCampaignEditor(
       { id: "campaign-shops", label: "Shops" },
       { id: "campaign-starting-run", label: "Starting run" }, { id: "campaign-progression", label: "Progression" }
     ];
-    return '<main class="workspace-main campaign-editor">' + heading + renderAdvancedSectionNav(sections) + profile + boards + quests + campaignEventsSection + campaignShopAdvanced + exportNote +
-      '<div class="guided-end-actions">' + actionButton("export-active", "Download campaign JSON", "button button-outline") + actionButton("export-package", "Export campaign ZIP", "button button-primary") + '</div>' +
+    return '<main class="workspace-main campaign-editor">' + heading + renderAdvancedSectionNav(sections) + profile + boards + quests + campaignEventsSection + campaignShopAdvanced +
+      '<div class="guided-end-actions">' + '</div>' +
       '</main>';
   }
 
@@ -1576,8 +1565,8 @@ function renderCampaignEditor(
     '<div class="campaign-floor-reviews">' + floorReviews + '</div>' +
     (hasQuestContent ? reviewList("Campaign quest pool", campaignQuestNames) : "") +
     eventReview +
-    '<div class="campaign-review-validation">' + renderIssues(allIssues) + '</div>' + exportNote +
-    '<div class="guided-end-actions">' + actionButton("export-active", "Download campaign JSON", "button button-outline") + actionButton("export-package", "Export campaign ZIP", "button button-primary") + '</div></section>';
+    '<div class="campaign-review-validation">' + renderIssues(allIssues) + '</div>' +
+    '<div class="guided-end-actions">' + '</div></section>';
   let screen = "";
   if (stepName === "Approach") {
     screen = '<section class="campaign-approach"><p class="campaign-step-prompt help-copy">Choose what you want to design. You can switch editors later.</p>' +
@@ -1704,7 +1693,7 @@ function renderGuidedQuestEditor(
     screen +
     '</section>' +
     (step === steps.length - 1
-      ? '<div class="guided-end-actions quest-export-actions">' + actionButton("export-active", "Download JSON", "button button-outline") + actionButton("export-package", "Export ZIP", "button button-primary") + '</div>'
+      ? '<div class="guided-end-actions quest-export-actions">' + '</div>'
       : "") +
     '<p class="guided-keyboard-hint help-copy">Enter continues · Shift+Enter adds a line break</p>' +
     renderWorkflowFooter(steps, step, "Ready to export") +
@@ -1886,10 +1875,6 @@ export function renderApp(
   const guidedCompact = editorMode === "guided" && item !== null;
   const focusedDialogueTitle = editorMode === "guided" && item !== null && "sequence" in item && activeEditorStep === 0;
   const hasErrors = allIssues.some(issue => issue.level === "error");
-  const hasGameExamples = workspace.dialogues.some(record => record.isGameExample)
-    || workspace.quests.some(record => record.isGameExample)
-    || workspace.armies.some(record => record.isGameExample)
-    || workspace.campaigns.some(record => record.isGameExample);
   const bridgeUserId = getBridgeUserId();
   const toolbar = '<div class="topbar-actions">' +
     (relatedReturnState ? actionButton("return-to-parent", "← " + relatedReturnState.label, "text-button return-to-parent", ' aria-label="Return to ' + escapeHtml(relatedReturnState.parent) + '" title="Return to ' + escapeHtml(relatedReturnState.parent) + '"') : "") +
@@ -1927,17 +1912,15 @@ export function renderApp(
     '<div class="topbar-context"><span>' + (item && "sequence" in item ? "Dialogue" : item && "definition" in item ? "Quest" : item && "floors" in item ? "Campaign" : item ? "Army" : "Start") + '</span>' +
     '<span class="save-indicator"><i></i><span id="save-status">All changes saved</span></span></div>' +
     toolbar +
-    '<input id="import-file" class="visually-hidden" type="file" accept=".json,.zip,application/json,application/zip">' +
     '</header>' +
     '<div class="app-layout">' +
-    renderSidebar(hasGameExamples, item !== null) +
+    renderSidebar() +
     '<button type="button" class="sidebar-backdrop" data-action="close-sidebar" aria-label="Close navigation menu" tabindex="-1"></button>' +
     '<div class="stage-wrap">' + content + '</div>' +
     '</div>' +
     '<div class="toast-region" id="toast-region" aria-live="polite"></div>' +
     renderContentPicker(workspace) +
     '<dialog class="confirm-dialog" id="confirm-dialog"><form method="dialog"><h2>Remove this item?</h2><p>This only removes the local draft. Downloaded files are unchanged.</p><div class="dialog-actions"><button value="cancel" class="button button-outline">Keep it</button><button value="confirm" class="button button-danger" id="confirm-delete">Remove</button></div></form></dialog>' +
-    '<dialog class="confirm-dialog" id="remove-examples-dialog"><form method="dialog"><h2>Remove imported game examples?</h2><p>This removes imported examples from this browser, including any edits made to them. Your other drafts stay.</p><div class="dialog-actions"><button value="cancel" class="button button-outline">Keep examples</button><button value="confirm" class="button button-danger">Remove examples</button></div></form></dialog>' +
     (hasErrors && !focusedDialogueTitle ? '<div class="global-error-dot" title="Fix validation errors before treating this content as ready"></div>' : "") +
     '</div>';
 }

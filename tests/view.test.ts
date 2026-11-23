@@ -76,8 +76,9 @@ describe("editor rendering", () => {
     expect(sidebar).not.toContain("doc-item");
     expect(sidebar).not.toContain("AUTHORING WORKSPACE");
     expect(sidebar).toContain('data-action="open-content-picker"');
-    expect(sidebar).toContain('data-action="open-import"');
-    expect(sidebar).toContain('data-action="export-package"');
+    expect(sidebar).not.toContain('data-action="open-import"');
+    expect(sidebar).not.toContain('data-action="export-package"');
+    expect(html).not.toContain('id="import-file"');
     expect(topbar).not.toContain('data-action="open-import"');
     expect(topbar).not.toContain('data-action="export-active"');
     expect(topbar).not.toContain('data-action="export-package"');

@@ -1,6 +1,6 @@
 import type { Workspace } from "./model";
 
-/** A fresh workspace starts empty. Game content is opt-in through Import examples. */
+/** A fresh workspace starts empty; content is authored locally per set. */
 export function createSeedWorkspace(): Workspace {
   return {
     schemaVersion: 1,
