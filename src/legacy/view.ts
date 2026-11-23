@@ -1916,9 +1916,17 @@ export function renderApp(
     '<div class="app-layout">' +
     renderSidebar() +
     '<button type="button" class="sidebar-backdrop" data-action="close-sidebar" aria-label="Close navigation menu" tabindex="-1"></button>' +
-    '<div class="stage-wrap">' + content + '</div>' +
+    '<div class="stage-wrap">' + content +
+    (item ? '<div class="editor-transfer-bar">' + actionButton("open-transfer", "Import / export JSON", "text-button transfer-button") + '</div>' : '') +
+    '</div>' +
     '</div>' +
     '<div class="toast-region" id="toast-region" aria-live="polite"></div>' +
+    '<dialog class="confirm-dialog transfer-dialog" id="transfer-dialog"><form method="dialog"><h2>Transfer content</h2>' +
+    '<p class="section-note">Import or export this workspace as JSON or ZIP. Published sets are the normal way to move content between machines.</p>' +
+    '<label class="field"><span class="field-label">Import JSON or ZIP</span><input id="transfer-file" type="file" accept=".json,.zip,application/json,application/zip"></label>' +
+    '<div class="dialog-actions"><button value="cancel" class="button button-outline">Close</button>' +
+    '<button type="button" class="button button-outline" data-action="export-active">Download JSON</button>' +
+    '<button type="button" class="button button-primary" data-action="export-package">Export ZIP</button></div></form></dialog>' +
     renderContentPicker(workspace) +
     '<dialog class="confirm-dialog" id="confirm-dialog"><form method="dialog"><h2>Remove this item?</h2><p>This only removes the local draft. Downloaded files are unchanged.</p><div class="dialog-actions"><button value="cancel" class="button button-outline">Keep it</button><button value="confirm" class="button button-danger" id="confirm-delete">Remove</button></div></form></dialog>' +
     (hasErrors && !focusedDialogueTitle ? '<div class="global-error-dot" title="Fix validation errors before treating this content as ready"></div>' : "") +

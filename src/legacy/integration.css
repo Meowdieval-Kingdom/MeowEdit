@@ -1,2 +1,6 @@
 /* Keep set/cloud controls reachable in the restored guided editor. */
 .app-shell.guided-shell .topbar { display: flex; }
+
+/* Transfer lives in the editor area, once per content type, not in the topbar. */
+.editor-transfer-bar { display: flex; justify-content: flex-end; max-width: 1040px; margin: 16px auto 0; padding: 0 24px; }
+.editor-transfer-bar .transfer-button { color: #8a948e; font-size: 11px; }

@@ -52,7 +52,7 @@ Dialogue choice decisions store a named result alongside an action. The player-f
 
 ## Army configurations
 
-An Army has a stable ID and contains grid placements, spell IDs, blessing/curse IDs, and optional cell-target selections. Unit IDs use the game's `Faction/UnitName/level` catalog values; building IDs use the same format and can be placed in the same formation. MeowEdit reads unit/building levels, combat stats, descriptions, footprints and spell/blessing metadata from `public/army-catalog-lite.json`, a trimmed companion generated from the full `public/army-catalog.json` snapshot. The lite file keeps authoring previews and footprint-aware collision checks cheap; the Army export continues to store the catalog ID and grid anchor for each entry.
+An Army has a stable ID and contains grid placements, spell IDs, blessing/curse IDs, and optional cell-target selections. Unit IDs use the game's `Faction/UnitName/level` catalog values; building IDs use the same format and can be placed in the same formation. MeowEdit reads unit/building levels, combat stats, descriptions, footprints and spell/blessing metadata from the full `public/army-catalog.json` snapshot. The Army export continues to store the catalog ID and grid anchor for each entry.
 
 ```json
 {
@@ -143,4 +143,4 @@ Local drafts are stored in localStorage, scoped to the signed-in account. Drafts
 
 ## Avatar and army catalogs
 
-`public/unit-roster.json` contains stable Compendium character IDs, display names, factions, supported moods, and portrait paths. At runtime the editor adds every level form from `public/army-catalog-lite.json`'s `units` collection to dialogue and quest character pickers; its `buildings` collection is excluded. Level forms carry their own IDs, while the selected unit name remains the dialogue display-name default. The full `public/army-catalog.json` snapshot retains spells, blessings, mechanics and source fingerprints for integration checks; the editor never downloads it. Refresh catalogs from the Unity checkout with the npm snapshot commands. The editor never scans the game checkout at runtime.
+`public/unit-roster.json` contains stable Compendium character IDs, display names, factions, supported moods, and portrait paths. At runtime the editor adds every level form from `public/army-catalog.json`'s `units` collection to dialogue and quest character pickers; its `buildings` collection is excluded. Level forms carry their own IDs, while the selected unit name remains the dialogue display-name default. The snapshot also retains spells, blessings and mechanics for authoring previews. Refresh catalogs from the Unity checkout with the npm snapshot commands. The editor never scans the game checkout at runtime.

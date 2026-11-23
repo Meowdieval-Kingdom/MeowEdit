@@ -7,7 +7,7 @@ Status legend: **[done]** works in the current build · **[partial]** data/field
 ## 1. Where work happens in v2
 
 - **Content sets** browser: create / rename / open / (admin-gated) delete a set. Badges show Local only / Draft vN / Published.
-- **New set** → 5-step guided wizard: Set details → Campaign → Board character → Content → Review & publish.
+- **New set** → set ID and name prompts, then the set dashboard. All authoring happens in the single classic editor.
 - **Open set** → per-category list (Campaigns / Quests / Armies / Dialogues) with Add / Edit / Remove.
 - **Edit entry** → category editor with a **Advanced** tab for full structured fields, stable IDs and registry parameters.
 - **Save / Upload** creates or updates a private draft in Neon; **Publish** makes it the latest public revision and warns that tester progress resets.
@@ -128,4 +128,4 @@ Core jobs: create without manual IDs, continue a draft, make a narrow edit, buil
 
 ## 9. Workflow-to-test map
 
-Current automated coverage lives in `tests/v2-contract.test.ts` (schema, registries, fixtures), `tests/v2-schema-agreement.test.ts` (JSON Schema ↔ zod), and `tests/v2-app.test.ts` (set browser, guided wizard, per-category lists, rich editors, raw fields, validation fixes, save/publish). Tests are the executable form of this checklist; rows marked **[missing]** have no test because the screen does not exist.
+Current automated coverage lives in `tests/v2-contract.test.ts` (schema, registries, fixtures), `tests/v2-schema-agreement.test.ts` (JSON Schema ↔ zod), `tests/v2-app.test.ts` (set browser, set dashboard, save/publish, session), `tests/legacy-editor.test.ts` (all four restored editor screens and the cloud boundary), and the original v1 module tests under `tests/`. Tests are the executable form of this checklist; rows marked **[missing]** have no test because the screen does not exist.

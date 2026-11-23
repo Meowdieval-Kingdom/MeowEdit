@@ -34,6 +34,12 @@ import { getBridgeActions } from "../bridge-context";
 import type { ContentSetV2Document, GameCapabilities } from "../v2/types";
 import { workspaceToDraft } from "./convert";
 import { loadWorkspace, saveWorkspace as persistWorkspace } from "./workspace-store";
+import {
+  activeDialogueJson, activeArmyJson, activeCampaignJson, activeQuestJson,
+  decodeZipText, parseImportedJson, suggestedFilename, workspacePackage
+} from "./export";
+import { readStoredZip } from "./zip";
+import { normalizeArmy, normalizeCampaign, normalizeQuest } from "./import-normalizers";
 import { escapeHtml, renderApp, renderLivePreview, renderValidationSummary, renderArmyEntityPreview, renderArmyAbilityPreview, type ArmyAbilityFilters, type ArmyAbilityKind, type ArmyAbilitySelections, type EditorMode } from "./view";
 
 const initialEditorSession = (() => {
@@ -222,6 +228,10 @@ function render(): void {
     })
     : null;
   document.querySelector<HTMLDialogElement>("#confirm-dialog")?.addEventListener("close", handleDeleteDialogClose);
+  document.querySelector<HTMLDialogElement>("#transfer-dialog")?.addEventListener("close", () => {
+    const picker = document.querySelector<HTMLInputElement>("#transfer-file");
+    if (picker) picker.value = "";
+  });
   if (editorMode === "guided") {
     window.requestAnimationFrame(() => {
       if (currentRenderVersion !== renderVersion || editorMode !== "guided") return;
@@ -1270,6 +1280,264 @@ function showToast(message: string, tone: "success" | "warning" | "error" = "suc
   }, 3200);
 }
 
+function download(filename: string, content: Blob | string, mime = "application/json"): void {
+  const blob = content instanceof Blob ? content : new Blob([content], { type: mime + ";charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
+function exportActive(): void {
+  const dialogue = currentDialogue();
+  if (dialogue) {
+    download(suggestedFilename("dialogue", dialogue.sequence.sequenceId), activeDialogueJson(dialogue));
+    showToast("Dialogue JSON downloaded.");
+    return;
+  }
+  const quest = currentQuest();
+  if (quest) {
+    download(suggestedFilename("quest", quest.definition.id), activeQuestJson(quest));
+    showToast("Quest JSON downloaded.");
+    return;
+  }
+  const army = currentArmy();
+  if (army) {
+    download(suggestedFilename("army", army.id), activeArmyJson(army));
+    showToast("Army JSON downloaded.");
+    return;
+  }
+  const campaign = currentCampaign();
+  if (campaign) {
+    download(suggestedFilename("campaign", campaign.id), activeCampaignJson(campaign));
+    showToast("Campaign JSON downloaded.");
+  }
+}
+
+function exportPackage(): void {
+  const filename = "meowdieval-content-" + new Date().toISOString().slice(0, 10) + ".zip";
+  download(filename, workspacePackage(workspace, roster), "application/zip");
+  showToast("Campaign content package downloaded.");
+}
+
+function importedDefaultContinue(rawNode: Record<string, any>, index: number, nodes: Array<Record<string, any>>): Record<string, any> | undefined {
+  const actions = Array.isArray(rawNode.actions) ? rawNode.actions as Array<Record<string, any>> : [];
+  const marked = actions.find(action => action.meowEdit?.defaultContinue === true);
+  if (marked) return marked;
+  if (actions.length !== 1) return undefined;
+  const action = actions[0];
+  const label = String(action.label ?? "Continue").trim() || "Continue";
+  if (label !== "Continue" || action.decision || action.meowEdit?.decision) return undefined;
+  const nextId = String(nodes[index + 1]?.id ?? "");
+  return String(action.targetNodeId ?? "") === nextId ? action : undefined;
+}
+
+function normalizeDialogue(value: unknown): DialogueRecord {
+  const source = value as Record<string, any>;
+  const workspaceMeta = source._meowEditWorkspace ?? {};
+  const nodes = Array.isArray(source.nodes) ? source.nodes : [];
+  const sequence = {
+    schemaVersion: 1 as const,
+    sequenceId: String(source.sequenceId ?? "imported-dialogue"),
+    startNodeId: String(source.startNodeId ?? nodes[0]?.id ?? ""),
+    pauseMode: source.pauseMode === "continue" ? "continue" as const : "pause" as const,
+    defaultCharactersPerSecond: Number(source.defaultCharactersPerSecond ?? 34),
+    nodes: nodes.map((rawNode: Record<string, any>, nodeIndex: number) => {
+      const defaultContinue = importedDefaultContinue(rawNode, nodeIndex, nodes);
+      return {
+      id: String(rawNode.id ?? "node"),
+      headline: String(rawNode.headline ?? ""),
+      ...(workspaceMeta.nodeNames?.[String(rawNode.id)] ? { editorLabel: String(workspaceMeta.nodeNames[String(rawNode.id)]) } : {}),
+      ...(workspaceMeta.nodePositions?.[String(rawNode.id)] && typeof workspaceMeta.nodePositions[String(rawNode.id)] === "object"
+        ? { editorPosition: {
+          x: Number(workspaceMeta.nodePositions[String(rawNode.id)].x ?? 0),
+          y: Number(workspaceMeta.nodePositions[String(rawNode.id)].y ?? 0),
+          reverse: workspaceMeta.nodePositions[String(rawNode.id)].reverse === true
+        } }
+        : {}),
+      textSpeed: String(rawNode.textSpeed ?? "default"),
+      speakers: Array.isArray(rawNode.speakers) ? rawNode.speakers.map((speaker: Record<string, any>, index: number) => ({
+        id: String(speaker.id ?? "speaker-" + (index + 1)),
+        unitId: String(speaker.unitId ?? ""),
+        displayName: String(speaker.displayName ?? ""),
+        side: speaker.side === "right" ? "right" as const : "left" as const,
+        mood: String(speaker.mood ?? "Normal")
+      })) : [],
+      segments: Array.isArray(rawNode.segments) ? rawNode.segments.map((segment: Record<string, any>) => ({
+        speakerIds: Array.isArray(segment.speakerIds) ? segment.speakerIds.map(String) : [],
+        text: String(segment.text ?? "")
+      })) : [],
+      ...(defaultContinue
+        ? {
+          continueLabel: String(defaultContinue.label ?? "Continue"),
+          continueTargetNodeId: String(defaultContinue.targetNodeId ?? "")
+        }
+        : rawNode.continueLabel ? { continueLabel: String(rawNode.continueLabel) } : {}),
+      actions: Array.isArray(rawNode.actions) ? rawNode.actions.filter((action: Record<string, any>) => action !== defaultContinue).map((action: Record<string, any>, index: number) => {
+        const decision = action.meowEdit?.decision ?? action.decision;
+        return {
+          label: String(action.label ?? "Continue"),
+          targetNodeId: String(action.targetNodeId ?? ""),
+          ...(decision ? { decision: {
+            id: String(decision.id ?? ""),
+            label: String(decision.label ?? ""),
+            outcomeId: String(decision.outcomeId ?? ""),
+            outcomeLabel: String(decision.outcomeLabel ?? action.label ?? "Choice " + (index + 1))
+          } } : {})
+        };
+      }) : []
+      };
+    })
+  };
+  return {
+    key: createKey("dialogue-import"),
+    sequenceIdAuto: workspaceMeta.sequenceIdAuto === true,
+    sequence
+  };
+}
+
+function mergeDialogue(record: DialogueRecord): void {
+  const index = workspace.dialogues.findIndex(item => item.sequence.sequenceId === record.sequence.sequenceId);
+  if (index >= 0) workspace.dialogues[index] = { ...record, key: workspace.dialogues[index].key };
+  else workspace.dialogues.push(record);
+  workspace.selectedType = "dialogue";
+  workspace.selectedKey = index >= 0 ? workspace.dialogues[index].key : record.key;
+  workspace.activeNodeId = record.sequence.startNodeId;
+  activeEditorStep = 0;
+}
+
+function mergeQuest(record: QuestRecord): void {
+  const index = workspace.quests.findIndex(item => item.definition.id === record.definition.id);
+  if (index >= 0) workspace.quests[index] = { ...record, key: workspace.quests[index].key };
+  else workspace.quests.push(record);
+  workspace.selectedType = "quest";
+  workspace.selectedKey = index >= 0 ? workspace.quests[index].key : record.key;
+  workspace.activeNodeId = null;
+  activeEditorStep = 0;
+}
+
+function mergeArmy(record: ArmyRecord): void {
+  const index = workspace.armies.findIndex(item => item.id === record.id);
+  if (index >= 0) workspace.armies[index] = { ...record, key: workspace.armies[index].key };
+  else workspace.armies.push(record);
+  workspace.selectedType = "army";
+  workspace.selectedKey = index >= 0 ? workspace.armies[index].key : record.key;
+  workspace.activeNodeId = null;
+  activeEditorStep = 0;
+}
+
+function mergeCampaign(record: CampaignRecord): void {
+  const index = workspace.campaigns.findIndex(item => item.id === record.id);
+  if (index >= 0) workspace.campaigns[index] = { ...record, key: workspace.campaigns[index].key };
+  else workspace.campaigns.push(record);
+  workspace.selectedType = "campaign";
+  workspace.selectedKey = index >= 0 ? workspace.campaigns[index].key : record.key;
+  workspace.activeNodeId = null;
+  selectedCampaignFloorId = (index >= 0 ? workspace.campaigns[index] : record).floors[0]?.id ?? null;
+  selectedCampaignNodeId = (index >= 0 ? workspace.campaigns[index] : record).floors[0]?.nodes[0]?.id ?? null;
+  activeEditorStep = 0;
+}
+
+function importJsonObject(value: unknown): number {
+  if (!value || typeof value !== "object") throw new Error("This file does not contain a MeowEdit content document.");
+  const source = value as Record<string, any>;
+  let imported = 0;
+  if (source.format === "meowedit-workspace") {
+    for (const raw of source.dialogues ?? []) {
+      const record = normalizeDialogue(raw);
+      mergeDialogue(record);
+      imported += 1;
+    }
+    for (const raw of source.quests ?? []) {
+      const record = normalizeQuest(raw);
+      mergeQuest(record);
+      imported += 1;
+    }
+    for (const raw of source.armies ?? []) {
+      mergeArmy(normalizeArmy(raw));
+      imported += 1;
+    }
+    for (const raw of source.campaigns ?? []) {
+      mergeCampaign(normalizeCampaign(raw));
+      imported += 1;
+    }
+    return imported;
+  }
+  if ((source.format === "meowedit-campaign" || source.format === "meowdieval-campaign") && source.campaign) {
+    mergeCampaign(normalizeCampaign(source));
+    return 1;
+  }
+  if (source.format === "meowedit-army" && source.army) {
+    mergeArmy(normalizeArmy(source.army));
+    return 1;
+  }
+  if (Array.isArray(source.quests)) {
+    for (const raw of source.quests) {
+      mergeQuest(normalizeQuest(raw));
+      imported += 1;
+    }
+    return imported;
+  }
+  if (Array.isArray(source.nodes) && source.sequenceId) {
+    mergeDialogue(normalizeDialogue(source));
+    return 1;
+  }
+  throw new Error("Choose a MeowEdit workspace, an Adventure quest JSON, or a dialogue sequence JSON.");
+}
+
+function importZip(bytes: Uint8Array): number {
+  const files = readStoredZip(bytes);
+  let imported = 0;
+  for (const [path, data] of files) {
+    if (/\/armies\/ArmyConfigurations\.json$/i.test(path)) {
+      const source = parseImportedJson(decodeZipText(data)) as Record<string, any>;
+      for (const raw of source.armies ?? []) {
+        mergeArmy(normalizeArmy(raw));
+        imported += 1;
+      }
+    }
+  }
+  for (const [path, data] of files) {
+    if (/\/campaigns\/Campaigns\.json$/i.test(path)) {
+      const source = parseImportedJson(decodeZipText(data)) as Record<string, any>;
+      for (const raw of source.campaigns ?? []) { mergeCampaign(normalizeCampaign(raw)); imported += 1; }
+    }
+  }
+  for (const [path, data] of files) {
+    if (/\/quests\/Definitions\.json$/i.test(path)) {
+      imported += importJsonObject(parseImportedJson(decodeZipText(data)));
+    }
+  }
+  for (const [path, data] of files) {
+    if (/\/dialogues\/[^/]+\.json$/i.test(path)) {
+      imported += importJsonObject(parseImportedJson(decodeZipText(data)));
+    }
+  }
+  if (imported === 0) throw new Error("No quest or dialogue JSON files were found in this package.");
+  return imported;
+}
+
+async function importFile(file: File): Promise<void> {
+  try {
+    let imported: number;
+    if (file.name.toLowerCase().endsWith(".zip")) {
+      imported = importZip(new Uint8Array(await file.arrayBuffer()));
+    } else {
+      imported = importJsonObject(parseImportedJson(await file.text()));
+    }
+    saveWorkspace();
+    render();
+    showToast("Imported " + imported + " content item" + (imported === 1 ? "" : "s") + ".");
+  } catch (error) {
+    showToast(error instanceof Error ? error.message : "Could not import this file.", "error");
+  } finally {
+    const picker = document.querySelector<HTMLInputElement>("#import-file");
+    if (picker) picker.value = "";
+  }
+}
+
 function setMobileSidebarOpen(open: boolean): void {
   const sidebar = root!.querySelector<HTMLElement>(".sidebar");
   const appLayout = root!.querySelector<HTMLElement>(".app-layout");
@@ -1949,6 +2217,9 @@ function onAction(button: HTMLButtonElement): void {
       syncDraft();
       mountOptions?.onBack();
       return;
+    case "open-transfer": document.querySelector<HTMLDialogElement>("#transfer-dialog")?.showModal(); return;
+    case "export-active": exportActive(); return;
+    case "export-package": exportPackage(); return;
     case "bridge-sign-out":
       getBridgeActions()?.signOut();
       return;
@@ -2178,6 +2449,13 @@ root.addEventListener("drop", event => {
   const x = Math.round((event.clientX - rect.left - Number(canvas.dataset.offsetX ?? 0)) / snap);
   const y = Math.round((event.clientY - rect.top - Number(canvas.dataset.offsetY ?? 0)) / snap);
   moveCampaignNodeTo(nodeId, x, y);
+});
+
+root.addEventListener("change", event => {
+  const element = event.target;
+  if (element instanceof HTMLInputElement && element.id === "transfer-file" && element.files?.[0]) {
+    void importFile(element.files[0]);
+  }
 });
 
 window.addEventListener("beforeunload", () => { saveWorkspace(); persistEditorSession(); });

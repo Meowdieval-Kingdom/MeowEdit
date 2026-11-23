@@ -365,31 +365,4 @@ const catalog = {
 
 const outputPath = path.resolve(outputIndex >= 0 ? process.argv[outputIndex + 1] ?? "" : path.join(projectDirectory, "public", "army-catalog.json"));
 writeFileSync(outputPath, JSON.stringify(catalog, null, 2) + "\n", "utf8");
-
-/**
- * The editor only needs previews, footprints and ability metadata. Publish a
- * lite companion so the browser never downloads mechanics, source hashes or art paths.
- */
-const liteEntity = item => ({
-  id: item.id,
-  name: item.name,
-  levels: item.levels.map(level => ({
-    id: level.id, level: level.level, description: level.description,
-    footprint: level.footprint, stats: level.stats
-  }))
-});
-const liteAbility = item => ({
-  id: item.id, name: item.name, family: item.family,
-  isCurse: item.isCurse, description: item.description
-});
-const lite = {
-  schemaVersion: 1,
-  units: units.map(liteEntity),
-  buildings: buildings.map(liteEntity),
-  spells: spellEntries.map(liteAbility),
-  blessings: blessingEntries.map(liteAbility),
-  curses: curseEntries.map(liteAbility)
-};
-const litePath = path.join(path.dirname(outputPath), "army-catalog-lite.json");
-writeFileSync(litePath, JSON.stringify(lite, null, 2) + "\n", "utf8");
-console.log(`Wrote ${units.length} unit roots, ${buildings.length} building roots, ${spellEntries.length} spells, ${blessingEntries.length} blessings, and ${curseEntries.length} curses to ${outputPath} (plus editor lite catalog ${litePath}).`);
+console.log(`Wrote ${units.length} unit roots, ${buildings.length} building roots, ${spellEntries.length} spells, ${blessingEntries.length} blessings, and ${curseEntries.length} curses to ${outputPath}.`);

@@ -95,6 +95,21 @@ describe("restored v1 editor", () => {
     await vi.waitFor(() => expect(document.querySelector(".campaign-floor-tab")).not.toBeNull());
   });
 
+  it("offers JSON transfer once inside each content editor, not in the topbar", async () => {
+    const fullSet = JSON.parse(readFileSync(path.resolve(process.cwd(), "contract/v2/fixtures/valid-set.fixture.json"), "utf8")) as ContentSetV2Document;
+    const { mountLegacyEditor } = await import("../src/legacy/main");
+    const mount = (section: string, index: number) => mountLegacyEditor({
+      setId: "transfer-set", draft: fullSet, capabilities,
+      selected: { section, index }, onSave: vi.fn(), onDraftChange: vi.fn(), onBack: vi.fn()
+    });
+    for (const section of ["dialogues", "quests", "armies", "campaigns"]) {
+      mount(section, 0);
+      await vi.waitFor(() => expect(document.querySelector(".editor-transfer-bar")).not.toBeNull());
+      expect(document.querySelectorAll('.editor-transfer-bar [data-action="open-transfer"]')).toHaveLength(1);
+      expect(document.querySelector('.topbar-actions [data-action="open-transfer"]')).toBeNull();
+    }
+  });
+
   it("round-trips a v2 draft through the v1 workspace without losing v2-only fields", () => {
     const draft = draftWithArmy();
     draft.campaigns.push({
