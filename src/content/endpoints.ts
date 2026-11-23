@@ -52,6 +52,24 @@ export interface PublishResponse {
   publishedAt: string;
 }
 
+export interface ContentRevisionSummary {
+  packageId: string;
+  contentHash: string;
+  publishedAt: string;
+  isCurrent: boolean;
+}
+
+export interface ContentRevisionListResponse {
+  schemaVersion: 2;
+  setId: string;
+  revisions: ContentRevisionSummary[];
+}
+
+export interface RepointRequest {
+  schemaVersion: 2;
+  packageId: string;
+}
+
 export interface DraftConflictResponse {
   error: string;
   code: "draft_conflict";

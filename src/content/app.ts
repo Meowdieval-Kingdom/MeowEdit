@@ -3,7 +3,8 @@ import {
   canDeleteSets, canPublish, getBridgeActions, getBridgeFetch, getBridgeUserId
 } from "../bridge-context";
 import {
-  createSetRequest, isDraftConflict, publishRequest, saveDraftRequest
+  createSetRequest, isDraftConflict, publishRequest, saveDraftRequest,
+  type ContentRevisionListResponse, type RepointRequest
 } from "./endpoints";
 import { emptyContentSet, namedRef } from "./factory";
 import { escapeHtml } from "./html";
@@ -202,9 +203,14 @@ function renderBrowser(container: HTMLElement, state: AppState): void {
     badge(summary) +
     '<button type="button" class="text-button" data-rename="' + escapeHtml(summary.setId) + '">Rename</button>' +
     (canDeleteSets()
-      ? '<button type="button" class="text-button danger-text" data-delete="' + escapeHtml(summary.setId) + '">Delete</button>'
+      ? '<button type="button" class="text-button danger-text" data-delete="' + escapeHtml(summary.setId) + '">'
+        + (summary.publishedPackageId ? "Unpublish" : "Delete") + '</button>'
+        + (summary.publishedPackageId
+          ? '<button type="button" class="text-button" data-revisions="' + escapeHtml(summary.setId) + '">Revisions</button>'
+          : "")
       : "") +
-    '<button type="button" class="button button-outline" data-open="' + escapeHtml(summary.setId) + '">Open</button></div>'
+    '<button type="button" class="button button-outline" data-open="' + escapeHtml(summary.setId) + '">Open</button></div>' +
+    '<div class="set-revisions" data-revision-panel="' + escapeHtml(summary.setId) + '" hidden></div>'
   ).join("") : '<div class="set-empty">No content sets yet. Create one to start authoring.</div>';
 
   container.innerHTML = '<main class="editor-shell"><div class="topbar"><div class="topbar-context">' +
@@ -237,6 +243,9 @@ function renderBrowser(container: HTMLElement, state: AppState): void {
   }));
   container.querySelectorAll<HTMLElement>("[data-delete]").forEach(button => button.addEventListener("click", () => {
     void deleteSet(container, state, button.dataset.delete!);
+  }));
+  container.querySelectorAll<HTMLElement>("[data-revisions]").forEach(button => button.addEventListener("click", () => {
+    void showRevisions(container, state, button.dataset.revisions!);
   }));
 }
 
@@ -306,29 +315,81 @@ async function renameSet(container: HTMLElement, state: AppState, setId: string)
   renderBrowser(container, state);
 }
 
+async function showRevisions(container: HTMLElement, state: AppState, setId: string): Promise<void> {
+  if (!canDeleteSets()) return;
+  const panel = container.querySelector<HTMLElement>('[data-revision-panel="' + CSS.escape(setId) + '"]');
+  if (!panel) return;
+  if (!panel.hidden) {
+    panel.hidden = true;
+    panel.innerHTML = "";
+    return;
+  }
+  try {
+    const result = await requestJson<ContentRevisionListResponse>(
+      "/v1/editor/campaign-sets/" + encodeURIComponent(setId) + "/revisions");
+    const revisions = result.revisions;
+    panel.innerHTML = revisions.length
+      ? '<div class="revision-list">' + revisions.map(revision =>
+          '<div class="revision-row"><code>' + escapeHtml(revision.packageId) + "</code>"
+          + "<small>" + escapeHtml(revision.publishedAt) + (revision.isCurrent ? " — current" : "") + "</small>"
+          + (revision.isCurrent ? "" :
+            '<button type="button" class="text-button" data-repoint="'
+            + escapeHtml(setId) + '" data-package="' + escapeHtml(revision.packageId)
+            + '">Restore</button>')
+          + "</div>").join("") + "</div>"
+      : '<p>No published revisions for this set.</p>';
+    panel.hidden = false;
+    panel.querySelectorAll<HTMLElement>("[data-repoint]").forEach(button =>
+      button.addEventListener("click", () => void repointSet(container, state,
+        button.dataset.repoint!, button.dataset.package!)));
+  } catch (error) {
+    state.status = error instanceof Error ? error.message : "Could not load revisions.";
+    renderBrowser(container, state);
+  }
+}
+
+async function repointSet(container: HTMLElement, state: AppState, setId: string, packageId: string): Promise<void> {
+  if (!canDeleteSets()) return;
+  if (!window.confirm("Restore revision " + packageId + "? Players will receive it on next refresh.")) return;
+  const request: RepointRequest = { schemaVersion: 2, packageId };
+  try {
+    await requestJson("/v1/editor/campaign-sets/" + encodeURIComponent(setId) + "/repoint",
+      { method: "POST", body: JSON.stringify(request) });
+    state.status = "Restored " + packageId + ".";
+  } catch (error) {
+    state.status = error instanceof Error ? error.message : "Restore failed.";
+  }
+  await refreshSets(state);
+  renderBrowser(container, state);
+}
+
 async function deleteSet(container: HTMLElement, state: AppState, setId: string): Promise<void> {
   if (!canDeleteSets()) return;
-  if (!window.confirm("Delete content set '" + setId + "'? This cannot be undone.")) return;
+  const summary = state.sets.find(item => item.setId === setId);
+  if (summary?.publishedPackageId) {
+    if (!window.confirm("Unpublish content set '" + setId + "'? Players will stop receiving it; revisions are kept and can be restored.")) return;
+  } else if (!window.confirm("Delete draft content set '" + setId + "'? This cannot be undone.")) return;
   const records = storage();
   const version = records[setId]?.draftVersion ?? state.sets.find(item => item.setId === setId)?.draftVersion ?? 0;
   try {
     if (version > 0)
       await requestJson<{ deleted: boolean }>("/v1/editor/campaign-sets/" + encodeURIComponent(setId), { method: "DELETE" });
   } catch (error) {
-    const status = error instanceof RequestError ? error.status : 0;
-    state.status = status === 404 || status === 405 || status === 501
-      ? "Deletion is not available on this server yet. Nothing was removed."
-      : error instanceof Error ? error.message : "Deletion failed. The set was not removed.";
+    state.status = error instanceof Error ? error.message : "The request failed; nothing was removed.";
     renderBrowser(container, state);
     return;
   }
-  delete records[setId];
-  try {
-    localStorage.setItem(localKey(), JSON.stringify(records));
-  } catch {
-    state.status = "Deleted " + setId + " on the server; the local cache could not be updated.";
+  if (summary?.publishedPackageId) {
+    state.status = state.status || "Unpublished " + setId + "; revisions are kept and can be restored.";
+  } else {
+    delete records[setId];
+    try {
+      localStorage.setItem(localKey(), JSON.stringify(records));
+    } catch {
+      state.status = "Deleted " + setId + " on the server; the local cache could not be updated.";
+    }
+    if (!state.status) state.status = "Deleted " + setId + ".";
   }
-  if (!state.status) state.status = "Deleted " + setId + ".";
   await refreshSets(state);
   renderBrowser(container, state);
 }
