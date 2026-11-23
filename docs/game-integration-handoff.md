@@ -3,9 +3,9 @@
 > **SUPERSEDED — do not implement from this document.** In particular the manual ZIP install
 > steps and the "save pinned to package revision" behaviour below are replaced by structured
 > records in Neon, a generated immutable package, and content-hash save invalidation. The single
-> source of truth is `C:\Users\ekkii\Projects\MeowdievalKingdom\Docs\WIP\MeowEdit-Content-Contract-V2.md`.
+> source of truth is `C:\Users\ekkii\Projects\MeowdievalKingdom\Docs\WIP\MeowEdit-Content-Contract.md`.
 
-MeowEdit is the authoring tool; Meowdieval Kingdom is the runtime. They share one JSON contract for dialogue sequences, quests, Army configurations, and Adventure campaigns. In v2 the game downloads published revisions from the backend catalog by package ID and content hash; the manual ZIP install steps below apply only to historical v1 packages.
+MeowEdit is the authoring tool; Meowdieval Kingdom is the runtime. They share one JSON contract for dialogue sequences, quests, Army configurations, and Adventure campaigns. In structured the game downloads published revisions from the backend catalog by package ID and content hash; the manual ZIP install steps below apply only to historical v1 packages.
 
 ## What the game supports
 
@@ -56,7 +56,7 @@ Export the revised content as a new immutable revision and copy it alongside the
 
 ## MeowEdit tests versus game tests
 
-MeowEdit's Vitest suite tests the browser editor: authoring flows, validation, the native per-set workspace and the v2 package contract. It does not execute Unity.
+MeowEdit's Vitest suite tests the browser editor: authoring flows, validation, the native per-set workspace and the structured package contract. It does not execute Unity.
 
 Meowdieval Kingdom's Unity tests cover JSON package parsing and validation, runtime references, campaign option filtering, campaign map creation, Army-backed encounter rosters, exact shop offers, quest behavior, and save-pinned revisions. Gameplay-sensitive content changes should update both a MeowEdit authoring test and a Kingdom runtime test where applicable.
 

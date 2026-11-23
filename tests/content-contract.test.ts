@@ -3,23 +3,23 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   createSetRequest, publishRequest, saveDraftRequest, ENDPOINT_SCHEMA_VERSION
-} from "../src/v2/endpoints";
-import { packContentSet } from "../src/v2/packer";
+} from "../src/content/endpoints";
+import { packContentSet } from "../src/content/packer";
 import {
   ACTIONS, CONDITIONS, TRIGGERS, findAction, findCondition, isAuthorSelectableTrigger,
   isInternalTrigger, isKnownTrigger, parameterErrors
-} from "../src/v2/registries";
-import type { ContentSetV2Document, GameCapabilities } from "../src/v2/types";
-import { validateContentSet } from "../src/v2/validation";
+} from "../src/content/registries";
+import type { ContentSetDocument, GameCapabilities } from "../src/content/types";
+import { validateContentSet } from "../src/content/validation";
 
-const fixtureDirectory = path.resolve(process.cwd(), "contract/v2/fixtures");
+const fixtureDirectory = path.resolve(process.cwd(), "contract/content/fixtures");
 
 function fixture(name: string): unknown {
   return JSON.parse(readFileSync(path.join(fixtureDirectory, name), "utf8"));
 }
 
 const capabilities = fixture("capabilities.fixture.json") as GameCapabilities;
-const validSet = fixture("valid-set.fixture.json") as ContentSetV2Document;
+const validSet = fixture("valid-set.fixture.json") as ContentSetDocument;
 
 function resolvePath(root: unknown, dotted: string): { parent: Record<string, unknown>; key: string } {
   const parts = dotted.replace(/\[(\d+)\]/g, ".$1").split(".");
@@ -39,7 +39,7 @@ function patched(patchName: string): unknown {
   return result;
 }
 
-describe("v2 contract fixtures", () => {
+describe("structured contract fixtures", () => {
   it("accepts the hand-authored valid set", () => {
     expect(validateContentSet(validSet, capabilities).valid).toBe(true);
   });
@@ -75,7 +75,7 @@ describe("v2 contract fixtures", () => {
     expect(isAuthorSelectableTrigger("node-cleared")).toBe(false);
     expect(isAuthorSelectableTrigger("campaign-start")).toBe(true);
 
-    const internal = structuredClone(validSet) as ContentSetV2Document;
+    const internal = structuredClone(validSet) as ContentSetDocument;
     internal.campaigns[0].events[0].trigger = "node-cleared";
     expect(validateContentSet(internal, capabilities).valid).toBe(true);
 
@@ -115,7 +115,7 @@ describe("v2 contract fixtures", () => {
   });
 
   it("checks campaign graph rules with readable messages", () => {
-    const broken = structuredClone(validSet) as ContentSetV2Document;
+    const broken = structuredClone(validSet) as ContentSetDocument;
     broken.campaigns[0].floors[0].nodes[1].x = 4;
     broken.campaigns[0].floors[0].nodes[1].shopOfferMode = "exact";
     const result = validateContentSet(broken, capabilities);
@@ -125,13 +125,13 @@ describe("v2 contract fixtures", () => {
     expect(codes).toContain("exact-shop-offers");
     expect(result.issues.every(issue => issue.hint && issue.message.length > 20)).toBe(true);
 
-    const disconnected = structuredClone(validSet) as ContentSetV2Document;
+    const disconnected = structuredClone(validSet) as ContentSetDocument;
     disconnected.campaigns[0].floors[0].routes = [];
     expect(validateContentSet(disconnected, capabilities).issues.map(issue => issue.code)).toContain("unreachable-nodes");
   });
 
   it("reports dialogue structure problems", () => {
-    const broken = structuredClone(validSet) as ContentSetV2Document;
+    const broken = structuredClone(validSet) as ContentSetDocument;
     broken.dialogues[0].nodes[0].actions[0].targetNodeId = "missing-moment";
     broken.dialogues[0].nodes[0].headline.default = "";
     const codes = validateContentSet(broken, capabilities).issues.map(issue => issue.code);
@@ -140,14 +140,14 @@ describe("v2 contract fixtures", () => {
   });
 
   it("accepts dialogue-only sets and only warns on a completely empty set", () => {
-    const dialogueOnly = structuredClone(validSet) as ContentSetV2Document;
+    const dialogueOnly = structuredClone(validSet) as ContentSetDocument;
     dialogueOnly.campaigns = [];
     dialogueOnly.set.campaignOrder = [];
     dialogueOnly.quests = [];
     dialogueOnly.armies = [];
     expect(validateContentSet(dialogueOnly, capabilities).valid).toBe(true);
 
-    const empty = structuredClone(dialogueOnly) as ContentSetV2Document;
+    const empty = structuredClone(dialogueOnly) as ContentSetDocument;
     empty.dialogues = [];
     const result = validateContentSet(empty, capabilities);
     expect(result.valid).toBe(true);
@@ -172,7 +172,7 @@ describe("v2 contract fixtures", () => {
     expect(findCondition("Floor-N")).toBeUndefined();
     expect(findCondition("floor-n")).toBeDefined();
 
-    const wrongCase = structuredClone(validSet) as ContentSetV2Document;
+    const wrongCase = structuredClone(validSet) as ContentSetDocument;
     wrongCase.campaigns[0].events[0].trigger = "Campaign-Start";
     expect(validateContentSet(wrongCase, capabilities).valid).toBe(false);
   });

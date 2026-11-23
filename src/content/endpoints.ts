@@ -1,4 +1,4 @@
-import type { ContentSetV2Document, GameCapabilities, LocalizedText } from "./types";
+import type { ContentSetDocument, GameCapabilities, LocalizedText } from "./types";
 
 /** Structured HTTP contract payloads (§8). Bodies have `schemaVersion: 2`; errors are `{ error, code }`. */
 export const ENDPOINT_SCHEMA_VERSION = 2;
@@ -26,19 +26,19 @@ export interface CampaignSetListResponse {
 export interface CampaignSetDraftResponse {
   setId: string;
   draftVersion: number;
-  draft: ContentSetV2Document;
+  draft: ContentSetDocument;
 }
 
 export interface CreateSetRequest {
   schemaVersion: 2;
   setId: string;
-  draft: ContentSetV2Document;
+  draft: ContentSetDocument;
 }
 
 export interface SaveDraftRequest {
   schemaVersion: 2;
   expectedDraftVersion: number;
-  draft: ContentSetV2Document;
+  draft: ContentSetDocument;
 }
 
 export interface PublishRequest {
@@ -81,11 +81,11 @@ export interface ContentPackageResponse {
   files: Array<{ path: string; content: string }>;
 }
 
-export function createSetRequest(setId: string, draft: ContentSetV2Document): CreateSetRequest {
+export function createSetRequest(setId: string, draft: ContentSetDocument): CreateSetRequest {
   return { schemaVersion: ENDPOINT_SCHEMA_VERSION, setId, draft };
 }
 
-export function saveDraftRequest(expectedDraftVersion: number, draft: ContentSetV2Document): SaveDraftRequest {
+export function saveDraftRequest(expectedDraftVersion: number, draft: ContentSetDocument): SaveDraftRequest {
   return { schemaVersion: ENDPOINT_SCHEMA_VERSION, expectedDraftVersion, draft };
 }
 

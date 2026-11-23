@@ -1,8 +1,8 @@
 import { z } from "zod";
-import registry from "../../contract/v2/registries.json";
+import registry from "../../contract/content/registries.json";
 
 /**
- * Strict zod schemas mirroring contract/v2/schema/content-set-v2.schema.json (§9.2).
+ * Strict zod schemas mirroring contract/content/schema/content-set.schema.json (§9.2).
  * Every enum below is derived from the single shared registry so this mirror
  * cannot silently drift from the JSON Schema or the backend validator.
  */
@@ -252,7 +252,7 @@ export const dialogueDocumentSchema = z.object({
   }).strict()).min(1)
 }).strict();
 
-export const contentSetV2Schema = z.object({
+export const contentSetSchema = z.object({
   schemaVersion: z.literal(2),
   set: setDocumentSchema,
   quests: z.array(questDocumentSchema),

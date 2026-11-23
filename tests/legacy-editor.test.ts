@@ -4,14 +4,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resetBridgeState, setBridgeState } from "../src/bridge-context";
 import { draftToWorkspace, workspaceToDraft } from "../src/legacy/convert";
 import { loadWorkspace, saveWorkspace } from "../src/legacy/workspace-store";
-import { emptyContentSet, localized, namedRef } from "../src/v2/factory";
-import type { ContentSetV2Document, GameCapabilities } from "../src/v2/types";
+import { emptyContentSet, localized, namedRef } from "../src/content/factory";
+import type { ContentSetDocument, GameCapabilities } from "../src/content/types";
 
 const capabilities = JSON.parse(readFileSync(path.resolve(process.cwd(), "public/game-capabilities.json"), "utf8")) as GameCapabilities;
 const catalog = JSON.parse(readFileSync(path.resolve(process.cwd(), "public/army-catalog.json"), "utf8"));
 const roster = JSON.parse(readFileSync(path.resolve(process.cwd(), "public/unit-roster.json"), "utf8"));
 
-function draftWithArmy(): ContentSetV2Document {
+function draftWithArmy(): ContentSetDocument {
   const draft = emptyContentSet("legacy-set", "Legacy Set");
   draft.armies.push({
     schemaVersion: 2, id: "test-army", name: localized("Test Army"),
@@ -77,7 +77,7 @@ describe("restored v1 editor", () => {
   });
 
   it("renders the v1 dialogue, quest and campaign screens with their real layouts", async () => {
-    const fullSet = JSON.parse(readFileSync(path.resolve(process.cwd(), "contract/v2/fixtures/valid-set.fixture.json"), "utf8")) as ContentSetV2Document;
+    const fullSet = JSON.parse(readFileSync(path.resolve(process.cwd(), "contract/content/fixtures/valid-set.fixture.json"), "utf8")) as ContentSetDocument;
     const { mountLegacyEditor } = await import("../src/legacy/main");
     const mount = (section: string, index: number) => mountLegacyEditor({
       setId: "legacy-set",
@@ -96,7 +96,7 @@ describe("restored v1 editor", () => {
   });
 
   it("offers JSON transfer once inside each content editor, not in the topbar", async () => {
-    const fullSet = JSON.parse(readFileSync(path.resolve(process.cwd(), "contract/v2/fixtures/valid-set.fixture.json"), "utf8")) as ContentSetV2Document;
+    const fullSet = JSON.parse(readFileSync(path.resolve(process.cwd(), "contract/content/fixtures/valid-set.fixture.json"), "utf8")) as ContentSetDocument;
     const { mountLegacyEditor } = await import("../src/legacy/main");
     const mount = (section: string, index: number) => mountLegacyEditor({
       setId: "transfer-set", draft: fullSet, capabilities,
@@ -110,7 +110,7 @@ describe("restored v1 editor", () => {
     }
   });
 
-  it("round-trips a v2 draft through the v1 workspace without losing v2-only fields", () => {
+  it("round-trips a structured draft through the v1 workspace without losing structured-only fields", () => {
     const draft = draftWithArmy();
     draft.campaigns.push({
       schemaVersion: 2, id: "campaign-1", name: localized("Campaign"), description: localized(""),
@@ -150,8 +150,8 @@ describe("restored v1 editor", () => {
 
   it("round-trips auto-accept and per-campaign sardine payout settings", () => {
     const draft = draftWithArmy();
-    const v2 = JSON.parse(JSON.stringify(draft)) as ContentSetV2Document;
-    v2.quests.push({
+    const structured = JSON.parse(JSON.stringify(draft)) as ContentSetDocument;
+    structured.quests.push({
       schemaVersion: 2, id: "intro", title: localized("Intro"), description: localized(""),
       acceptLabel: localized("Accept"), declineLabel: localized("Decline"), autoAccept: true,
       meowEdit: {
@@ -165,7 +165,7 @@ describe("restored v1 editor", () => {
         killCount: { targetKind: "unit", targetId: namedRef("unit"), count: 1 }, minimumNodeDistances: []
       }
     });
-    v2.campaigns.push({
+    structured.campaigns.push({
       schemaVersion: 2, id: "mission", name: localized("Mission"), description: localized(""),
       boardPreviewUnitId: namedRef(""), questIds: [], floors: [], events: [],
       settings: {
@@ -177,17 +177,17 @@ describe("restored v1 editor", () => {
         sardinePayoutBase: 7, sardinePayoutPerFloor: 3
       }
     });
-    const workspace = draftToWorkspace(v2, capabilities);
+    const workspace = draftToWorkspace(structured, capabilities);
     expect(workspace.quests[0].definition.autoAccept).toBe(true);
     expect(workspace.campaigns[0].settings.sardinePayoutEnabled).toBe(false);
     expect(workspace.campaigns[0].settings.sardinePayoutBase).toBe(7);
-    workspaceToDraft(v2, workspace, capabilities);
-    expect(v2.quests[0].autoAccept).toBe(true);
-    expect(v2.campaigns[0].settings.sardinePayoutEnabled).toBe(false);
-    expect(v2.campaigns[0].settings.sardinePayoutPerFloor).toBe(3);
+    workspaceToDraft(structured, workspace, capabilities);
+    expect(structured.quests[0].autoAccept).toBe(true);
+    expect(structured.campaigns[0].settings.sardinePayoutEnabled).toBe(false);
+    expect(structured.campaigns[0].settings.sardinePayoutPerFloor).toBe(3);
   });
 
-  it("maps v1 event armyId to the v2 registry parameter key", () => {
+  it("maps v1 event armyId to the structured registry parameter key", () => {
     const draft = draftWithArmy();
     const workspace = draftToWorkspace(draft, capabilities);
     workspace.campaigns.push({

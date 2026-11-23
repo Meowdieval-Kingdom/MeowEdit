@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "source": "MeowEdit Content Contract v2, sections 6 and 7 (canonical vocabularies)",
+  "source": "MeowEdit Content Contract, sections 6 and 7 (canonical vocabularies)",
   "triggers": [
     "campaign-start",
     "floor-entered",

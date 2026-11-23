@@ -12,7 +12,7 @@ import { APP_VERSION } from "./version";
 import { packContentSet } from "./packer";
 import { loadSession, saveSession } from "./session";
 import { gameCapabilitiesSchema } from "./zod";
-import type { ContentSetV2Document, GameCapabilities } from "./types";
+import type { ContentSetDocument, GameCapabilities } from "./types";
 import { validateContentSet, type ValidationResult } from "./validation";
 
 interface SetSummary {
@@ -24,7 +24,7 @@ interface SetSummary {
 }
 
 interface LocalRecord {
-  draft: ContentSetV2Document;
+  draft: ContentSetDocument;
   draftVersion: number;
   publishedPackageId?: string;
 }
@@ -34,7 +34,7 @@ interface AppState {
   sets: SetSummary[];
   view: "browser" | "set";
   setId: string;
-  draft: ContentSetV2Document;
+  draft: ContentSetDocument;
   draftVersion: number;
   publishedPackageId?: string;
   status: string;
@@ -50,7 +50,7 @@ const SECTION_LABELS: Record<DetailSection, string> = {
 const SECTIONS = Object.keys(SECTION_LABELS) as DetailSection[];
 
 function localKey(): string {
-  return "meowedit.v2.sets." + (getBridgeUserId() ?? "local");
+  return "meowedit.content.sets." + (getBridgeUserId() ?? "local");
 }
 
 function storage(): Record<string, LocalRecord> {
@@ -142,7 +142,7 @@ async function loadCapabilities(): Promise<GameCapabilities> {
   return parsed.data;
 }
 
-function newCampaign(id: string, name: string, capabilities: GameCapabilities): ContentSetV2Document["campaigns"][number] {
+function newCampaign(id: string, name: string, capabilities: GameCapabilities): ContentSetDocument["campaigns"][number] {
   return {
     schemaVersion: 2, id, name: { default: name, locales: {} }, description: { default: "", locales: {} },
     boardPreviewUnitId: namedRef(capabilities.ids.units[0] ?? "unknown-unit"),
@@ -173,11 +173,11 @@ function badge(summary: SetSummary): string {
   return '<span class="set-badge local">Local only</span>';
 }
 
-function entryCount(draft: ContentSetV2Document, section: DetailSection): number {
+function entryCount(draft: ContentSetDocument, section: DetailSection): number {
   return draft[section].length;
 }
 
-function entryLabel(draft: ContentSetV2Document, section: DetailSection, index: number): string {
+function entryLabel(draft: ContentSetDocument, section: DetailSection, index: number): string {
   const item = draft[section][index] as unknown as Record<string, unknown> | undefined;
   if (!item) return "(missing)";
   if (section === "dialogues") return String((item.sequenceId as string) ?? "");
@@ -269,7 +269,7 @@ async function renameSet(container: HTMLElement, state: AppState, setId: string)
   let version = records[setId]?.draftVersion ?? 0;
   if (summary && summary.draftVersion > 0) {
     try {
-      const loaded = await requestJson<{ draft: ContentSetV2Document; draftVersion: number }>(
+      const loaded = await requestJson<{ draft: ContentSetDocument; draftVersion: number }>(
         "/v1/editor/campaign-sets/" + encodeURIComponent(setId));
       draft = loaded.draft;
       version = loaded.draftVersion;
@@ -329,12 +329,12 @@ async function openSet(container: HTMLElement, state: AppState, setId: string): 
   const records = storage();
   const local = records[setId];
   const summary = state.sets.find(item => item.setId === setId);
-  let draft: ContentSetV2Document | undefined;
+  let draft: ContentSetDocument | undefined;
   let version = local?.draftVersion ?? 0;
   const published = local?.publishedPackageId ?? summary?.publishedPackageId;
   if (summary && summary.draftVersion > 0) {
     try {
-      const loaded = await requestJson<{ draftVersion: number; draft: ContentSetV2Document }>(
+      const loaded = await requestJson<{ draftVersion: number; draft: ContentSetDocument }>(
         "/v1/editor/campaign-sets/" + encodeURIComponent(setId));
       draft = loaded.draft;
       version = loaded.draftVersion;
@@ -397,7 +397,7 @@ function renderSetView(container: HTMLElement, state: AppState): void {
     draft.armies.length + " armies · " + draft.dialogues.length + " dialogues</p></div>" +
     '<button type="button" class="button button-primary" data-open-editor>Open editor</button></div>' +
     '<div class="guided-actions">' + tabs + "</div>" + rows +
-    '<section class="v2-validation"><h2>Validation</h2>' + validation + "</section>" +
+    '<section class="content-validation"><h2>Validation</h2>' + validation + "</section>" +
     '<div class="guided-actions"><button type="button" class="button button-outline" data-save>Save / Upload</button>' +
     '<button type="button" class="button button-primary" data-publish' +
     (canPublish() && state.validation.valid ? "" : " disabled") + ">Publish</button></div>" +

@@ -2,9 +2,9 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import Ajv2020 from "ajv/dist/2020";
 import { describe, expect, it } from "vitest";
-import { contentSetV2Schema, gameCapabilitiesSchema } from "../src/v2/zod";
+import { contentSetSchema, gameCapabilitiesSchema } from "../src/content/zod";
 
-const contractDirectory = path.resolve(process.cwd(), "contract/v2");
+const contractDirectory = path.resolve(process.cwd(), "contract/content");
 const schemaDirectory = path.join(contractDirectory, "schema");
 const fixtureDirectory = path.join(contractDirectory, "fixtures");
 
@@ -13,7 +13,7 @@ function json(file: string): unknown {
 }
 
 const ajv = new Ajv2020({ strict: false, allErrors: true });
-const contentSchema = json(path.join(schemaDirectory, "content-set-v2.schema.json")) as object;
+const contentSchema = json(path.join(schemaDirectory, "content-set.schema.json")) as object;
 const capabilitiesSchema = json(path.join(schemaDirectory, "game-capabilities.schema.json")) as object;
 const validateContentJson = ajv.compile(contentSchema);
 const validateCapabilitiesJson = ajv.compile(capabilitiesSchema);
@@ -26,7 +26,7 @@ const generatedCapabilities = json(path.resolve(process.cwd(), "public/game-capa
 function agreed(value: unknown): { jsonSchema: boolean; zod: boolean } {
   return {
     jsonSchema: validateContentJson(value) === true,
-    zod: contentSetV2Schema.safeParse(value).success
+    zod: contentSetSchema.safeParse(value).success
   };
 }
 

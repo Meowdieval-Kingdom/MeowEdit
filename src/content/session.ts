@@ -1,23 +1,23 @@
 import { getBridgeUserId } from "../bridge-context";
 
-export interface V2Session {
+export interface ContentSession {
   view: "browser" | "set";
   help: boolean;
   savedAt: string | null;
   setId: string | null;
 }
 
-const DEFAULT: V2Session = { view: "browser", help: false, savedAt: null, setId: null };
+const DEFAULT: ContentSession = { view: "browser", help: false, savedAt: null, setId: null };
 
 function key(): string {
-  return "meowedit.v2.session." + (getBridgeUserId() ?? "local");
+  return "meowedit.content.session." + (getBridgeUserId() ?? "local");
 }
 
-export function loadSession(): V2Session {
+export function loadSession(): ContentSession {
   try {
     const raw = localStorage.getItem(key());
     if (!raw) return { ...DEFAULT };
-    const loaded = JSON.parse(raw) as Partial<V2Session>;
+    const loaded = JSON.parse(raw) as Partial<ContentSession>;
     return {
       view: loaded.view === "set" ? "set" : "browser",
       help: loaded.help === true,
@@ -29,7 +29,7 @@ export function loadSession(): V2Session {
   }
 }
 
-export function saveSession(session: V2Session): void {
+export function saveSession(session: ContentSession): void {
   try {
     localStorage.setItem(key(), JSON.stringify(session));
   } catch {

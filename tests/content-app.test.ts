@@ -2,8 +2,8 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resetBridgeFetch, resetBridgeState, setBridgeFetch, setBridgeState } from "../src/bridge-context";
-import { mountApp } from "../src/v2/app";
-import { emptyContentSet, localized, namedRef } from "../src/v2/factory";
+import { mountApp } from "../src/content/app";
+import { emptyContentSet, localized, namedRef } from "../src/content/factory";
 
 const capabilities = JSON.parse(readFileSync(path.resolve(process.cwd(), "public/game-capabilities.json"), "utf8"));
 
@@ -81,7 +81,7 @@ describe("set manager and single editor", () => {
     vi.stubGlobal("prompt", vi.fn((_message: string, fallback?: string) => fallback ?? "new-set"));
     container.querySelector<HTMLElement>("[data-new-set]")!.click();
     await vi.waitFor(() => expect(container.textContent).toContain("new-set"));
-    expect(localStorage.getItem("meowedit.v2.sets.author-1")).toContain("new-set");
+    expect(localStorage.getItem("meowedit.content.sets.author-1")).toContain("new-set");
   });
 
   it("opens the classic editor from an entry and returns to the dashboard", async () => {
@@ -89,13 +89,13 @@ describe("set manager and single editor", () => {
     await vi.waitFor(() => expect(container.querySelector("[data-open-editor]")).not.toBeNull());
     container.querySelector<HTMLElement>("[data-edit='campaigns:0']")!.click();
     await vi.waitFor(() => expect(container.querySelector(".app-shell")).not.toBeNull());
-    expect(container.querySelector('[data-action="open-v2-editor"]')).not.toBeNull();
-    container.querySelector<HTMLElement>('[data-action="open-v2-editor"]')!.click();
+    expect(container.querySelector('[data-action="open-content-editor"]')).not.toBeNull();
+    container.querySelector<HTMLElement>('[data-action="open-content-editor"]')!.click();
     await vi.waitFor(() => expect(container.querySelector("[data-open-editor]")).not.toBeNull());
   });
 
   it("reports a hash mismatch when publishing", async () => {
-    const validSet = JSON.parse(readFileSync(path.resolve(process.cwd(), "contract/v2/fixtures/valid-set.fixture.json"), "utf8"));
+    const validSet = JSON.parse(readFileSync(path.resolve(process.cwd(), "contract/content/fixtures/valid-set.fixture.json"), "utf8"));
     setBridgeFetch(async (requestPath, init) => respond(requestPath, init, validSet));
     container.querySelector<HTMLElement>('[data-open="published-set"]')!.click();
     await vi.waitFor(() => expect(container.querySelector("[data-publish]")).not.toBeNull());

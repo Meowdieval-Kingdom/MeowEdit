@@ -1,5 +1,5 @@
 import { getBridgeUserId } from "../bridge-context";
-import type { ContentSetV2Document, GameCapabilities } from "../v2/types";
+import type { ContentSetDocument, GameCapabilities } from "../content/types";
 import { draftToWorkspace } from "./convert";
 import type { Workspace } from "./model";
 
@@ -7,7 +7,7 @@ import type { Workspace } from "./model";
  * The restored editor keeps its native v1 workspace as its own state, scoped
  * per set. Drawflow positions, editor labels, army placement IDs and campaign
  * design mode live here exactly as they did in v1 — they are authoring state,
- * not part of the game's strict v2 content contract.
+ * not part of the game's strict structured content contract.
  */
 
 function workspaceKey(setId: string): string {
@@ -16,7 +16,7 @@ function workspaceKey(setId: string): string {
 
 export function loadWorkspace(
   setId: string,
-  draft: ContentSetV2Document,
+  draft: ContentSetDocument,
   capabilities: GameCapabilities,
   selected?: { section: string; index: number }
 ): Workspace {

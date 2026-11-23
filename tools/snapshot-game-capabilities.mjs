@@ -10,7 +10,7 @@ const gameRoot = path.resolve(gameRootIndex >= 0 ? process.argv[gameRootIndex + 
 const outputIndex = process.argv.indexOf("--output");
 const outputPath = path.resolve(outputIndex >= 0 ? process.argv[outputIndex + 1] ?? "" : path.join(projectDirectory, "public", "game-capabilities.json"));
 
-const registryPath = path.join(projectDirectory, "contract", "v2", "registries.json");
+const registryPath = path.join(projectDirectory, "contract", "content", "registries.json");
 const catalogPath = path.join(projectDirectory, "public", "army-catalog.json");
 const rosterPath = path.join(projectDirectory, "public", "unit-roster.json");
 

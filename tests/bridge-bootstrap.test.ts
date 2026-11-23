@@ -22,12 +22,12 @@ vi.mock("@neondatabase/auth", () => ({
   }))
 }));
 
-vi.mock("../src/v2/app", () => {
+vi.mock("../src/content/app", () => {
   runtime.appLoaded += 1;
   return { mountApp: runtime.mountApp };
 });
 
-describe("Bridge bootstrap (v2-only)", () => {
+describe("Bridge bootstrap (structured-only)", () => {
   beforeEach(() => {
     vi.resetModules();
     document.body.innerHTML = '<div id="app"></div>';
@@ -61,7 +61,7 @@ describe("Bridge bootstrap (v2-only)", () => {
     expect(runtime.getSession).not.toHaveBeenCalled();
   });
 
-  it("restores an authorized session and loads only the v2 app", async () => {
+  it("restores an authorized session and loads only the structured app", async () => {
     runtime.sessionUser = { id: "stale-client-id" };
     const before = runtime.appLoaded;
     await import("../src/bridge-bootstrap");

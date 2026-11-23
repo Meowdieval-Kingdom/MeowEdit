@@ -5,13 +5,13 @@ import { fileURLToPath } from "node:url";
 
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
 const projectDirectory = path.resolve(scriptDirectory, "..");
-const contractDirectory = path.join(projectDirectory, "contract", "v2");
+const contractDirectory = path.join(projectDirectory, "contract", "content");
 const schemaDirectory = path.join(contractDirectory, "schema");
 const fixturesDirectory = path.join(contractDirectory, "fixtures");
 const expectedHashPath = path.join(contractDirectory, "schema.sha256");
 
 const schemaFiles = [
-  "content-set-v2.schema.json",
+  "content-set.schema.json",
   "game-capabilities.schema.json"
 ].sort();
 
@@ -53,7 +53,7 @@ const canonicalContract = [
 ].join("");
 const schemaHash = createHash("sha256").update(canonicalContract, "utf8").digest("hex");
 if (!existsSync(expectedHashPath)) {
-  throw new Error("Missing contract/v2/schema.sha256. Generate it with: npm run contract:check -- --write-hash");
+  throw new Error("Missing contract/content/schema.sha256. Generate it with: npm run contract:check -- --write-hash");
 }
 const expected = readFileSync(expectedHashPath, "utf8").trim();
 if (expected !== schemaHash)
@@ -64,7 +64,7 @@ if (expected !== schemaHash)
 if (process.env.MEOWEDIT_SKIP_AUTHORITY_DOC === "1") {
   console.log("Authority doc cross-check skipped (MEOWEDIT_SKIP_AUTHORITY_DOC=1); schema.sha256 is still enforced.");
 } else {
-  const contractDocPath = path.resolve(projectDirectory, "..", "MeowdievalKingdom", "Docs", "WIP", "MeowEdit-Content-Contract-V2.md");
+  const contractDocPath = path.resolve(projectDirectory, "..", "MeowdievalKingdom", "Docs", "WIP", "MeowEdit-Content-Contract.md");
   if (!existsSync(contractDocPath))
     throw new Error("Could not find the authority contract doc at " + contractDocPath + ".");
   const authorityMatch = /\*\*Contract hash \(§9\.5\):\*\*\s*`([a-f0-9]{64})`/.exec(readFileSync(contractDocPath, "utf8"));
@@ -83,7 +83,7 @@ for (const file of fixtureFiles) loadJson(file);
 const registries = loadJson(path.join(contractDirectory, "registries.json"));
 if (registries.schemaVersion !== 2 || !Array.isArray(registries.triggers)
   || !Array.isArray(registries.conditions) || !Array.isArray(registries.actions))
-  throw new Error("contract/v2/registries.json is incomplete.");
+  throw new Error("contract/content/registries.json is incomplete.");
 
 const capabilities = loadJson(path.join(projectDirectory, "public", "game-capabilities.json"));
 if (capabilities.schemaVersions?.[0] !== 2)

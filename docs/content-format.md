@@ -1,7 +1,7 @@
 # MeowEdit content format (v1 — historical)
 
-> **SUPERSEDED — do not implement from this document.** The single source of truth for the v2
-> content contract is `C:\Users\ekkii\Projects\MeowdievalKingdom\Docs\WIP\MeowEdit-Content-Contract-V2.md`.
+> **SUPERSEDED — do not implement from this document.** The single source of truth for the structured
+> content contract is `C:\Users\ekkii\Projects\MeowdievalKingdom\Docs\WIP\MeowEdit-Content-Contract.md`.
 > It defines the structured authoring records, the generated runtime package, strict validation,
 > named values, the capability snapshot and the HTTP payloads. This file is retained only as
 > evidence of the v1 format that the migration must convert.
@@ -12,7 +12,7 @@ MeowEdit keeps authored content as ordinary JSON. It does not use Unity asset re
 
 The editor handles dialogue sequences, quests, reusable Army configurations, and campaigns. Meowdieval Kingdom loads version 1 packages copied into its `Resources/AdventureContent` catalog. The package is validated against the game's runtime catalogs before any campaign is offered; invalid content is rejected as a whole.
 
-There is no static example import. Published v2 sets live in the game backend and appear in the editor's **Your content sets** list with a Published badge.
+There is no static example import. Published structured sets live in the game backend and appear in the editor's **Your content sets** list with a Published badge.
 
 ## Current game fields
 
@@ -117,8 +117,8 @@ Campaigns may set an optional `boardPreviewUnitId` to choose the character displ
 
 ## v1 ZIP package layout (historical)
 
-Published v2 sets use the same closed file set below, but they are produced by the backend
-`packContentSetV2`, signed, and identified by a canonical SHA-256 content hash. They are never
+Published structured sets use the same closed file set below, but they are produced by the backend
+`packContentSet`, signed, and identified by a canonical SHA-256 content hash. They are never
 downloaded and re-imported by MeowEdit. The v1 ZIP described here is retained only for migration
 evidence.
 
@@ -139,7 +139,7 @@ The manifest lists included files. Campaign nodes refer to IDs in the quest and 
 
 ## Browser storage and sharing
 
-Local drafts are stored in localStorage, scoped to the signed-in account. Drafts themselves are never uploaded. **Save / Upload** stores a version-guarded draft on the server; **Publish** creates an immutable, validated revision for authorized accounts. The game never receives editor drafts. JSON/ZIP import and static example import were removed in v2; published sets are the live reference.
+Local drafts are stored in localStorage, scoped to the signed-in account. Drafts themselves are never uploaded. **Save / Upload** stores a version-guarded draft on the server; **Publish** creates an immutable, validated revision for authorized accounts. The game never receives editor drafts. JSON/ZIP import and static example import were removed in structured; published sets are the live reference.
 
 ## Avatar and army catalogs
 

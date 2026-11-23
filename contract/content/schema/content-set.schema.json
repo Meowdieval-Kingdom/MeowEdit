@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://meowedit.local/contract/v2/content-set-v2.schema.json",
-  "title": "ContentSetV2Document",
-  "description": "MeowEdit Content Contract v2 authoring record. Sections 2.1, 4 and 5. Generated-from-design source of truth; additionalProperties is false everywhere.",
+  "$id": "https://meowedit.local/contract/content/content-set.schema.json",
+  "title": "ContentSetDocument",
+  "description": "MeowEdit Content Contract authoring record. Sections 2.1, 4 and 5. Generated-from-design source of truth; additionalProperties is false everywhere.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schemaVersion", "set", "quests", "armies", "campaigns", "dialogues"],

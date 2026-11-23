@@ -11,7 +11,7 @@ interface BridgeState {
 
 const state: BridgeState = { userId: null, canPublish: false, canDeleteSets: false, actions: null };
 
-/** Set by the authenticated bootstrap before the v2 editor is imported. */
+/** Set by the authenticated bootstrap before the structured editor is imported. */
 export function setBridgeState(next: Partial<BridgeState>): void {
   Object.assign(state, next);
 }

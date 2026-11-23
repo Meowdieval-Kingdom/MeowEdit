@@ -1,4 +1,4 @@
-/** MeowEdit Content Contract v2 authoring types (§§2.1, 4, 5). Mirrors contract/v2/schema/content-set-v2.schema.json. */
+/** MeowEdit Content Contract authoring types (§§2.1, 4, 5). Mirrors contract/content/schema/content-set.schema.json. */
 
 export interface LocalizedText {
   default: string;
@@ -275,7 +275,7 @@ export interface DialogueDocument {
   nodes: DialogueNode[];
 }
 
-export interface ContentSetV2Document {
+export interface ContentSetDocument {
   schemaVersion: 2;
   set: SetDocument;
   quests: QuestDocument[];

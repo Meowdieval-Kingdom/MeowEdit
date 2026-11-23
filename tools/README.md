@@ -43,7 +43,7 @@ Portraits in `public/avatars/` are captured from the game's `MainMenuPortraitCap
 
 # Updating the game capability manifest
 
-MeowEdit serves a static capability manifest at public/game-capabilities.json (Content Contract v2 §6). It is consumed by editor pickers/validation, backend publish-time validation and Unity's admission check; CI regenerates it with `MEOWDIEVAL_BUILD_NUMBER` set. From a MeowEdit checkout beside MeowdievalKingdom, run:
+MeowEdit serves a static capability manifest at public/game-capabilities.json (Content Contract §6). It is consumed by editor pickers/validation, backend publish-time validation and Unity's admission check; CI regenerates it with `MEOWDIEVAL_BUILD_NUMBER` set. From a MeowEdit checkout beside MeowdievalKingdom, run:
 
     npm run snapshot-game-capabilities
 
@@ -51,4 +51,4 @@ Or provide the game checkout explicitly:
 
     npm run snapshot-game-capabilities -- --game-root <MeowdievalKingdom path> --output <path>
 
-The trigger/condition/action vocabularies, parameter types, limits, features and locales come from `contract/v2/registries.json` (§7); the tool never re-parses Unity YAML. The `ids` lists are collected from the checked-in `public/army-catalog.json` and `public/unit-roster.json`, so refresh those first if game content changed. `appVersion` comes from the game's `ProjectSettings` (player `bundleVersion`, falling back to `"0.2.2"`), and `buildNumber` comes from `MEOWDIEVAL_BUILD_NUMBER` (falling back to `0`). The generated file must validate against `contract/v2/schema/game-capabilities.schema.json`.
+The trigger/condition/action vocabularies, parameter types, limits, features and locales come from `contract/content/registries.json` (§7); the tool never re-parses Unity YAML. The `ids` lists are collected from the checked-in `public/army-catalog.json` and `public/unit-roster.json`, so refresh those first if game content changed. `appVersion` comes from the game's `ProjectSettings` (player `bundleVersion`, falling back to `"0.2.2"`), and `buildNumber` comes from `MEOWDIEVAL_BUILD_NUMBER` (falling back to `0`). The generated file must validate against `contract/content/schema/game-capabilities.schema.json`.

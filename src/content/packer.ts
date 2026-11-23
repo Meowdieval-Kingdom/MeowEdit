@@ -1,4 +1,4 @@
-import type { ContentSetV2Document } from "./types";
+import type { ContentSetDocument } from "./types";
 
 export interface PackedFile {
   path: string;
@@ -12,14 +12,14 @@ export interface RuntimePackage {
   packageId: string;
 }
 
-/** Must match the backend packer (functions/content-v2.ts) and Tactics byte for byte. */
+/** Must match the backend packer (functions/content.ts) and Tactics byte for byte. */
 export const DEFAULT_MIN_APP_VERSION = "0.2.2";
 
 function json(value: unknown): string {
   return JSON.stringify(value, null, 2) + "\n";
 }
 
-function extensionIndex(set: ContentSetV2Document): Record<string, unknown> {
+function extensionIndex(set: ContentSetDocument): Record<string, unknown> {
   return {
     schemaVersion: 2,
     quests: set.quests.map(quest => quest.meowEdit),
@@ -35,10 +35,10 @@ function extensionIndex(set: ContentSetV2Document): Record<string, unknown> {
  * values from the set document, so only set-level fields may affect the hash.
  */
 export async function packContentSet(
-  set: ContentSetV2Document,
+  set: ContentSetDocument,
   _capabilities?: unknown
 ): Promise<RuntimePackage> {
-  const setDocument = set.set as ContentSetV2Document["set"] & {
+  const setDocument = set.set as ContentSetDocument["set"] & {
     minAppVersion?: string;
     requiredCapabilities?: string[];
   };

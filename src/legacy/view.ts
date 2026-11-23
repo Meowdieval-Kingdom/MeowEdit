@@ -1896,7 +1896,7 @@ export function renderApp(
     (relatedReturnState ? actionButton("return-to-parent", "← " + relatedReturnState.label, "text-button return-to-parent", ' aria-label="Return to ' + escapeHtml(relatedReturnState.parent) + '" title="Return to ' + escapeHtml(relatedReturnState.parent) + '"') : "") +
     (bridgeUserId && workspace.campaigns.length > 0 && canPublish() ? actionButton("publish-package", "Publish", "button button-primary", hasErrors ? " disabled" : "") : "") +
     (bridgeUserId ? actionButton("save-package", "Save / Upload", "button button-outline") : "") +
-    (bridgeUserId ? actionButton("open-v2-editor", "← Back to set", "text-button open-v2-editor") : "") +
+    (bridgeUserId ? actionButton("open-content-editor", "← Back to set", "text-button open-content-editor") : "") +
     (bridgeUserId ? actionButton("bridge-sign-out", "Sign out", "text-button bridge-sign-out") : "") +
     (item && !guidedCompact ? helpToggleButton(helpVisible) : "") +
     '</div>';

@@ -1,10 +1,10 @@
 # MeowEdit authoring use cases (definitive)
 
-This is the single authoring checklist. It merges the v1 workflow overview with the v2 set-based layout. For each job it records the **Guided path** (focused, 1–2 inputs per step), the **Advanced path** (all fields, section jumps, stable IDs), and the **current implementation status** against the v2 screens. `docs/content-contract-v2.md`-style field rules live in the contract doc; this file is about *how an author gets work done*.
+This is the single authoring checklist. It merges the v1 workflow overview with the structured set-based layout. For each job it records the **Guided path** (focused, 1–2 inputs per step), the **Advanced path** (all fields, section jumps, stable IDs), and the **current implementation status** against the structured screens. `docs/content-contract-structured.md`-style field rules live in the contract doc; this file is about *how an author gets work done*.
 
 Status legend: **[done]** works in the current build · **[partial]** data/field exists but the UX is degraded · **[missing]** not built yet.
 
-## 1. Where work happens in v2
+## 1. Where work happens in structured
 
 - **Content sets** browser: create / rename / open / (admin-gated) delete a set. Badges show Local only / Draft vN / Published.
 - **New set** → set ID and name prompts, then the set dashboard. All authoring happens in the single classic editor.
@@ -86,7 +86,7 @@ Core jobs: create without manual IDs, continue a draft, make a narrow edit, buil
 | # | Use case | Guided path | Advanced path (Advanced) | Status |
 |---|---|---|---|---|
 | A1 | Create / name an Army | Add Army → Name → Choose Units → Arrange Grid → Army Spells → Blessings → Review (opens the guided editor immediately) | `id`, `name` | **[done]** |
-| A2 | Pick units from catalogs | Choose Units step: unit select + lineup + add/remove | `units.I.unitId` | **[done]** levels come from the capability catalog; buildings are not exposed in v2 |
+| A2 | Pick units from catalogs | Choose Units step: unit select + lineup + add/remove | `units.I.unitId` | **[done]** levels come from the capability catalog; buildings are not exposed in structured |
 | A3 | Preview unit stats before adding | Choose Units step shows catalog description, footprint and stats | — | **[done]** portrait still omitted |
 | A4 | Arrange formation | Arrange Grid step: click-to-place/remove, footprint collision check, grid grows beyond 5 | `units.I.{x,y}` | **[done]** (no drag/swaps) |
 | A5 | Per-entry spells | Choose Units step: per-lineup spell picker with remove chips | `units.I.spellIds` | **[done]** |
@@ -120,7 +120,7 @@ Core jobs: create without manual IDs, continue a draft, make a narrow edit, buil
 
 ## 8. Comparison checklist for implementation review
 
-1. For each row above, open the named v2 screen and confirm **both** the Guided and Advanced column exist.
+1. For each row above, open the named structured screen and confirm **both** the Guided and Advanced column exist.
 2. Anything marked **[partial]** must have the missing control either in the guided flow or in Advanced with a clear label; if neither, it is **[missing]**.
 3. New features must keep the set layout: no second editor page, no duplicate Save/Publish, one entry at a time.
 4. Deprecated by the new layout (do **not** restore): ZIP import/export, static example import, PER-TYPE "publish to game" button, v1 localStorage workspace.
@@ -128,4 +128,4 @@ Core jobs: create without manual IDs, continue a draft, make a narrow edit, buil
 
 ## 9. Workflow-to-test map
 
-Current automated coverage lives in `tests/v2-contract.test.ts` (schema, registries, fixtures), `tests/v2-schema-agreement.test.ts` (JSON Schema ↔ zod), `tests/v2-app.test.ts` (set browser, set dashboard, save/publish, session), `tests/legacy-editor.test.ts` (all four restored editor screens and the cloud boundary), and the original v1 module tests under `tests/`. Tests are the executable form of this checklist; rows marked **[missing]** have no test because the screen does not exist.
+Current automated coverage lives in `tests/content-contract.test.ts` (schema, registries, fixtures), `tests/content-schema-agreement.test.ts` (JSON Schema ↔ zod), `tests/content-app.test.ts` (set browser, set dashboard, save/publish, session), `tests/legacy-editor.test.ts` (all four restored editor screens and the cloud boundary), and the original v1 module tests under `tests/`. Tests are the executable form of this checklist; rows marked **[missing]** have no test because the screen does not exist.

@@ -1,10 +1,10 @@
-import { localized, namedRef } from "../v2/factory";
+import { localized, namedRef } from "../content/factory";
 import type {
   CampaignEvent,
-  ContentSetV2Document,
+  ContentSetDocument,
   DialogueDecision,
   GameCapabilities
-} from "../v2/types";
+} from "../content/types";
 import {
   emptyQuestExtension,
   type AdventureQuestDefinition,
@@ -42,13 +42,13 @@ function speedToV1(value: number): string {
   return value >= 60 ? "fast" : value <= 20 ? "slow" : "default";
 }
 
-function speedToV2(value: string, base: number): number {
+function toContentSpeed(value: string, base: number): number {
   return value === "fast" ? base * 1.5 : value === "slow" ? base * 0.5 : base;
 }
 
-/** Converts the authoritative v2 draft into the shape the restored v1 screens render. */
+/** Converts the authoritative structured draft into the shape the restored v1 screens render. */
 export function draftToWorkspace(
-  draft: ContentSetV2Document,
+  draft: ContentSetDocument,
   capabilities: GameCapabilities,
   selected?: { section: string; index: number }
 ): Workspace {
@@ -235,9 +235,9 @@ export function draftToWorkspace(
   };
 }
 
-/** Writes all v1 screen edits back into the authoritative v2 draft, preserving v2-only fields. */
+/** Writes all v1 screen edits back into the authoritative structured draft, preserving structured-only fields. */
 export function workspaceToDraft(
-  draft: ContentSetV2Document,
+  draft: ContentSetDocument,
   workspace: Workspace,
   capabilities: GameCapabilities
 ): void {
@@ -261,7 +261,7 @@ export function workspaceToDraft(
       }));
       return {
         id: node.id, headline: localized(node.headline),
-        textSpeed: speedToV2(String(node.textSpeed), sequence.defaultCharactersPerSecond),
+        textSpeed: toContentSpeed(String(node.textSpeed), sequence.defaultCharactersPerSecond),
         speakers: node.speakers.map(speaker => ({
           id: speaker.id, unitId: namedRef(speaker.unitId), displayName: localized(speaker.displayName),
           side: speaker.side === "right" ? "right" : "left", mood: speaker.mood
@@ -275,7 +275,7 @@ export function workspaceToDraft(
     return {
       schemaVersion: 2, sequenceId: sequence.sequenceId, startNodeId: sequence.startNodeId,
       pauseMode: sequence.pauseMode, defaultCharactersPerSecond: sequence.defaultCharactersPerSecond, nodes
-    } as ContentSetV2Document["dialogues"][number] & Record<string, unknown> as ContentSetV2Document["dialogues"][number];
+    } as ContentSetDocument["dialogues"][number] & Record<string, unknown> as ContentSetDocument["dialogues"][number];
   });
 
   draft.quests = workspace.quests.map(record => {
@@ -329,7 +329,7 @@ export function workspaceToDraft(
           id: rule.id, fromNodeKind: rule.fromNodeKind, toNodeKind: rule.toNodeKind, minimumHops: rule.minimumHops
         }))
       }
-    } as ContentSetV2Document["quests"][number];
+    } as ContentSetDocument["quests"][number];
   });
 
   draft.armies = workspace.armies.map(record => {
@@ -345,7 +345,7 @@ export function workspaceToDraft(
         RootId: namedRef(pick.rootId), Lane: String(pick.lane),
         Cells: pick.cells as object[], Locked: pick.locked, BaneCells: pick.baneCells as object[]
       }))
-    } as ContentSetV2Document["armies"][number];
+    } as ContentSetDocument["armies"][number];
   });
 
   const oldCampaigns = new Map(draft.campaigns.map(doc => [doc.id, doc]));
@@ -403,6 +403,6 @@ export function workspaceToDraft(
         blessingsEnabled: oldCampaigns.get(record.key)?.settings.blessingsEnabled ?? true,
         restoreArmyAfterLoss: oldCampaigns.get(record.key)?.settings.restoreArmyAfterLoss ?? true
       }
-    } as ContentSetV2Document["campaigns"][number];
+    } as ContentSetDocument["campaigns"][number];
   });
 }

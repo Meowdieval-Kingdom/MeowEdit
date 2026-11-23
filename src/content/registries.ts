@@ -1,4 +1,4 @@
-import registryData from "../../contract/v2/registries.json";
+import registryData from "../../contract/content/registries.json";
 import type { Parameter } from "./types";
 
 export interface RegistryParameter {

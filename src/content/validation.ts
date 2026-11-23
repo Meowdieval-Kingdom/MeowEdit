@@ -1,8 +1,8 @@
 import {
   findAction, findCondition, isKnownTrigger, parameterErrors
 } from "./registries";
-import type { ContentSetV2Document, GameCapabilities, NamedRef } from "./types";
-import { contentSetV2Schema } from "./zod";
+import type { ContentSetDocument, GameCapabilities, NamedRef } from "./types";
+import { contentSetSchema } from "./zod";
 
 export interface ValidationIssue {
   path: string;
@@ -39,7 +39,7 @@ function humanize(key: string): string {
   return key.replace(/([A-Z])/g, " $1").replace(/^./, character => character.toUpperCase());
 }
 
-function entryName(set: ContentSetV2Document, section: string, index: number): string {
+function entryName(set: ContentSetDocument, section: string, index: number): string {
   if (section === "quests") return set.quests[index]?.title.default || set.quests[index]?.id || String(index);
   if (section === "armies") return set.armies[index]?.name.default || set.armies[index]?.id || String(index);
   if (section === "campaigns") return set.campaigns[index]?.name.default || set.campaigns[index]?.id || String(index);
@@ -47,7 +47,7 @@ function entryName(set: ContentSetV2Document, section: string, index: number): s
   return String(index);
 }
 
-function describePath(set: ContentSetV2Document, path: string): { label: string; section?: string; entryIndex?: number; field?: string } {
+function describePath(set: ContentSetDocument, path: string): { label: string; section?: string; entryIndex?: number; field?: string } {
   const segments = path.replace(/\[(\d+)\]/g, ".$1").split(".");
   const section = ["campaigns", "quests", "armies", "dialogues"].includes(segments[0]) ? segments[0] : undefined;
   const entryIndex = section && /^\d+$/.test(segments[1] ?? "") ? Number(segments[1]) : undefined;
@@ -77,7 +77,7 @@ function similarIds(id: string, candidates: Set<string>): string[] {
 }
 
 function referenceIssue(
-  set: ContentSetV2Document, allowed: Set<string>,
+  set: ContentSetDocument, allowed: Set<string>,
   path: string, id: string
 ): ValidationIssue {
   const label = id || "(empty)";
@@ -118,7 +118,7 @@ function walk(value: unknown, path: string, visit: (node: unknown, path: string)
   }
 }
 
-function localIds(set: ContentSetV2Document): Set<string> {
+function localIds(set: ContentSetDocument): Set<string> {
   const ids = new Set<string>();
   set.quests.forEach(quest => {
     ids.add(quest.id);
@@ -177,10 +177,10 @@ function pushEnumList(issues: ValidationIssue[], values: readonly string[], allo
 /** Strict validation with friendly, actionable messages. */
 export function validateContentSet(value: unknown, capabilities: GameCapabilities): ValidationResult {
   const issues: ValidationIssue[] = [];
-  const parsed = contentSetV2Schema.safeParse(value);
+  const parsed = contentSetSchema.safeParse(value);
   if (!parsed.success) {
     for (const issue of parsed.error.issues) {
-      const description = describePath({ ...(value as ContentSetV2Document), quests: [], armies: [], campaigns: [], dialogues: [] }, issue.path.join("."));
+      const description = describePath({ ...(value as ContentSetDocument), quests: [], armies: [], campaigns: [], dialogues: [] }, issue.path.join("."));
       issues.push({
         path: issue.path.join("."),
         code: "schema",
@@ -191,7 +191,7 @@ export function validateContentSet(value: unknown, capabilities: GameCapabilitie
     }
     return { valid: false, issues };
   }
-  const set = parsed.data as ContentSetV2Document;
+  const set = parsed.data as ContentSetDocument;
 
   set.quests.forEach((quest, questIndex) => {
     pushEnum(issues, quest.objectiveKind, capabilities.enums.objectiveKind, "quests[" + questIndex + "].objectiveKind", "Objective");

@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://meowedit.local/contract/v2/game-capabilities.schema.json",
+  "$id": "https://meowedit.local/contract/content/game-capabilities.schema.json",
   "title": "GameCapabilities",
-  "description": "MeowEdit Content Contract v2 capability manifest (§6). Generated from contract/v2/registries.json plus checked-in game catalogs. additionalProperties is false for every object shape; map entries are constrained by propertyNames/additionalProperties.",
+  "description": "MeowEdit Content Contract capability manifest (§6). Generated from contract/content/registries.json plus checked-in game catalogs. additionalProperties is false for every object shape; map entries are constrained by propertyNames/additionalProperties.",
   "type": "object",
   "additionalProperties": false,
   "required": [

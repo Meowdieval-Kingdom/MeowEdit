@@ -31,7 +31,7 @@ import { EditorNavigationHistory, type RelatedEditorReturnContext } from "./edit
 import { defaultEditorSession, loadEditorSession, saveEditorSession } from "./editor-session";
 import { includeArmyUnitsInRoster } from "./roster";
 import { getBridgeActions } from "../bridge-context";
-import type { ContentSetV2Document, GameCapabilities } from "../v2/types";
+import type { ContentSetDocument, GameCapabilities } from "../content/types";
 import { workspaceToDraft } from "./convert";
 import { loadWorkspace, saveWorkspace as persistWorkspace } from "./workspace-store";
 import {
@@ -58,7 +58,7 @@ if (!root) throw new Error("MeowEdit app root is missing.");
 
 export interface LegacyMountOptions {
   setId: string;
-  draft: ContentSetV2Document;
+  draft: ContentSetDocument;
   capabilities: GameCapabilities;
   selected?: { section: string; index: number };
   onSave(): void;
@@ -188,7 +188,7 @@ function saveWorkspace(): void {
   if (status) status.textContent = "All changes saved";
 }
 
-/** The only v2 conversion: at the cloud boundary, never during editing. */
+/** The only structured conversion: at the cloud boundary, never during editing. */
 function syncDraft(): void {
   if (!mountOptions) return;
   workspaceToDraft(mountOptions.draft, workspace, mountOptions.capabilities);
@@ -2251,7 +2251,7 @@ function onAction(button: HTMLButtonElement): void {
       syncDraft();
       mountOptions?.onPublish?.();
       return;
-    case "open-v2-editor":
+    case "open-content-editor":
       saveWorkspace();
       syncDraft();
       mountOptions?.onBack();
