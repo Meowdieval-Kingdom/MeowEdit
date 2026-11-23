@@ -4,3 +4,9 @@
 /* Transfer lives in the editor area, once per content type, not in the topbar. */
 .editor-transfer-bar { display: flex; justify-content: flex-end; max-width: 1040px; margin: 16px auto 0; padding: 0 24px; }
 .editor-transfer-bar .transfer-button { color: #8a948e; font-size: 11px; }
+
+/* Unknown catalog IDs must look broken, not like a valid unit. */
+.army-grid-placement.is-invalid { border-color: #bd6658; background: #fbefeb; }
+.army-grid-placement.is-invalid .army-unit-initial { color: #bd6658; }
+.army-unit-row.is-invalid strong { color: #bd6658; }
+.army-unit-row.is-invalid small { color: #bd6658; }

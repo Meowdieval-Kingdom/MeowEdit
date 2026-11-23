@@ -69,6 +69,39 @@ export interface LegacyMountOptions {
 
 let mountOptions: LegacyMountOptions | null = null;
 
+/**
+ * Repairs stale catalog IDs (for example an old "Cats/Fighter/1" reference)
+ * by matching unit name and level in the current game catalog.
+ */
+export function reconcileCatalogIds(workspaceToRepair: typeof workspace, catalog: ArmyCatalog): number {
+  const levels = [...catalog.units, ...catalog.buildings].flatMap(entity =>
+    entity.levels.map(level => ({ id: level.id, faction: entity.factionId, name: level.name || entity.name })));
+  const known = new Set(levels.map(level => level.id));
+  const resolve = (id: string): string => {
+    if (!id || known.has(id)) return id;
+    const parts = id.split("/");
+    if (parts.length !== 3) return id;
+    const [, name, level] = parts;
+    const candidates = levels.filter(item => {
+      const itemParts = item.id.split("/");
+      return itemParts[1] === name && itemParts[2] === level;
+    });
+    if (!candidates.length) return id;
+    return (candidates.find(item => item.faction === parts[0]) ?? candidates[0]).id;
+  };
+  let changed = 0;
+  const repair = (value: string): string => {
+    const next = resolve(value);
+    if (next !== value) changed += 1;
+    return next;
+  };
+  for (const army of workspaceToRepair.armies)
+    for (const unit of army.units) unit.unitId = repair(unit.unitId);
+  for (const campaign of workspaceToRepair.campaigns)
+    campaign.boardPreviewUnitId = repair(campaign.boardPreviewUnitId ?? "");
+  return changed;
+}
+
 /** Mounts the restored v1 editor on its native, per-set workspace. */
 export function mountLegacyEditor(options: LegacyMountOptions): void {
   mountOptions = options;
@@ -76,6 +109,11 @@ export function mountLegacyEditor(options: LegacyMountOptions): void {
   void Promise.all([loadRoster(), loadArmyCatalog()]).then(([loadedRoster, loadedCatalog]) => {
     armyCatalog = loadedCatalog;
     roster = includeArmyUnitsInRoster(loadedRoster, loadedCatalog);
+    const repaired = reconcileCatalogIds(workspace, loadedCatalog);
+    if (repaired > 0) {
+      persistWorkspace(options.setId, workspace);
+      showToast("Updated " + repaired + " outdated catalog reference" + (repaired === 1 ? "" : "s") + ".");
+    }
     render();
   });
 }

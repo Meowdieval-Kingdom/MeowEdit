@@ -134,6 +134,20 @@ describe("restored v1 editor", () => {
     expect(draft.dialogues[0].nodes[0].actions[0].meowEdit.defaultContinue).toBe(true);
   });
 
+  it("repairs stale catalog IDs to the matching current unit", async () => {
+    const { reconcileCatalogIds } = await import("../src/legacy/main");
+    const army = {
+      key: "a", id: "a", name: "Old Army", previewFloor: 1,
+      units: [{ id: "p1", unitId: "Cats/Fighter/1", x: 0, y: 0, spellIds: [] }],
+      spellIds: [], blessingIds: []
+    };
+    const workspace = draftToWorkspace(draftWithArmy(), capabilities);
+    workspace.armies = [army];
+    const changed = reconcileCatalogIds(workspace, catalog);
+    expect(changed).toBe(1);
+    expect(workspace.armies[0].units[0].unitId).toBe("Peasants/Fighter/1");
+  });
+
   it("round-trips auto-accept and per-campaign sardine payout settings", () => {
     const draft = draftWithArmy();
     const v2 = JSON.parse(JSON.stringify(draft)) as ContentSetV2Document;

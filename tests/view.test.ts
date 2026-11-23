@@ -1,8 +1,10 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import type { UnitRoster } from "../src/legacy/model";
 import { includeArmyUnitsInRoster } from "../src/legacy/roster";
 import { escapeHtml, renderApp, renderArmyAbilityPreview, renderArmyEntityPreview, renderDialoguePreview, renderLivePreview, renderValidationSummary } from "../src/legacy/view";
-import { catalog, dialogueFixture, rosterFixture, workspaceFixture } from "./fixtures";
+import { armyFixture, catalog, dialogueFixture, rosterFixture, workspaceFixture } from "./fixtures";
 
 describe("editor rendering", () => {
   it("escapes content before putting it into HTML", () => {
@@ -194,6 +196,33 @@ describe("editor rendering", () => {
     expect(preview).toContain("&lt;Opening&gt;");
     expect(preview).toContain("data-layout=\"none\"");
     expect(renderLivePreview(previewWorkspace, rosterFixture)).toContain("DIALOGUE PREVIEW");
+  });
+
+  it("shows unknown army units as invalid instead of a fake catalog unit", () => {
+    const realCatalog = JSON.parse(readFileSync(path.resolve(process.cwd(), "public/army-catalog.json"), "utf8"));
+    const workspace = workspaceFixture();
+    workspace.selectedType = "army";
+    const army = armyFixture();
+    army.units[0].unitId = "Cats/Fighter/1";
+    workspace.armies = [army];
+    workspace.selectedKey = army.key;
+    const html = renderApp(workspace, rosterFixture, realCatalog, [], 0, "full");
+    expect(html).toContain("army-grid-placement is-invalid");
+    expect(html).toContain("Unknown unit");
+    expect(html).toContain("pick a unit");
+    expect(html).not.toContain("<strong>Cats/Fighter/1</strong>");
+  });
+
+  it("inserts spaces between dialogue segments in the preview", () => {
+    const record = dialogueFixture();
+    record.sequence.nodes[0].segments = [
+      { speakerIds: ["elder"], text: "First sentence." },
+      { speakerIds: ["elder"], text: "Second sentence." }
+    ];
+    const workspace = workspaceFixture();
+    const preview = renderDialoguePreview(record, { ...workspace, activeNodeId: "opening" }, rosterFixture);
+    expect(preview).toContain("First sentence. Second sentence.");
+    expect(preview).not.toContain("sentence.Second");
   });
 
   it("keeps Quest Guided sequential and exposes all advanced sections together", () => {

@@ -520,7 +520,7 @@ export function renderDialoguePreview(
     .map(id => speakers.find(speaker => speaker.id === id)?.displayName || id)
     .filter(Boolean);
   const headline = current.headline || [...new Set(firstSpeakerNames)].join(" & ");
-  const body = current.segments.map(segment => segment.text).join("");
+  const body = current.segments.map(segment => segment.text.trim()).filter(Boolean).join(" ");
   const actions = dialogueActionsForNode(record.sequence, current);
   const missingPortrait = [visibleLeft, visibleRight]
     .filter((speaker): speaker is NonNullable<typeof speaker> => Boolean(speaker))
@@ -940,10 +940,18 @@ function renderArmyGrid(record: ArmyRecord, size: { width: number; height: numbe
   const tiles = record.units.map(unit => {
     const resolved = resolveArmyLevel(catalog, unit.unitId), fp = armyFootprint(catalog, unit.unitId);
     const portrait = armyLevelPreviewPath(unit.unitId, resolved?.level, resolved?.kind ?? "units", roster);
-    const title = (resolved?.entity.name ?? unit.unitId) + (resolved?.kind === "buildings" ? " · Building" : "") + " · " + fp.width + " × " + fp.height + " · Cell " + (unit.x + 1) + ", " + (unit.y + 1);
-    return '<button type="button" class="army-grid-placement' + (selectedId === unit.id ? " is-selected" : "") + '" data-action="select-army-placement" data-placement-id="' + escapeHtml(unit.id) + '" data-army-placement style="grid-column:' + (unit.x + 1) + ' / span ' + fp.width + ';grid-row:' + (unit.y + 1) + ' / span ' + fp.height + '" title="' + escapeHtml(title) + '" aria-label="' + escapeHtml(title + ". Drag to move or swap positions.") + '">' +
-      (portrait ? '<img src="' + escapeHtml(portrait) + '" alt="">' : '<span class="army-unit-initial">' + escapeHtml((resolved?.entity.name ?? unit.unitId).slice(0, 1)) + '</span>') +
-      '<strong>' + escapeHtml(resolved?.entity.name ?? unit.unitId) + '</strong><small>' + (resolved?.kind === "buildings" ? "Building · " : "") + 'Lv ' + (resolved?.level.level ?? "?") + ' · ' + fp.width + '×' + fp.height + '</small></button>';
+    const name = resolved?.entity.name ?? "Unknown unit";
+    const title = (resolved ? name : "Unknown unit “" + unit.unitId + "” — choose a catalog unit")
+      + (resolved?.kind === "buildings" ? " · Building" : "") + " · " + fp.width + " × " + fp.height
+      + " · Cell " + (unit.x + 1) + ", " + (unit.y + 1);
+    return '<button type="button" class="army-grid-placement' + (selectedId === unit.id ? " is-selected" : "")
+      + (resolved ? "" : " is-invalid") + '" data-action="select-army-placement" data-placement-id="' + escapeHtml(unit.id)
+      + '" data-army-placement style="grid-column:' + (unit.x + 1) + ' / span ' + fp.width + ';grid-row:' + (unit.y + 1) + ' / span ' + fp.height
+      + '" title="' + escapeHtml(title) + '" aria-label="' + escapeHtml(title + ". Drag to move or swap positions.") + '">'
+      + (portrait ? '<img src="' + escapeHtml(portrait) + '" alt="">' : '<span class="army-unit-initial">?</span>')
+      + '<strong>' + escapeHtml(name) + '</strong><small>' + (resolved
+        ? (resolved.kind === "buildings" ? "Building · " : "") + 'Lv ' + (resolved.level.level ?? "?") + ' · ' + fp.width + '×' + fp.height
+        : escapeHtml(unit.unitId) + ' · pick a unit') + '</small></button>';
   }).join("");
   return '<div class="army-grid" data-army-grid role="group" aria-label="Enemy battle grid" style="--army-grid-columns:' + visualWidth + ';--army-grid-rows:' + visualHeight + '">' + cells + tiles + '</div>';
 }
@@ -951,7 +959,9 @@ function renderArmyGrid(record: ArmyRecord, size: { width: number; height: numbe
 function renderArmyPlacementList(record: ArmyRecord, catalog: ArmyCatalog, selectedId: string | null): string {
   const rows = record.units.map((unit, index) => {
     const resolved = resolveArmyLevel(catalog, unit.unitId), fp = armyFootprint(catalog, unit.unitId);
-    return '<div class="army-unit-row' + (unit.id === selectedId ? " is-selected" : "") + '"><button type="button" data-action="select-army-placement" data-placement-id="' + escapeHtml(unit.id) + '"><span>' + String(index + 1).padStart(2, "0") + '</span><strong>' + escapeHtml(resolved?.entity.name ?? unit.unitId) + '</strong><small>' + (resolved?.kind === "buildings" ? "Building · " : "") + 'Lv ' + (resolved?.level.level ?? "?") + ' · ' + fp.width + "×" + fp.height + ' · ' + (unit.x + 1) + ',' + (unit.y + 1) + '</small></button>' +
+    return '<div class="army-unit-row' + (unit.id === selectedId ? " is-selected" : "") + (resolved ? "" : " is-invalid") + '"><button type="button" data-action="select-army-placement" data-placement-id="' + escapeHtml(unit.id) + '"><span>' + String(index + 1).padStart(2, "0") + '</span><strong>' + escapeHtml(resolved?.entity.name ?? "Unknown unit") + '</strong><small>' + (resolved
+      ? (resolved.kind === "buildings" ? "Building · " : "") + 'Lv ' + (resolved.level.level ?? "?") + ' · ' + fp.width + "×" + fp.height + ' · ' + (unit.x + 1) + ',' + (unit.y + 1)
+      : escapeHtml(unit.unitId) + ' · pick a unit') + '</small></button>' +
       actionButton("remove-army-placement", "×", "icon-button", ' data-placement-id="' + escapeHtml(unit.id) + '" aria-label="Remove from army" title="Remove from army"') + '</div>';
   }).join("");
   return '<div class="army-unit-list"><h3>Army lineup <span>' + record.units.length + '</span></h3>' + (rows || '<p class="army-empty">No units or buildings added yet.</p>') + '</div>';
