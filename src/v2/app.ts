@@ -883,8 +883,14 @@ function wireRichActions(container: HTMLElement, state: AppState): void {
     const x = Number(button.dataset.x ?? 0);
     const y = Number(button.dataset.y ?? 0);
 
-    if (action === "prev-step") rich.step = Math.max(0, rich.step - 1);
-    else if (action === "next-step") rich.step = Math.min(3, rich.step + 1);
+    if (action === "preview-reset") rich.nodeIndex = 0;
+    else if (action === "preview-choice") {
+      const target = dialogue?.nodes.findIndex(item => item.id === button.dataset.target) ?? -1;
+      if (target >= 0) rich.nodeIndex = target;
+      else return;
+    }
+    else if (action === "prev-step") rich.step = Math.max(0, rich.step - 1);
+    else if (action === "next-step") rich.step = Math.min(6, rich.step + 1);
     else if (action === "select-node") rich.nodeIndex = index;
     else if (action === "select-floor") rich.floorIndex = index;
     else if (action === "add-dialogue-node" && dialogue) dialogue.nodes.push({
@@ -948,7 +954,25 @@ function wireRichActions(container: HTMLElement, state: AppState): void {
       })) }], oneShot: "per-run"
     });
     else if (action === "remove-event" && campaign) campaign.events.splice(index, 1);
-    else if (action === "add-quest-link" && quest) return;
+    else if (action === "add-fetch-item" && quest) quest.meowEdit.fetchItems.push({
+      id: "item-" + (quest.meowEdit.fetchItems.length + 1), displayName: localized("Item"), count: 1
+    });
+    else if (action === "remove-fetch-item" && quest) quest.meowEdit.fetchItems.splice(index, 1);
+    else if (action === "add-battle-target" && quest) quest.meowEdit.battleTargets.push({
+      id: "target-" + (quest.meowEdit.battleTargets.length + 1), label: localized("Target"),
+      nodeKind: capabilities.enums.nodeKind[1] ?? capabilities.enums.nodeKind[0], floorOffset: 0,
+      armyId: namedRef(capabilities.ids.units[0] ?? "army")
+    });
+    else if (action === "remove-battle-target" && quest) quest.meowEdit.battleTargets.splice(index, 1);
+    else if (action === "add-distance" && quest) quest.meowEdit.minimumNodeDistances.push({
+      id: "distance-" + (quest.meowEdit.minimumNodeDistances.length + 1),
+      fromNodeKind: capabilities.enums.nodeKind[0], toNodeKind: capabilities.enums.nodeKind[1] ?? capabilities.enums.nodeKind[0], minimumHops: 1
+    });
+    else if (action === "remove-distance" && quest) quest.meowEdit.minimumNodeDistances.splice(index, 1);
+    else if (action === "add-effect" && quest) quest.meowEdit.completionEffects.push({
+      kind: "unlock-path", targetId: namedRef("target"), label: localized("Effect")
+    });
+    else if (action === "remove-effect" && quest) quest.meowEdit.completionEffects.splice(index, 1);
     else return;
     state.validation = validateContentSet(draft, capabilities);
     persistLocal(state);

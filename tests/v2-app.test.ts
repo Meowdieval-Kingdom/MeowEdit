@@ -241,9 +241,8 @@ describe("v2-only editor app", () => {
     container.querySelector<HTMLElement>('[data-focus="quests"]')!.click();
     container.querySelector<HTMLElement>('[data-entry-edit="0"]')!.click();
     expect(container.querySelector(".guided-progress")).not.toBeNull();
-    container.querySelector<HTMLElement>('[data-rich-action="next-step"]')!.click();
-    container.querySelector<HTMLElement>('[data-rich-action="next-step"]')!.click();
-    container.querySelector<HTMLElement>('[data-rich-action="next-step"]')!.click();
+    for (let index = 0; index < 6; index++)
+      container.querySelector<HTMLElement>('[data-rich-action="next-step"]')!.click();
     expect(container.textContent).toContain("Review");
     container.querySelector<HTMLElement>('[data-entry-back]')!.click();
 
@@ -267,6 +266,32 @@ describe("v2-only editor app", () => {
     expect(container.querySelectorAll(".campaign-cell").length).toBe(25);
     container.querySelector<HTMLElement>('[data-rich-action="add-floor"]')!.click();
     expect(localStorage.getItem("meowedit.v2.sets.author-1")).not.toBeNull();
+  });
+
+  it("shows objective-specific quest forms and decision previews", async () => {
+    await mountWithDraft(container, fullSet);
+    await openPublished(container);
+    container.querySelector<HTMLElement>('[data-focus="quests"]')!.click();
+    container.querySelector<HTMLElement>('[data-entry-edit="0"]')!.click();
+    container.querySelector<HTMLElement>('[data-rich-action="next-step"]')!.click();
+    for (const kind of ["Fetch", "Battle", "KillCount", "Timer"]) {
+      const objective = container.querySelector<HTMLSelectElement>('[data-v2-bind="quests[0].objectiveKind"]')!;
+      objective.value = kind;
+      objective.dispatchEvent(new Event("change", { bubbles: true }));
+      expect(container.querySelectorAll("[data-rich-action]").length).toBeGreaterThan(0);
+    }
+    for (const action of ["add-fetch-item", "add-battle-target", "add-distance", "add-effect"]) {
+      const button = container.querySelector<HTMLElement>('[data-rich-action="' + action + '"]');
+      if (button) button.click();
+    }
+    container.querySelector<HTMLElement>('[data-entry-back]')!.click();
+
+    container.querySelector<HTMLElement>('[data-focus="dialogues"]')!.click();
+    container.querySelector<HTMLElement>('[data-entry-edit="0"]')!.click();
+    expect(container.querySelector('[data-rich-action="preview-reset"]')).not.toBeNull();
+    const choice = container.querySelector<HTMLElement>('[data-rich-action="preview-choice"]');
+    if (choice) choice.click();
+    container.querySelector<HTMLElement>('[data-rich-action="preview-reset"]')!.click();
   });
 
   it("cancels a guided add without changing the draft", async () => {
