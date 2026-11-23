@@ -59,14 +59,20 @@ const expected = readFileSync(expectedHashPath, "utf8").trim();
 if (expected !== schemaHash)
   throw new Error("Schema hash mismatch: expected " + expected + ", got " + schemaHash + ". Regenerate schema.sha256 when the contract changes.");
 
-const contractDocPath = path.resolve(projectDirectory, "..", "MeowdievalKingdom", "Docs", "WIP", "MeowEdit-Content-Contract-V2.md");
-if (!existsSync(contractDocPath))
-  throw new Error("Could not find the authority contract doc at " + contractDocPath + ".");
-const authorityMatch = /\*\*Contract hash \(§9\.5\):\*\*\s*`([a-f0-9]{64})`/.exec(readFileSync(contractDocPath, "utf8"));
-if (!authorityMatch)
-  throw new Error("The authority contract doc has no contract hash in its status header.");
-if (authorityMatch[1] !== schemaHash)
-  throw new Error("Authority hash mismatch: doc says " + authorityMatch[1] + ", local contract hashes to " + schemaHash + ".");
+// The sibling Kingdom checkout is only available locally. CI verifies the
+// checked-in schema.sha256 above and explicitly skips this cross-repo guard.
+if (process.env.MEOWEDIT_SKIP_AUTHORITY_DOC === "1") {
+  console.log("Authority doc cross-check skipped (MEOWEDIT_SKIP_AUTHORITY_DOC=1); schema.sha256 is still enforced.");
+} else {
+  const contractDocPath = path.resolve(projectDirectory, "..", "MeowdievalKingdom", "Docs", "WIP", "MeowEdit-Content-Contract-V2.md");
+  if (!existsSync(contractDocPath))
+    throw new Error("Could not find the authority contract doc at " + contractDocPath + ".");
+  const authorityMatch = /\*\*Contract hash \(§9\.5\):\*\*\s*`([a-f0-9]{64})`/.exec(readFileSync(contractDocPath, "utf8"));
+  if (!authorityMatch)
+    throw new Error("The authority contract doc has no contract hash in its status header.");
+  if (authorityMatch[1] !== schemaHash)
+    throw new Error("Authority hash mismatch: doc says " + authorityMatch[1] + ", local contract hashes to " + schemaHash + ".");
+}
 
 const fixtureFiles = [
   ...readdirSync(fixturesDirectory).filter(name => name.endsWith(".json")).map(name => path.join(fixturesDirectory, name)),
