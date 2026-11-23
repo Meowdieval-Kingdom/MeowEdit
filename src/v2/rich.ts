@@ -13,6 +13,8 @@ export interface RichState {
   selectedAbility?: string;
   selectedNodeKind?: string;
   connectFrom?: string;
+  connectAction?: number;
+  zoom?: number;
 }
 
 export interface RichContext {
@@ -160,6 +162,33 @@ function questEditor(ctx: RichContext): string {
     "</div></section>";
 }
 
+function dialogueGraph(ctx: RichContext, dialogue: NonNullable<ContentSetV2Document["dialogues"][number]>): string {
+  const zoom = ctx.rich.zoom ?? 100;
+  const position = (index: number) => ({ x: 20 + (index % 3) * 190, y: 20 + Math.floor(index / 3) * 110 });
+  const lines = dialogue.nodes.flatMap((node, nodeIndex) => node.actions.map(action => {
+    const target = dialogue.nodes.findIndex(item => item.id === action.targetNodeId);
+    if (target < 0) return "";
+    const from = position(nodeIndex);
+    const to = position(target);
+    return '<line x1="' + (from.x + 110) + '" y1="' + (from.y + 28) + '" x2="' + (to.x + 20) + '" y2="' + (to.y + 28) +
+      '" stroke="#9d8965" stroke-width="2" marker-end="url(#v2-arrow)"/>';
+  })).join("");
+  const nodes = dialogue.nodes.map((node, index) => {
+    const point = position(index);
+    return '<button type="button" class="dialogue-graph-node' + (index === ctx.rich.nodeIndex ? " is-active" : "") +
+      '" data-rich-action="select-node" data-index="' + index + '" style="left:' + point.x + 'px;top:' + point.y + 'px">' +
+      "<strong>" + escapeHtml(node.headline.default || node.id) + "</strong><small>" +
+      (node.actions.length ? node.actions.length + " choice(s)" : "Continue") + "</small></button>";
+  }).join("");
+  return '<div class="dialogue-graph-tools">' +
+    '<span class="eyebrow">MOMENT MAP</span>' +
+    button("zoom-out", "−") + button("zoom-reset", String(zoom) + "%") + button("zoom-in", "+") +
+    button("add-dialogue-node", "+ Add moment") + "</div>" +
+    '<div class="dialogue-graph"><div class="dialogue-graph-canvas" style="transform:scale(' + (zoom / 100) + ')">' +
+    '<svg class="dialogue-graph-lines"><defs><marker id="v2-arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">' +
+    '<path d="M0,0 L6,3 L0,6 Z" fill="#9d8965"/></marker></defs>' + lines + "</svg>" + nodes + "</div></div>";
+}
+
 function dialogueEditor(ctx: RichContext): string {
   const dialogue = ctx.draft.dialogues[ctx.rich.index];
   if (!dialogue) return "";
@@ -181,7 +210,8 @@ function dialogueEditor(ctx: RichContext): string {
   const defaultContinue = node.actions.length === 0
     ? '<button type="button" class="button button-small" data-rich-action="preview-choice" data-target="">Continue</button>' : "";
   return '<p class="help-copy">Pick a moment on the left, write its lines and choices, then step through the preview on the right.</p>' +
-    '<div class="guided-actions">' + list + actionButton("add-dialogue-node", "") + "</div>" +
+    dialogueGraph(ctx, dialogue) +
+    '<div class="guided-actions">' + list + "</div>" +
     '<div class="rich-columns"><section class="card"><h3>Node</h3>' +
     field("ID", nodeBase + ".id", node.id) +
     field("Headline", nodeBase + ".headline.default", node.headline.default) +
@@ -203,11 +233,17 @@ function dialogueEditor(ctx: RichContext): string {
         ["", ...dialogue.nodes.map(item => item.id)]) +
       '<label class="field"><span class="field-label">Outcome ID</span><input data-v2-bind="' + nodeBase + ".actions[" + actionIndex +
       '].meowEdit.decision.outcomeId" value="' + escapeHtml(action.meowEdit.decision.outcomeId) + '"></label>' +
+      button("connect-choice", "Connect", ' data-index="' + actionIndex + '"') +
       button("remove-dialogue-action", "Remove", ' data-index="' + actionIndex + '"') + "</div>").join("") +
     actionButton("add-dialogue-action", "") + "</section>" +
     '<section class="card dialogue-preview"><div class="preview-panel-head"><span class="eyebrow">DIALOGUE PREVIEW</span>' +
     actionButton("preview-reset", "") + "</div>" +
-    '<p class="eyebrow">' + escapeHtml(node.headline.default) + "</p>" + (previewLines || '<p class="step-copy">No lines yet.</p>') +
+    '<div class="game-screen">' + node.speakers.map(speaker =>
+      '<img class="game-avatar avatar-' + escapeHtml(speaker.side) + '" src="' +
+      escapeHtml("./avatars/" + speaker.unitId.id.replace(/[^a-zA-Z0-9_-]+/g, "-") + ".png") +
+      '" alt="' + escapeHtml(speaker.displayName.default) + '">').join("") +
+    '<div class="game-dialogue-panel"><p class="game-headline">' + escapeHtml(node.headline.default) + "</p>" +
+    '<div class="game-body">' + (previewLines || '<p class="step-copy">No lines yet.</p>') + "</div></div></div>" +
     '<div class="guided-actions">' + choices + defaultContinue + "</div>" +
     '<p class="step-copy">Only the default locale is rendered here; other locales stay in the document.</p></section></div>';
 }

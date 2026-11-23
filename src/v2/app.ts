@@ -898,7 +898,14 @@ function wireRichActions(container: HTMLElement, state: AppState): void {
     const x = Number(button.dataset.x ?? 0);
     const y = Number(button.dataset.y ?? 0);
 
-    if (action === "preview-reset") rich.nodeIndex = 0;
+    if (action === "zoom-in") rich.zoom = Math.min(150, (rich.zoom ?? 100) + 10);
+    else if (action === "zoom-out") rich.zoom = Math.max(60, (rich.zoom ?? 100) - 10);
+    else if (action === "zoom-reset") rich.zoom = 100;
+    else if (action === "connect-choice") {
+      rich.connectFrom = dialogue?.nodes[rich.nodeIndex]?.id;
+      rich.connectAction = index;
+    }
+    else if (action === "preview-reset") rich.nodeIndex = 0;
     else if (action === "preview-choice") {
       const target = dialogue?.nodes.findIndex(item => item.id === button.dataset.target) ?? -1;
       if (target >= 0) rich.nodeIndex = target;
@@ -906,7 +913,16 @@ function wireRichActions(container: HTMLElement, state: AppState): void {
     }
     else if (action === "prev-step") rich.step = Math.max(0, rich.step - 1);
     else if (action === "next-step") rich.step = Math.min(7, rich.step + 1);
-    else if (action === "select-node") rich.nodeIndex = index;
+    else if (action === "select-node") {
+      if (rich.connectFrom && rich.connectAction !== undefined && dialogue && dialogue.nodes[index]) {
+        const source = dialogue.nodes.find(item => item.id === rich.connectFrom);
+        const choice = source?.actions[rich.connectAction];
+        if (choice) choice.targetNodeId = dialogue.nodes[index].id;
+        rich.connectFrom = undefined;
+        rich.connectAction = undefined;
+      }
+      rich.nodeIndex = index;
+    }
     else if (action === "select-floor") rich.floorIndex = index;
     else if (action === "add-dialogue-node" && dialogue) dialogue.nodes.push({
       id: "node-" + (dialogue.nodes.length + 1), headline: localized("New node"), textSpeed: 30,

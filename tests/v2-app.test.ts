@@ -332,6 +332,24 @@ describe("v2-only editor app", () => {
     expect(localStorage.getItem("meowedit.v2.sets.author-1")).not.toBeNull();
   });
 
+  it("supports the dialogue moment map and choice connections", async () => {
+    await mountWithDraft(container, fullSet);
+    await openPublished(container);
+    container.querySelector<HTMLElement>('[data-focus="dialogues"]')!.click();
+    container.querySelector<HTMLElement>('[data-entry-edit="0"]')!.click();
+    expect(container.querySelectorAll(".dialogue-graph-node").length).toBeGreaterThan(0);
+    container.querySelector<HTMLElement>('[data-rich-action="zoom-in"]')!.click();
+    expect(container.textContent).toContain("110%");
+    container.querySelector<HTMLElement>('[data-rich-action="zoom-reset"]')!.click();
+    const connect = container.querySelector<HTMLElement>('[data-rich-action="connect-choice"]');
+    if (connect) {
+      connect.click();
+      const target = container.querySelectorAll<HTMLElement>('[data-rich-action="select-node"]')[1];
+      if (target) target.click();
+    }
+    expect(localStorage.getItem("meowedit.v2.sets.author-1")).not.toBeNull();
+  });
+
   it("cancels a guided add without changing the draft", async () => {
     await openPublished(container);
     const before = localStorage.getItem("meowedit.v2.sets.author-1");

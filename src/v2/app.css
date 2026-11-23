@@ -38,6 +38,21 @@
 .guided-list-item span { flex: 1; }
 .guided-error { color: var(--red); font-size: 11px; }
 .guided-status { color: var(--green-dark); font-size: 12px; min-height: 1em; }
+.dialogue-graph-tools { display: flex; align-items: center; gap: 6px; margin: 8px 0; }
+.dialogue-graph { position: relative; height: 220px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; background: #f7f6ef; }
+.dialogue-graph-canvas { position: relative; width: 600px; height: 220px; transform-origin: top left; }
+.dialogue-graph-lines { position: absolute; inset: 0; width: 100%; height: 100%; }
+.dialogue-graph-node { position: absolute; width: 130px; min-height: 56px; padding: 8px; text-align: left; border: 1px solid #dcded4; border-radius: 8px; background: var(--paper); color: var(--ink); }
+.dialogue-graph-node.is-active { border-color: var(--green); box-shadow: 0 0 0 2px var(--green-pale); }
+.dialogue-graph-node strong, .dialogue-graph-node small { display: block; font-size: 10px; }
+.dialogue-graph-node small { margin-top: 3px; color: var(--muted); }
+.game-screen { position: relative; min-height: 130px; padding: 12px; background: #efe6cd; border-radius: 8px; }
+.game-dialogue-panel { margin: 0 70px; padding: 10px 12px; background: #fffefa; border-radius: 6px; }
+.game-headline { margin: 0 0 6px; color: #1f140a; font-size: 12px; font-weight: 800; }
+.game-avatar { position: absolute; bottom: 12px; width: 60px; height: 84px; object-fit: contain; }
+.avatar-left { left: 12px; }
+.avatar-right { right: 12px; }
+
 .rich-columns { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(220px, 1fr); gap: 14px; align-items: start; }
 .rich-columns .card h4 { margin: 16px 0 8px; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-soft); }
 .army-grid, .campaign-grid { display: grid; gap: 3px; width: max-content; margin: 10px 0; }
