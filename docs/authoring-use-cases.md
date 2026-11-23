@@ -39,8 +39,8 @@ Core jobs: create without manual IDs, continue a draft, make a narrow edit, buil
 | G8 | Get help | Help toggle reveals field hints | Same toggle | **[done]** |
 | G9 | Import / export JSON or ZIP | — | — | **[missing]** (deliberately replaced by Neon drafts + publish) |
 | G10 | Static examples | — | — | **[missing]** (removed; live published sets are the reference) |
-| G11 | Toasts / save indicator | Toast region, "saved locally" in session | Same | **[partial]** implemented; not wired to every action |
-| G12 | Mode/step keyboard flow (Enter advances, Shift+Enter newline, focus first field) | — | — | **[missing]** |
+| G11 | Toasts / save indicator | Toast region, "saved locally" in session | Same | **[done]** |
+| G12 | Mode/step keyboard flow (Enter advances, focus first field) | — | — | **[done]** (Shift+Enter keeps newlines in text areas) |
 
 ---
 
@@ -53,8 +53,8 @@ Core jobs: create without manual IDs, continue a draft, make a narrow edit, buil
 | D3 | Pick a speaker | Speaker picker from capability unit IDs; display name | `speakers.S.unitId`, `displayName`, `side`, `mood` | **[partial]** unit + name; **missing** side/mood in guided, roster-driven level labels |
 | D4 | Write lines | Lines list → Add line → text | `segments.I.text`, `speakerIds` | **[done]** |
 | D5 | Add choices | Choices list → label + target + outcome | `actions.A.{label,targetNodeId,decision.*}` | **[partial]** no default-Continue affordance or reserved-destination copy |
-| D6 | See the conversation structure | — | — | **[missing]** interactive moment map / Drawflow graph |
-| D7 | Preview in game composition | Preview pane beside node editor | — | **[partial]** text-only preview; **missing** framed portraits, clickable choices, Start over, mood art |
+| D6 | See the conversation structure | Moment map with node cards, routed lines, zoom and choice connections | — | **[done]** (no free-form node dragging) |
+| D7 | Preview in game composition | Preview pane with speaker portraits, headline, lines and clickable choices + Start over | — | **[done]** (mood-specific art not yet) |
 | D8 | One-time decisions / outcomes | — | `decision.id/label/outcomeId/outcomeLabel` | **[partial]** fields exist, no dedicated decision box |
 | D9 | Switch guided ↔ advanced without losing selection | Guided editor ↔ Raw fields tab | — | **[done]** |
 | D10 | Dialogue-specific validation | Validation panel on review | Same | **[partial]** start-node check only |
@@ -89,9 +89,9 @@ Core jobs: create without manual IDs, continue a draft, make a narrow edit, buil
 | A2 | Pick units from catalogs | Choose Units step: unit select + lineup + add/remove | `units.I.unitId` | **[done]** levels come from the capability catalog; buildings are not exposed in v2 |
 | A3 | Preview unit stats before adding | Choose Units step shows catalog description, footprint and stats | — | **[done]** portrait still omitted |
 | A4 | Arrange formation | Arrange Grid step: click-to-place/remove, grid grows beyond 5 | `units.I.{x,y}` | **[partial]** footprint shown but not enforced; no drag/swaps |
-| A5 | Per-entry spells | — | `units.I.spellIds` | **[partial]** no per-entry picker/preview |
+| A5 | Per-entry spells | Choose Units step: per-lineup spell picker with remove chips | `units.I.spellIds` | **[done]** |
 | A6 | Army-wide spells / blessings / curses | Add buttons in rich editor | `spellIds`, `blessingIds` | **[partial]** no tabs, filters, previews or chips |
-| A7 | Cell-target focus (boon/bane, lanes, rules) | — | `CellBlessingPicks` cells/lane/bool | **[partial]** data only, no overlay UI |
+| A7 | Cell-target focus (boon/bane, lanes, locked) | Blessings step → Configure cells overlay with boon/bane grids, lane and Locked | `CellBlessingPicks` cells/lane/bool | **[done]** (game-specific cell rules are not interpreted) |
 | A8 | Review lineup and loadout | — | — | **[missing]** review screen |
 | A9 | Refresh game catalogs | — | — | **[done]** `npm run snapshot-army-catalog` / capabilities |
 
@@ -106,11 +106,11 @@ Core jobs: create without manual IDs, continue a draft, make a narrow edit, buil
 | C3 | Floors: add / select / remove / mode | Floor tabs + Add floor | `floors.F.{id,number,mode}` | **[partial]** no remove, no random-count controls in rich editor |
 | C4 | Adventure map authoring | Map step: click empty cell to add selected node kind; click node to edit; Connect then click target | `floors.F.nodes.*` | **[partial]** no distance labels or plug dragging |
 | C5 | Routes | Connect from a node, click neighbor; one-way toggle + Disconnect in Connections list | `floors.F.routes.*` | **[done]** adjacency/reachability validated |
-| C6 | Focused node step | Entry editor (one node) | Raw fields | **[partial]** no dimmed-map focus mode or footer |
-| C7 | Node inspector by kind | Board character + floor mode | `armyId`, `questId`, `enemyFactionId`, `reward*`, `shopOffers` | **[partial]** no contextual forms or create/edit handoff |
+| C6 | Focused node step | Node step: node picker, contextual fields, connect/remove | Raw fields | **[done]** |
+| C7 | Node inspector by kind | Battle/Boss army+faction with Create Army; Quest with Create Quest; Reward; Shop offers | `armyId`, `questId`, `enemyFactionId`, `reward*`, `shopOffers` | **[done]** with return-to-campaign |
 | C8 | Exact three shop offers | — | `shopOffers` rows | **[partial]** validation checks count, UI is generic rows |
-| C9 | Quest pool + floor pools | — | `questIds`, `questPoolIds` | **[partial]** comma-separated refs only |
-| C10 | Shop pools + tiers | — | `shopPoolKinds`, `shopLevel` | **[partial]** text values only |
+| C9 | Quest pool + floor pools | Quests step: toggle chips for authored quests | `questIds`, `questPoolIds` | **[done]** (per-floor subset only in Advanced) |
+| C10 | Shop pools + tiers | Shops step: pool checkboxes + floor tier | `shopPoolKinds`, `shopLevel` | **[done]** |
 | C11 | Events | Rich Events list: ID + trigger + remove | conditions/actions parameters | **[partial]** no focused event screen, floor/node targeting or army handoff |
 | C12 | Starting run / progression panels | Wizard set details + Raw fields | `settings.*` | **[partial]** no dedicated panels or conditional growth controls |
 | C13 | Review every floor | Validation panel | Raw fields | **[partial]** no readable per-floor audit |
