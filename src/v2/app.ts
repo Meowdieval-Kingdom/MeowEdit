@@ -10,7 +10,7 @@ import { emptyContentSet, localized, namedRef } from "./factory";
 import { escapeHtml } from "./html";
 import { APP_VERSION } from "./version";
 import { packContentSet } from "./packer";
-import { loadArmyCatalog, type ArmyCatalogLite } from "./catalog";
+import { findLevel, loadArmyCatalog, type ArmyCatalogLite } from "./catalog";
 import { loadSession, saveSession } from "./session";
 import { renderRichEditor, richItemLabel, type RichState } from "./rich";
 import { ACTIONS, CONDITIONS, TRIGGERS } from "./registries";
@@ -1021,10 +1021,17 @@ function wireRichActions(container: HTMLElement, state: AppState): void {
     else if (action === "toggle-cell" && army) {
       const existing = army.units.findIndex(unit => unit.x === x && unit.y === y);
       if (existing >= 0) army.units.splice(existing, 1);
-      else army.units.push({
-        unitId: namedRef(rich.selectedUnit || capabilities.ids.units[0] || "unit"),
-        x, y, spellIds: []
-      });
+      else {
+        const unitId = rich.selectedUnit || capabilities.ids.units[0] || "unit";
+        const footprint = findLevel(state.catalog, unitId)?.footprint ?? { width: 1, height: 1 };
+        const occupied = army.units.some(unit => {
+          const other = findLevel(state.catalog, unit.unitId.id)?.footprint ?? { width: 1, height: 1 };
+          return x < unit.x + other.width && x + footprint.width > unit.x
+            && y < unit.y + other.height && y + footprint.height > unit.y;
+        });
+        if (occupied) showToast("That space is occupied or too small for this footprint.", "warning");
+        else army.units.push({ unitId: namedRef(unitId), x, y, spellIds: [] });
+      }
     }
     else if (action === "add-spell" && army) army.spellIds.push(namedRef(rich.selectedAbility || (capabilities.ids.spells[0] ?? "spell")));
     else if (action === "remove-spell" && army) army.spellIds.splice(index, 1);
@@ -1077,6 +1084,39 @@ function wireRichActions(container: HTMLElement, state: AppState): void {
       const existing = campaign.questIds.findIndex(item => item.id === button.dataset.id);
       if (existing >= 0) campaign.questIds.splice(existing, 1);
       else campaign.questIds.push(namedRef(button.dataset.id));
+    }
+    else if (action === "create-battle-army" && quest) {
+      const id = "army-" + (draft.armies.length + 1);
+      draft.armies.push({
+        schemaVersion: 2, id, name: localized(id), units: [], spellIds: [], blessingIds: [], CellBlessingPicks: []
+      });
+      const target = quest.meowEdit.battleTargets[index];
+      if (target) target.armyId = namedRef(id);
+      state.returnTo = { section: "quests", index: rich.index, step: 1 };
+      state.entry = { section: "armies", index: draft.armies.length - 1 };
+      state.rich = { section: "armies", index: draft.armies.length - 1, step: 0, nodeIndex: 0, floorIndex: 0 };
+      state.rawFields = false;
+      state.validation = validateContentSet(draft, capabilities);
+      persistLocal(state);
+      renderSetView(container, state);
+      return;
+    }
+    else if (action === "create-dialogue-link" && quest && button.dataset.slot) {
+      const slot = button.dataset.slot as "offer" | "active" | "completion" | "failure";
+      const id = "dialogue-" + (draft.dialogues.length + 1);
+      draft.dialogues.push({
+        schemaVersion: 2, sequenceId: id, startNodeId: "opening", pauseMode: "none", defaultCharactersPerSecond: 30,
+        nodes: [{ id: "opening", headline: localized("Opening"), textSpeed: 30, speakers: [], segments: [], actions: [] }]
+      });
+      quest.meowEdit.dialogueLinks[slot] = [namedRef(id)];
+      state.returnTo = { section: "quests", index: rich.index, step: 4 };
+      state.entry = { section: "dialogues", index: draft.dialogues.length - 1 };
+      state.rich = { section: "dialogues", index: draft.dialogues.length - 1, step: 0, nodeIndex: 0, floorIndex: 0 };
+      state.rawFields = false;
+      state.validation = validateContentSet(draft, capabilities);
+      persistLocal(state);
+      renderSetView(container, state);
+      return;
     }
     else if (action === "create-node-army" && campaign && floor) {
       const id = "army-" + (draft.armies.length + 1);

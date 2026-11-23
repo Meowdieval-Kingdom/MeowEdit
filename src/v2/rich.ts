@@ -76,6 +76,7 @@ function objectiveFields(ctx: RichContext, quest: NonNullable<ContentSetV2Docume
     field("Node type", ext + ".battleTargets[" + index + "].nodeKind", target.nodeKind, "text", ctx.capabilities.enums.nodeKind) +
     field("Floor offset", ext + ".battleTargets[" + index + "].floorOffset", target.floorOffset, "number") +
     ref("Army", ext + ".battleTargets[" + index + "].armyId", target.armyId) +
+    button("create-battle-army", "Create Army", ' data-index="' + index + '"') +
     button("remove-battle-target", "Remove", ' data-index="' + index + '"') + "</div>").join("") +
     button("add-battle-target", "+ Target");
   if (kind === "KillCount") return '<div class="guided-fields">' +
@@ -148,7 +149,8 @@ function questEditor(ctx: RichContext): string {
       "<p>Minimum spacing rules: " + quest.meowEdit.minimumNodeDistances.length + " · Completion effects: " + quest.meowEdit.completionEffects.length + "</p>" +
       '<details class="guided-advanced"><summary>More options (not required)</summary><div class="form-grid">' +
       (["offer", "active", "completion", "failure"] as const).map(slot =>
-        ref(slot + " dialogue", ext + ".dialogueLinks." + slot + "[0].id", quest.meowEdit.dialogueLinks[slot][0])).join("") +
+        ref(slot + " dialogue", ext + ".dialogueLinks." + slot + "[0].id", quest.meowEdit.dialogueLinks[slot][0]) +
+        button("create-dialogue-link", "Create Dialogue", ' data-slot="' + slot + '"')).join("") +
       quest.meowEdit.completionEffects.map((effect, index) => '<div class="v2-row">' +
         field("Effect", ext + ".completionEffects[" + index + "].kind", effect.kind) +
         ref("Target", ext + ".completionEffects[" + index + "].targetId", effect.targetId) +
@@ -236,6 +238,13 @@ function dialogueEditor(ctx: RichContext): string {
         ["", ...dialogue.nodes.map(item => item.id)]) +
       '<label class="field"><span class="field-label">Outcome ID</span><input data-v2-bind="' + nodeBase + ".actions[" + actionIndex +
       '].meowEdit.decision.outcomeId" value="' + escapeHtml(action.meowEdit.decision.outcomeId) + '"></label>' +
+      '<label class="field"><span class="field-label">Decision ID</span><input data-v2-bind="' + nodeBase + ".actions[" + actionIndex +
+      '].meowEdit.decision.id" value="' + escapeHtml(action.meowEdit.decision.id) + '"></label>' +
+      '<label class="field"><span class="field-label">Decision label</span><input data-v2-bind="' + nodeBase + ".actions[" + actionIndex +
+      '].meowEdit.decision.label.default" value="' + escapeHtml(action.meowEdit.decision.label.default) + '"></label>' +
+      '<label class="campaign-check"><input type="checkbox" data-v2-bool="' + nodeBase + ".actions[" + actionIndex +
+      '].meowEdit.defaultContinue"' + (action.meowEdit.defaultContinue ? " checked" : "") +
+      '><span>Default continue</span></label>' +
       button("connect-choice", "Connect", ' data-index="' + actionIndex + '"') +
       button("remove-dialogue-action", "Remove", ' data-index="' + actionIndex + '"') + "</div>").join("") +
     actionButton("add-dialogue-action", "") + "</section>" +
@@ -433,7 +442,8 @@ function campaignEditor(ctx: RichContext): string {
             ref("Content", nodeBase + ".rewardContentId", node.rewardContentId) + "</div>"
           : "") +
         (node.kind === "Shop"
-          ? node.shopOffers.map((offer, offerIndex) => '<div class="v2-row">' +
+          ? '<div class="guided-fields">' + field("Stock mode", nodeBase + ".shopOfferMode", node.shopOfferMode, "text", ["generated", "exact"]) + "</div>" +
+            node.shopOffers.map((offer, offerIndex) => '<div class="v2-row">' +
             field("Pool", nodeBase + ".shopOffers[" + offerIndex + "].kind", offer.kind, "text", ctx.capabilities.enums.shopOfferKind) +
             ref("Item", nodeBase + ".shopOffers[" + offerIndex + "].contentId", offer.contentId) +
             field("Price", nodeBase + ".shopOffers[" + offerIndex + "].price", offer.price, "number") +
@@ -466,7 +476,13 @@ function campaignEditor(ctx: RichContext): string {
       '<label class="campaign-check"><input type="checkbox" data-v2-bool="' + settings + '.continueWithGeneratedFloors"' +
       (campaign.settings.continueWithGeneratedFloors ? " checked" : "") + '><span>Continue with generated floors</span></label>' +
       field("Initial nodes", settings + ".startingNodeCount", campaign.settings.startingNodeCount, "number") +
-      field("Nodes added per floor", settings + ".nodeGrowthPerFloor", campaign.settings.nodeGrowthPerFloor, "number") + "</div>";
+      field("Nodes added per floor", settings + ".nodeGrowthPerFloor", campaign.settings.nodeGrowthPerFloor, "number") +
+      field("Generated Quest nodes", settings + ".questNodeCountPerRandomFloor", campaign.settings.questNodeCountPerRandomFloor, "number") +
+      field("Generated Shops", settings + ".shopNodeCountPerRandomFloor", campaign.settings.shopNodeCountPerRandomFloor, "number") +
+      '<label class="campaign-check"><input type="checkbox" data-v2-bool="' + settings + '.blessingsEnabled"' +
+      (campaign.settings.blessingsEnabled ? " checked" : "") + '><span>Blessings enabled</span></label>' +
+      '<label class="campaign-check"><input type="checkbox" data-v2-bool="' + settings + '.restoreArmyAfterLoss"' +
+      (campaign.settings.restoreArmyAfterLoss ? " checked" : "") + '><span>Restore army after loss</span></label></div>';
   } else {
     body = '<div class="card"><h3>' + escapeHtml(campaign.name.default) + "</h3>" +
       "<p>" + campaign.floors.length + " floors · " + campaign.floors.reduce((sum, item) => sum + item.nodes.length, 0) + " authored nodes · " +
@@ -475,9 +491,14 @@ function campaignEditor(ctx: RichContext): string {
       "<p>Starting run: " + campaign.settings.startingLives + " lives · " + campaign.settings.startingSardines +
       " Sardines · board character " + escapeHtml(campaign.boardPreviewUnitId.id) + "</p>" +
       "<p>Events: " + campaign.events.length + "</p>" +
+      "<h4>Floors</h4>" + campaign.floors.map(item =>
+        "Floor " + item.number + ": " + item.mode + " · " + item.nodes.length + " nodes · " + item.routes.length +
+        " routes · tier " + item.shopLevel).join("<br>") +
       "<h4>Campaign events</h4>" + campaign.events.map((event, eventIndex) => '<div class="v2-row">' +
         field("ID", base + ".events[" + eventIndex + "].id", event.id) +
         field("Trigger", base + ".events[" + eventIndex + "].trigger", event.trigger, "text", TRIGGERS) +
+        field("Floor", base + ".events[" + eventIndex + "].floorNumber", event.floorNumber ?? "", "number") +
+        field("Node", base + ".events[" + eventIndex + "].nodeId", event.nodeId ?? "") +
         button("remove-event", "Remove", ' data-index="' + eventIndex + '"') + "</div>").join("") +
       button("add-event", "+ Event") +
       '<p class="step-copy">Conditions and action parameters are in Advanced. Save / Upload and Publish are in the set list.</p></div>';

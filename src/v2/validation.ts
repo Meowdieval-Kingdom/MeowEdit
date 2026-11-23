@@ -435,6 +435,29 @@ export function validateContentSet(value: unknown, capabilities: GameCapabilitie
 
   set.dialogues.forEach((dialogue, dialogueIndex) => {
     const nodeIds = new Set(dialogue.nodes.map(node => node.id));
+    if (nodeIds.size !== dialogue.nodes.length)
+      issues.push({
+        path: "dialogues[" + dialogueIndex + "].nodes", code: "duplicate-node-id",
+        message: 'Dialogue "' + dialogue.sequenceId + '" repeats a node ID.',
+        hint: "Every moment needs its own ID.", section: "dialogues", entryIndex: dialogueIndex
+      });
+    dialogue.nodes.forEach((node, nodeIndex) => {
+      if (!node.headline.default.trim())
+        issues.push({
+          path: "dialogues[" + dialogueIndex + "].nodes[" + nodeIndex + "].headline", code: "missing-headline",
+          message: 'Moment "' + node.id + '" has no headline.',
+          hint: "Give the moment a name so authors can recognise it.", section: "dialogues", entryIndex: dialogueIndex
+        });
+      node.actions.forEach(action => {
+        if (action.targetNodeId && !nodeIds.has(action.targetNodeId))
+          issues.push({
+            path: "dialogues[" + dialogueIndex + "].nodes[" + nodeIndex + "].actions", code: "broken-choice-target",
+            message: 'Choice "' + action.label.default + '" in "' + dialogue.sequenceId + '" points at "' + action.targetNodeId + '".',
+            hint: "Choose an existing moment or leave the target empty to end the dialogue.",
+            section: "dialogues", entryIndex: dialogueIndex
+          });
+      });
+    });
     if (!nodeIds.has(dialogue.startNodeId))
       issues.push({
         path: "dialogues[" + dialogueIndex + "].startNodeId", code: "broken-start-node",

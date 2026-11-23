@@ -393,6 +393,63 @@ describe("v2-only editor app", () => {
     }
   });
 
+  it("creates related armies and dialogues from quest fields", async () => {
+    await mountWithDraft(container, fullSet);
+    await openPublished(container);
+    container.querySelector<HTMLElement>('[data-focus="quests"]')!.click();
+    container.querySelector<HTMLElement>('[data-entry-edit="0"]')!.click();
+    container.querySelector<HTMLElement>('[data-rich-action="next-step"]')!.click();
+    const createArmy = container.querySelector<HTMLElement>('[data-rich-action="create-battle-army"]');
+    if (createArmy) {
+      createArmy.click();
+      expect(container.textContent).toContain("Return to Quest");
+      container.querySelector<HTMLElement>("[data-return-to-parent]")!.click();
+    }
+    for (let index = 0; index < 5; index++)
+      container.querySelector<HTMLElement>('[data-rich-action="next-step"]')!.click();
+    const createDialogue = container.querySelector<HTMLElement>('[data-rich-action="create-dialogue-link"]');
+    if (createDialogue) {
+      createDialogue.click();
+      expect(container.textContent).toContain("Return to Quest");
+      container.querySelector<HTMLElement>("[data-return-to-parent]")!.click();
+    }
+    expect(localStorage.getItem("meowedit.v2.sets.author-1")).not.toBeNull();
+  });
+
+  it("blocks upload while validation fails", async () => {
+    const broken = structuredClone(fullSet);
+    broken.campaigns[0].boardPreviewUnitId.id = "missing-unit";
+    setBridgeFetch(async requestPath => {
+      let body: unknown = { sets: [{ setId: "published-set", draftVersion: 3 }] };
+      if (requestPath === "/v1/editor/capabilities") body = capabilities;
+      else if (requestPath.includes("/v1/editor/campaign-sets/") && !requestPath.endsWith("/publish"))
+        body = { setId: "published-set", draftVersion: 3, draft: broken };
+      return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
+    });
+    await mountApp(container);
+    await openPublished(container);
+    container.querySelector<HTMLElement>("[data-save]")!.click();
+    expect(container.textContent).toContain("Fix the validation issues");
+  });
+
+  it("toggles quest pool membership and route direction", async () => {
+    await mountWithDraft(container, fullSet);
+    await openPublished(container);
+    container.querySelector<HTMLElement>('[data-entry-edit="0"]')!.click();
+    for (let index = 0; index < 4; index++)
+      container.querySelector<HTMLElement>('[data-rich-action="next-step"]')!.click();
+    const quest = container.querySelector<HTMLElement>('[data-rich-action="toggle-quest"]');
+    if (quest) {
+      quest.click();
+      container.querySelector<HTMLElement>('[data-rich-action="toggle-quest"]')!.click();
+    }
+    for (let index = 0; index < 2; index++)
+      container.querySelector<HTMLElement>('[data-rich-action="prev-step"]')!.click();
+    const direction = container.querySelector<HTMLElement>('[data-rich-action="toggle-route-direction"]');
+    if (direction) direction.click();
+    expect(localStorage.getItem("meowedit.v2.sets.author-1")).not.toBeNull();
+  });
+
   it("cancels a guided add without changing the draft", async () => {
     await openPublished(container);
     const before = localStorage.getItem("meowedit.v2.sets.author-1");

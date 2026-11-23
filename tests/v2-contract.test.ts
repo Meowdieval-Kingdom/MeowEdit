@@ -130,6 +130,15 @@ describe("v2 contract fixtures", () => {
     expect(validateContentSet(disconnected, capabilities).issues.map(issue => issue.code)).toContain("unreachable-nodes");
   });
 
+  it("reports dialogue structure problems", () => {
+    const broken = structuredClone(validSet) as ContentSetV2Document;
+    broken.dialogues[0].nodes[0].actions[0].targetNodeId = "missing-moment";
+    broken.dialogues[0].nodes[0].headline.default = "";
+    const codes = validateContentSet(broken, capabilities).issues.map(issue => issue.code);
+    expect(codes).toContain("broken-choice-target");
+    expect(codes).toContain("missing-headline");
+  });
+
   it("accepts dialogue-only sets and only warns on a completely empty set", () => {
     const dialogueOnly = structuredClone(validSet) as ContentSetV2Document;
     dialogueOnly.campaigns = [];
