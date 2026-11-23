@@ -1,4 +1,5 @@
 import "../styles.css";
+import "./integration.css";
 import type Drawflow from "drawflow";
 import {
   createKey,

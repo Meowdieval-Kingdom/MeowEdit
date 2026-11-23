@@ -1,0 +1,2 @@
+/* Keep set/cloud controls reachable in the restored guided editor. */
+.app-shell.guided-shell .topbar { display: flex; }
