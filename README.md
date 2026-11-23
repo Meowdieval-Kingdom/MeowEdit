@@ -2,7 +2,7 @@
 
 The browser authoring studio for Meowdieval content sets: campaigns, quests, armies and dialogues in one structured v2 document.
 
-> **Contract:** the single source of truth is `C:\Users\ekkii\Projects\MeowdievalKingdom\Docs\WIP\MeowEdit-Content-Contract-V2.md`. The v1 local-only editor, ZIP workflow and "Import examples" flow have been removed. Sign-in is required, drafts autosave locally, uploading a draft and publishing a revision are separate explicit actions.
+> **Contract:** the single source of truth is `C:\Users\ekkii\Projects\MeowdievalKingdom\Docs\WIP\MeowEdit-Content-Contract.md`. The v1 local-only editor, ZIP workflow and "Import examples" flow have been removed. Sign-in is required, drafts autosave locally, uploading a draft and publishing a revision are separate explicit actions.
 
 ## Run locally
 
