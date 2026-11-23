@@ -119,6 +119,30 @@ describe("restored v1 editor", () => {
     expect(draft.dialogues[0].nodes[0].actions[0].meowEdit.defaultContinue).toBe(true);
   });
 
+  it("maps v1 event armyId to the v2 registry parameter key", () => {
+    const draft = draftWithArmy();
+    const workspace = draftToWorkspace(draft, capabilities);
+    workspace.campaigns.push({
+      key: "campaign-1", id: "campaign-1", name: "Campaign", description: "", questIds: [],
+      designMode: "custom", boardPreviewUnitId: "",
+      floors: [], settings: {
+        startingLives: 3, startingSardines: 10, startingNodeCount: 12, playerFactionId: capabilities.ids.factions[0],
+        factionSelectionEnabled: true, battleShopEnabled: true, shopPoolKinds: ["Unit"],
+        questNodeCountPerRandomFloor: 2, shopNodeCountPerRandomFloor: 3,
+        nodeGrowthPerFloor: 2, continueWithGeneratedFloors: false
+      },
+      events: [{ id: "event-1", trigger: "campaign-start", actions: [
+        { kind: "replace-player-army", armyId: "test-army" }
+      ] }]
+    });
+    workspaceToDraft(draft, workspace, capabilities);
+    expect(draft.campaigns[0].events[0].actions[0].parameters).toEqual([
+      { key: "army", value: { id: "test-army", label: { default: "test-army", locales: {} } } }
+    ]);
+    const reopened = draftToWorkspace(draft, capabilities);
+    expect(reopened.campaigns[0].events[0].actions[0].armyId).toBe("test-army");
+  });
+
   it("keeps Drawflow positions and editor labels in the native, per-set workspace", () => {
     const draft = draftWithArmy();
     const workspace = loadWorkspace("set-a", draft, capabilities);

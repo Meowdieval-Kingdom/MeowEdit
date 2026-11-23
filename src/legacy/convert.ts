@@ -191,7 +191,12 @@ export function draftToWorkspace(
       ...(event.nodeId !== undefined ? { nodeId: event.nodeId } : {}),
       actions: event.actions.map(action => ({
         kind: action.kind,
-        ...Object.fromEntries(action.parameters.map(parameter => [parameter.key, parameter.value]))
+        ...Object.fromEntries(action.parameters.map(parameter => {
+          const key = parameter.key === "army" ? "armyId" : parameter.key;
+          const value = parameter.value && typeof parameter.value === "object" && "id" in parameter.value
+            ? String((parameter.value as { id: unknown }).id ?? "") : parameter.value;
+          return [key, value];
+        }))
       }))
     })),
     settings: {
@@ -349,7 +354,9 @@ export function workspaceToDraft(
         kind: action.kind,
         parameters: Object.entries(action)
           .filter(([key]) => key !== "kind")
-          .map(([key, value]) => ({ key, value }))
+          .map(([key, value]) => key === "armyId"
+            ? { key: "army", value: namedRef(String(value ?? "")) }
+            : { key, value })
       }))
     }));
     return {
