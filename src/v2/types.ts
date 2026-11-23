@@ -104,6 +104,8 @@ export interface QuestDocument {
   activeText?: LocalizedText;
   acceptLabel?: LocalizedText;
   declineLabel?: LocalizedText;
+  /** Skip the accept/decline choice and auto-accept after the offer dialogue. */
+  autoAccept?: boolean;
   rewardKind?: string;
   rewardAmount?: number;
   rewardContentId?: NamedRef;
@@ -149,6 +151,12 @@ export interface CampaignSettings {
   continueWithGeneratedFloors: boolean;
   blessingsEnabled: boolean;
   restoreArmyAfterLoss: boolean;
+  /** Master switch for generated Sardine rewards on map reward nodes. */
+  sardinePayoutEnabled?: boolean;
+  /** Base Sardines for a generated reward node; defaults to 10. */
+  sardinePayoutBase?: number;
+  /** Extra Sardines per floor for a generated reward node; defaults to 1. */
+  sardinePayoutPerFloor?: number;
 }
 
 export interface ShopOffer {

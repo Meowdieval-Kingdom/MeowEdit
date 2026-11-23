@@ -161,7 +161,8 @@ function newCampaign(id: string, name: string, capabilities: GameCapabilities): 
       shopPoolKinds: [capabilities.enums.shopPoolKind[0]],
       questNodeCountPerRandomFloor: 2, shopNodeCountPerRandomFloor: 3,
       nodeGrowthPerFloor: 2, continueWithGeneratedFloors: false,
-      blessingsEnabled: true, restoreArmyAfterLoss: true
+      blessingsEnabled: true, restoreArmyAfterLoss: true,
+      sardinePayoutEnabled: true, sardinePayoutBase: 10, sardinePayoutPerFloor: 1
     }
   };
 }

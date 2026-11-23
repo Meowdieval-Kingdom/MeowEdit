@@ -600,6 +600,7 @@ function addCampaign(): void {
     settings: {
       startingLives: 3, startingSardines: 10, startingNodeCount: 12, playerFactionId: "",
       factionSelectionEnabled: true, battleShopEnabled: true,
+      sardinePayoutEnabled: true, sardinePayoutBase: 10, sardinePayoutPerFloor: 1,
       shopPoolKinds: ["Unit", "Blessing", "Research", "SpellUnlock"],
       questNodeCountPerRandomFloor: 2, shopNodeCountPerRandomFloor: 3, nodeGrowthPerFloor: 2,
       continueWithGeneratedFloors: false

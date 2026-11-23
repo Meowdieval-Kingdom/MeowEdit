@@ -124,6 +124,7 @@ export const questDocumentSchema = z.object({
   activeText: localizedTextSchema.optional(),
   acceptLabel: localizedTextSchema.optional(),
   declineLabel: localizedTextSchema.optional(),
+  autoAccept: z.boolean().optional(),
   rewardKind: z.enum(rewardKinds).optional(),
   rewardAmount: z.number().int().optional(),
   rewardContentId: namedRefSchema.optional(),
@@ -164,7 +165,10 @@ const campaignSettingsSchema = z.object({
   nodeGrowthPerFloor: z.number().int().nonnegative(),
   continueWithGeneratedFloors: z.boolean(),
   blessingsEnabled: z.boolean(),
-  restoreArmyAfterLoss: z.boolean()
+  restoreArmyAfterLoss: z.boolean(),
+  sardinePayoutEnabled: z.boolean().optional(),
+  sardinePayoutBase: z.number().int().nonnegative().optional(),
+  sardinePayoutPerFloor: z.number().int().nonnegative().optional()
 }).strict();
 
 export const campaignDocumentSchema = z.object({

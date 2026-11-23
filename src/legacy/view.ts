@@ -1322,7 +1322,12 @@ function renderCampaignEditor(
     ) +
     '</div><label class="campaign-check"><input type="checkbox" data-bind="settings.factionSelectionEnabled"' + (campaign.settings.factionSelectionEnabled ? " checked" : "") + '><span>Allow faction selection</span></label>' +
     '<p class="help-copy">When disabled, the campaign always uses its selected Player faction.</p>' +
-    '<label class="campaign-check"><input type="checkbox" data-bind="settings.battleShopEnabled"' + (campaign.settings.battleShopEnabled ? " checked" : "") + '><span>Keep battle shop enabled</span></label></section>';
+    '<label class="campaign-check"><input type="checkbox" data-bind="settings.battleShopEnabled"' + (campaign.settings.battleShopEnabled ? " checked" : "") + '><span>Keep battle shop enabled</span></label>' +
+    '<label class="campaign-check"><input type="checkbox" data-bind="settings.sardinePayoutEnabled"' + (campaign.settings.sardinePayoutEnabled ? " checked" : "") + '><span>Enable default Sardine payouts on generated rewards</span></label>' +
+    (campaign.settings.sardinePayoutEnabled ? '<div class="form-grid two">' +
+      inputField("Sardine payout base", "settings.sardinePayoutBase", campaign.settings.sardinePayoutBase, { type: "number", min: 0 }) +
+      inputField("Extra Sardines per floor", "settings.sardinePayoutPerFloor", campaign.settings.sardinePayoutPerFloor, { type: "number", min: 0 }) +
+      '</div>' : '') + '</section>';
   const generatedFloorSettings = '<section class="campaign-settings-panel" id="campaign-progression"><div class="campaign-section-heading"><div><h2>' + (campaign.designMode === "settings-only" ? "Later generated floors" : "After these boards") + '</h2></div></div>' +
     '<label class="campaign-check"><input type="checkbox" data-bind="settings.continueWithGeneratedFloors"' + (campaign.settings.continueWithGeneratedFloors ? " checked" : "") + '><span>Continue with generated floors</span></label>' +
     (campaign.settings.continueWithGeneratedFloors ? '<div class="form-grid two">' +
@@ -1768,8 +1773,9 @@ function renderQuestEditor(
       inputField("Speaker name", "definition.speakerName", quest.speakerName, { placeholder: "Village Elder" }) +
       textAreaField("Offer text", "definition.offerText", quest.offerText, "Shown when this quest is offered.", 3) +
       textAreaField("Active text", "definition.activeText", quest.activeText, "Shown while the quest is underway.", 3) +
-      inputField("Accept label", "definition.acceptLabel", quest.acceptLabel) +
-      inputField("Decline label", "definition.declineLabel", quest.declineLabel) +
+      '<label class="campaign-check"><input type="checkbox" data-bind="definition.autoAccept"' + (quest.autoAccept ? " checked" : "") + '><span>Auto-accept after the offer dialogue (no accept/decline choice)</span></label>' +
+      (!quest.autoAccept ? inputField("Accept label", "definition.acceptLabel", quest.acceptLabel) +
+        inputField("Decline label", "definition.declineLabel", quest.declineLabel) : "") +
       '</div></div>';
     } else if (sectionStep === 3) {
       screen = '<div class="form-block"><div class="section-heading"><div><h2>Choose the quest reward</h2></div></div>' +

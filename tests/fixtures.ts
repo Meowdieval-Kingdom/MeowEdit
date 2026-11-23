@@ -47,6 +47,7 @@ export function campaignFixture(): CampaignRecord {
     floors: [createCampaignFloor(1, "authored", prefix => prefix + "-id")],
     settings: { startingLives: 3, startingSardines: 10, startingNodeCount: 12, playerFactionId: "", factionSelectionEnabled: true, battleShopEnabled: true,
       shopPoolKinds: ["Unit", "Blessing", "Research", "SpellUnlock"],
+      sardinePayoutEnabled: true, sardinePayoutBase: 10, sardinePayoutPerFloor: 1,
       questNodeCountPerRandomFloor: 2, shopNodeCountPerRandomFloor: 3, nodeGrowthPerFloor: 2, continueWithGeneratedFloors: false }
   };
 }

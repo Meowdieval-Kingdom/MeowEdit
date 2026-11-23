@@ -101,6 +101,7 @@ export function draftToWorkspace(
       speakerUnitId: ref(doc.speakerUnitId), speakerName: text(doc.speakerName),
       offerText: text(doc.offerText), activeText: text(doc.activeText),
       acceptLabel: text(doc.acceptLabel), declineLabel: text(doc.declineLabel),
+      autoAccept: doc.autoAccept === true,
       rewardKind: doc.rewardKind ?? capabilities.enums.rewardKind[0] ?? "Sardines",
       rewardAmount: doc.rewardAmount ?? 0, rewardContentId: ref(doc.rewardContentId)
     };
@@ -207,7 +208,10 @@ export function draftToWorkspace(
       questNodeCountPerRandomFloor: doc.settings.questNodeCountPerRandomFloor,
       shopNodeCountPerRandomFloor: doc.settings.shopNodeCountPerRandomFloor,
       nodeGrowthPerFloor: doc.settings.nodeGrowthPerFloor,
-      continueWithGeneratedFloors: doc.settings.continueWithGeneratedFloors
+      continueWithGeneratedFloors: doc.settings.continueWithGeneratedFloors,
+      sardinePayoutEnabled: doc.settings.sardinePayoutEnabled ?? true,
+      sardinePayoutBase: doc.settings.sardinePayoutBase ?? 10,
+      sardinePayoutPerFloor: doc.settings.sardinePayoutPerFloor ?? 1
     }
   }));
 
@@ -288,7 +292,8 @@ export function workspaceToDraft(
       itemId: namedRef(definition.itemId), speakerUnitId: namedRef(definition.speakerUnitId),
       speakerName: localized(definition.speakerName), offerText: localized(definition.offerText),
       activeText: localized(definition.activeText), acceptLabel: localized(definition.acceptLabel),
-      declineLabel: localized(definition.declineLabel), rewardKind: definition.rewardKind,
+      declineLabel: localized(definition.declineLabel), autoAccept: definition.autoAccept,
+      rewardKind: definition.rewardKind,
       rewardAmount: definition.rewardAmount, rewardContentId: namedRef(definition.rewardContentId),
       meowEdit: {
         schemaVersion: 2,
@@ -392,6 +397,9 @@ export function workspaceToDraft(
         shopNodeCountPerRandomFloor: record.settings.shopNodeCountPerRandomFloor,
         nodeGrowthPerFloor: record.settings.nodeGrowthPerFloor,
         continueWithGeneratedFloors: record.settings.continueWithGeneratedFloors,
+        sardinePayoutEnabled: record.settings.sardinePayoutEnabled,
+        sardinePayoutBase: record.settings.sardinePayoutBase,
+        sardinePayoutPerFloor: record.settings.sardinePayoutPerFloor,
         blessingsEnabled: oldCampaigns.get(record.key)?.settings.blessingsEnabled ?? true,
         restoreArmyAfterLoss: oldCampaigns.get(record.key)?.settings.restoreArmyAfterLoss ?? true
       }

@@ -204,6 +204,7 @@
         "activeText": { "$ref": "#/$defs/localizedText" },
         "acceptLabel": { "$ref": "#/$defs/localizedText" },
         "declineLabel": { "$ref": "#/$defs/localizedText" },
+        "autoAccept": { "type": "boolean" },
         "rewardKind": { "$ref": "#/$defs/enums/rewardKind" },
         "rewardAmount": { "type": "integer" },
         "rewardContentId": { "$ref": "#/$defs/namedRef" },
@@ -269,7 +270,10 @@
         "nodeGrowthPerFloor": { "type": "integer", "minimum": 0 },
         "continueWithGeneratedFloors": { "type": "boolean" },
         "blessingsEnabled": { "type": "boolean" },
-        "restoreArmyAfterLoss": { "type": "boolean" }
+        "restoreArmyAfterLoss": { "type": "boolean" },
+        "sardinePayoutEnabled": { "type": "boolean" },
+        "sardinePayoutBase": { "type": "integer", "minimum": 0 },
+        "sardinePayoutPerFloor": { "type": "integer", "minimum": 0 }
       }
     },
     "shopOffer": {

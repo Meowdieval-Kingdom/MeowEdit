@@ -134,6 +134,45 @@ describe("restored v1 editor", () => {
     expect(draft.dialogues[0].nodes[0].actions[0].meowEdit.defaultContinue).toBe(true);
   });
 
+  it("round-trips auto-accept and per-campaign sardine payout settings", () => {
+    const draft = draftWithArmy();
+    const v2 = JSON.parse(JSON.stringify(draft)) as ContentSetV2Document;
+    v2.quests.push({
+      schemaVersion: 2, id: "intro", title: localized("Intro"), description: localized(""),
+      acceptLabel: localized("Accept"), declineLabel: localized("Decline"), autoAccept: true,
+      meowEdit: {
+        schemaVersion: 2, dialogueLinks: { offer: [], active: [], completion: [], failure: [] },
+        logicKind: "standard", timer: {
+          decisionId: namedRef(""), payOutcomeId: namedRef(""), waitOutcomeId: namedRef(""),
+          counterId: namedRef(""), counterTarget: 1, counterLabel: localized(""),
+          countEvent: "battle-won", paymentResource: "sardines", paymentAmount: 0,
+          paymentCompletesImmediately: false, completionEffects: []
+        }, completionEffects: [], fetchItems: [], battleTargets: [],
+        killCount: { targetKind: "unit", targetId: namedRef("unit"), count: 1 }, minimumNodeDistances: []
+      }
+    });
+    v2.campaigns.push({
+      schemaVersion: 2, id: "mission", name: localized("Mission"), description: localized(""),
+      boardPreviewUnitId: namedRef(""), questIds: [], floors: [], events: [],
+      settings: {
+        startingLives: 3, startingSardines: 0, startingNodeCount: 12,
+        playerFactionId: namedRef(""), factionSelectionEnabled: false, battleShopEnabled: false,
+        shopPoolKinds: [], questNodeCountPerRandomFloor: 0, shopNodeCountPerRandomFloor: 0,
+        nodeGrowthPerFloor: 2, continueWithGeneratedFloors: false, blessingsEnabled: false,
+        restoreArmyAfterLoss: true, sardinePayoutEnabled: false,
+        sardinePayoutBase: 7, sardinePayoutPerFloor: 3
+      }
+    });
+    const workspace = draftToWorkspace(v2, capabilities);
+    expect(workspace.quests[0].definition.autoAccept).toBe(true);
+    expect(workspace.campaigns[0].settings.sardinePayoutEnabled).toBe(false);
+    expect(workspace.campaigns[0].settings.sardinePayoutBase).toBe(7);
+    workspaceToDraft(v2, workspace, capabilities);
+    expect(v2.quests[0].autoAccept).toBe(true);
+    expect(v2.campaigns[0].settings.sardinePayoutEnabled).toBe(false);
+    expect(v2.campaigns[0].settings.sardinePayoutPerFloor).toBe(3);
+  });
+
   it("maps v1 event armyId to the v2 registry parameter key", () => {
     const draft = draftWithArmy();
     const workspace = draftToWorkspace(draft, capabilities);
@@ -144,7 +183,8 @@ describe("restored v1 editor", () => {
         startingLives: 3, startingSardines: 10, startingNodeCount: 12, playerFactionId: capabilities.ids.factions[0],
         factionSelectionEnabled: true, battleShopEnabled: true, shopPoolKinds: ["Unit"],
         questNodeCountPerRandomFloor: 2, shopNodeCountPerRandomFloor: 3,
-        nodeGrowthPerFloor: 2, continueWithGeneratedFloors: false
+        nodeGrowthPerFloor: 2, continueWithGeneratedFloors: false,
+        sardinePayoutEnabled: true, sardinePayoutBase: 10, sardinePayoutPerFloor: 1
       },
       events: [{ id: "event-1", trigger: "campaign-start", actions: [
         { kind: "replace-player-army", armyId: "test-army" }

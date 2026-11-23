@@ -70,7 +70,7 @@ Core jobs: create without manual IDs, continue a draft, make a narrow edit, buil
 | Q3 | Objective-specific forms | Objective step shows fields for the chosen kind (Fetch items, Battle targets, Kill Count, Escort, Clear Floor, Timer) | Same fields plus distance rules | **[done]** |
 | Q4 | Fetch items with counts | Objective step (Fetch): item rows, display name, count, add/remove | `fetchItems.I.{id,displayName,count}` | **[done]** |
 | Q5 | Battle targets + Army handoff | Objective step → Create Army on a target, returns to the same target | `battleTargets.I.armyId` | **[done]** |
-| Q6 | Quest giver and writing | Quest Giver → Offer → In Progress steps with text areas | `speakerUnitId`, `speakerName`, `offerText`, `activeText`, `acceptLabel`, `declineLabel` | **[done]** |
+| Q6 | Quest giver and writing | Quest Giver → Offer → In Progress steps with text areas and an auto-accept toggle | `speakerUnitId`, `speakerName`, `offerText`, `activeText`, `autoAccept`, `acceptLabel`, `declineLabel` | **[done]** |
 | Q7 | Reward configuration | Objective step: reward kind; foldout amount | `rewardKind`, `rewardAmount`, `rewardContentId` | **[done]** |
 | Q8 | Dialogue links | Dialogue links step: offer + active; foldout completion/failure | four link slots | **[done]** |
 | Q9 | Dialogue create/edit handoff | Review → Create Dialogue per slot, returns to the quest | — | **[done]** |
@@ -112,7 +112,7 @@ Core jobs: create without manual IDs, continue a draft, make a narrow edit, buil
 | C9 | Quest pool + floor pools | Quests step: toggle chips for authored quests | `questIds`, `questPoolIds` | **[done]** (per-floor subset only in Advanced) |
 | C10 | Shop pools + tiers | Shops step: pool checkboxes + floor tier | `shopPoolKinds`, `shopLevel` | **[done]** |
 | C11 | Events | Review events: ID, trigger, floor, node, remove | conditions/actions parameters | **[done]** (parameters in Advanced) |
-| C12 | Starting run / progression panels | Starting Run step: board character, resources, faction, toggles, growth settings | `settings.*` | **[done]** |
+| C12 | Starting run / progression panels | Starting Run step: board character, resources, faction, toggles, growth settings and per-campaign Sardine payout switch/base/per-floor | `settings.*`, `settings.sardinePayout*` | **[done]** |
 | C13 | Review every floor | Review step lists each floor's mode, nodes, routes and shop tier | — | **[done]** |
 | C14 | Publish / revision | Publish in set list | Same | **[done]** |
 

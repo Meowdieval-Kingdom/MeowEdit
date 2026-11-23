@@ -76,6 +76,8 @@ export interface AdventureQuestDefinition {
   activeText: string;
   acceptLabel: string;
   declineLabel: string;
+  /** Skip accept/decline and auto-accept after the offer dialogue. */
+  autoAccept: boolean;
   rewardKind: RewardKind | string;
   rewardAmount: number;
   rewardContentId: string;
@@ -250,6 +252,10 @@ export interface CampaignSettings {
   shopNodeCountPerRandomFloor: number;
   nodeGrowthPerFloor: number;
   continueWithGeneratedFloors: boolean;
+  /** Master switch for the default Sardine payout on generated reward nodes. */
+  sardinePayoutEnabled: boolean;
+  sardinePayoutBase: number;
+  sardinePayoutPerFloor: number;
 }
 
 export type CampaignEventTrigger = "campaign-start" | "before-battle" | "after-battle" | "node-cleared";
@@ -426,6 +432,7 @@ export const DEFAULT_QUEST: AdventureQuestDefinition = {
   activeText: "",
   acceptLabel: "Accept",
   declineLabel: "Decline",
+  autoAccept: false,
   rewardKind: "Sardines",
   rewardAmount: 10,
   rewardContentId: ""
