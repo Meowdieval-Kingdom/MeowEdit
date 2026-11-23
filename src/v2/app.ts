@@ -55,7 +55,7 @@ interface AppState {
   validation: ValidationResult;
   help: boolean;
   savedAt: string | null;
-  returnTo: { section: DetailSection; index: number; step: number } | null;
+  returnTo: Array<{ section: DetailSection; index: number; step: number }>;
 }
 
 const STEP_TITLES = ["Set details", "Campaign", "Board character", "Content", "Review & publish"];
@@ -628,8 +628,8 @@ function renderSetView(container: HTMLElement, state: AppState): void {
     const { section, index } = state.entry;
     body = heading +
       '<div class="guided-actions">' +
-      (state.returnTo ? '<button type="button" class="button button-primary" data-return-to-parent>← Return to ' +
-        SECTION_LABELS[state.returnTo.section].singular + "</button>" : "") +
+      (state.returnTo.length ? '<button type="button" class="button button-primary" data-return-to-parent>← Return to ' +
+        SECTION_LABELS[state.returnTo[state.returnTo.length - 1].section].singular + "</button>" : "") +
       '<button type="button" class="button button-outline" data-entry-back>← Back to list</button>' +
       '<button type="button" class="button button-small" data-toggle-raw>' +
       (state.rawFields ? "Guided" : "Advanced") + "</button></div>" +
@@ -701,14 +701,13 @@ function renderSetView(container: HTMLElement, state: AppState): void {
     renderSetView(container, state);
   });
   container.querySelector<HTMLElement>("[data-return-to-parent]")?.addEventListener("click", () => {
-    if (!state.returnTo) return;
-    const parent = state.returnTo;
+    const parent = state.returnTo.pop();
+    if (!parent) return;
     state.entry = { section: parent.section, index: parent.index };
     state.rich = {
       section: parent.section, index: parent.index, step: parent.step,
       nodeIndex: 0, floorIndex: 0
     };
-    state.returnTo = null;
     renderSetView(container, state);
   });
   container.querySelectorAll<HTMLElement>("[data-section-jump]").forEach(button => button.addEventListener("click", () => {
@@ -957,7 +956,12 @@ function wireRichActions(container: HTMLElement, state: AppState): void {
       else return;
     }
     else if (action === "prev-step") rich.step = Math.max(0, rich.step - 1);
-    else if (action === "next-step") rich.step = Math.min(7, rich.step + 1);
+    else if (action === "next-step") rich.step = rich.section === "campaigns" && rich.approach === "settings-only"
+      ? Math.min(4, rich.step + 1) : Math.min(7, rich.step + 1);
+    else if (action === "set-approach") {
+      rich.approach = button.dataset.approach === "settings-only" ? "settings-only" : "custom";
+      rich.step = 0;
+    }
     else if (action === "select-node") {
       if (rich.connectFrom && rich.connectAction !== undefined && dialogue && dialogue.nodes[index]) {
         const source = dialogue.nodes.find(item => item.id === rich.connectFrom);
@@ -988,6 +992,7 @@ function wireRichActions(container: HTMLElement, state: AppState): void {
       meowEdit: { decision: { id: "decision", label: localized("Decision"), outcomeId: "outcome", outcomeLabel: localized("Outcome") }, defaultContinue: true }
     });
     else if (action === "remove-dialogue-action" && dialogueNode) dialogueNode.actions.splice(index, 1);
+    else if (action === "ability-filter") rich.abilityFilter = button.dataset.filter === "field" ? "field" : "all";
     else if (action === "add-unit-spell" && army?.units[index]) {
       const spell = rich.selectedUnitSpell || capabilities.ids.spells[0] || "spell";
       if (!army.units[index].spellIds.some(item => item.id === spell)) army.units[index].spellIds.push(namedRef(spell));
@@ -1092,7 +1097,7 @@ function wireRichActions(container: HTMLElement, state: AppState): void {
       });
       const target = quest.meowEdit.battleTargets[index];
       if (target) target.armyId = namedRef(id);
-      state.returnTo = { section: "quests", index: rich.index, step: 1 };
+      state.returnTo.push({ section: "quests", index: rich.index, step: 1 });
       state.entry = { section: "armies", index: draft.armies.length - 1 };
       state.rich = { section: "armies", index: draft.armies.length - 1, step: 0, nodeIndex: 0, floorIndex: 0 };
       state.rawFields = false;
@@ -1109,7 +1114,7 @@ function wireRichActions(container: HTMLElement, state: AppState): void {
         nodes: [{ id: "opening", headline: localized("Opening"), textSpeed: 30, speakers: [], segments: [], actions: [] }]
       });
       quest.meowEdit.dialogueLinks[slot] = [namedRef(id)];
-      state.returnTo = { section: "quests", index: rich.index, step: 4 };
+      state.returnTo.push({ section: "quests", index: rich.index, step: 4 });
       state.entry = { section: "dialogues", index: draft.dialogues.length - 1 };
       state.rich = { section: "dialogues", index: draft.dialogues.length - 1, step: 0, nodeIndex: 0, floorIndex: 0 };
       state.rawFields = false;
@@ -1125,7 +1130,7 @@ function wireRichActions(container: HTMLElement, state: AppState): void {
       });
       const node = floor.nodes[Number(button.dataset.node ?? 0)];
       if (node) node.armyId = namedRef(id);
-      state.returnTo = { section: "campaigns", index: rich.index, step: rich.step };
+      state.returnTo.push({ section: "campaigns", index: rich.index, step: rich.step });
       state.entry = { section: "armies", index: draft.armies.length - 1 };
       state.rich = { section: "armies", index: draft.armies.length - 1, step: 0, nodeIndex: 0, floorIndex: 0 };
       state.rawFields = false;
@@ -1158,7 +1163,7 @@ function wireRichActions(container: HTMLElement, state: AppState): void {
         node.questId = namedRef(id);
         if (!campaign.questIds.some(item => item.id === id)) campaign.questIds.push(namedRef(id));
       }
-      state.returnTo = { section: "campaigns", index: rich.index, step: rich.step };
+      state.returnTo.push({ section: "campaigns", index: rich.index, step: rich.step });
       state.entry = { section: "quests", index: draft.quests.length - 1 };
       state.rich = { section: "quests", index: draft.quests.length - 1, step: 0, nodeIndex: 0, floorIndex: 0 };
       state.rawFields = false;
@@ -1362,7 +1367,7 @@ export async function mountApp(container: HTMLElement): Promise<void> {
     setId: "", draft: emptyContentSet("", ""),
     draftVersion: 0, step: session.step, contentKind: null, draftTitle: "", draftSecondary: "",
     status: "", validation: { valid: false, issues: [] },
-    help: session.help, savedAt: session.savedAt, returnTo: null
+    help: session.help, savedAt: session.savedAt, returnTo: []
   };
   state.focus = (["campaigns", "quests", "armies", "dialogues"] as const).includes(session.focus as DetailSection)
     ? session.focus as DetailSection : "campaigns";

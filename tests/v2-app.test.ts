@@ -450,6 +450,31 @@ describe("v2-only editor app", () => {
     expect(localStorage.getItem("meowedit.v2.sets.author-1")).not.toBeNull();
   });
 
+  it("supports campaign approach choice, ability filters and route distances", async () => {
+    await mountWithDraft(container, fullSet);
+    await openPublished(container);
+    container.querySelector<HTMLElement>('[data-entry-edit="0"]')!.click();
+    container.querySelector<HTMLElement>('[data-rich-action="set-approach"][data-approach="settings-only"]')!.click();
+    expect(container.querySelectorAll(".guided-progress span")).toHaveLength(5);
+    container.querySelector<HTMLElement>('[data-rich-action="set-approach"][data-approach="custom"]')!.click();
+    expect(container.querySelectorAll(".guided-progress span")).toHaveLength(8);
+
+    container.querySelector<HTMLElement>("[data-entry-back]")!.click();
+    container.querySelector<HTMLElement>('[data-focus="armies"]')!.click();
+    container.querySelector<HTMLElement>('[data-entry-edit="0"]')!.click();
+    for (let index = 0; index < 3; index++)
+      container.querySelector<HTMLElement>('[data-rich-action="next-step"]')!.click();
+    container.querySelector<HTMLElement>('[data-rich-action="ability-filter"][data-filter="field"]')!.click();
+    expect(container.textContent).toContain("Field effects ✓");
+
+    container.querySelector<HTMLElement>("[data-entry-back]")!.click();
+    container.querySelector<HTMLElement>('[data-focus="campaigns"]')!.click();
+    container.querySelector<HTMLElement>('[data-entry-edit="0"]')!.click();
+    for (let index = 0; index < 2; index++)
+      container.querySelector<HTMLElement>('[data-rich-action="next-step"]')!.click();
+    expect(container.textContent).toContain("step(s)");
+  });
+
   it("cancels a guided add without changing the draft", async () => {
     await openPublished(container);
     const before = localStorage.getItem("meowedit.v2.sets.author-1");

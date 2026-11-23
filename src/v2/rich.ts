@@ -18,6 +18,8 @@ export interface RichState {
   cellPickIndex?: number;
   selectedUnitSpell?: string;
   cellRegion?: "boon" | "bane";
+  abilityFilter?: "all" | "field";
+  approach?: "settings-only" | "custom";
 }
 
 export interface RichContext {
@@ -143,8 +145,18 @@ function questEditor(ctx: RichContext): string {
   } else {
     const links = Object.entries(quest.meowEdit.dialogueLinks).map(([slot, list]) =>
       slot + ": " + (list.map(item => item.id).join(", ") || "none")).join(" · ");
+    const objectiveDetail = quest.objectiveKind === "Fetch"
+      ? quest.meowEdit.fetchItems.map(item => item.displayName.default + " ×" + item.count).join(", ") || "no items"
+      : quest.objectiveKind === "Battle"
+        ? quest.meowEdit.battleTargets.map(target => target.id + " @floor " + target.floorOffset).join(", ") || "no targets"
+        : quest.objectiveKind === "KillCount"
+          ? quest.meowEdit.killCount.targetId.id + " ×" + quest.meowEdit.killCount.count
+          : quest.objectiveKind === "Timer"
+            ? "decision " + quest.meowEdit.timer.decisionId.id + " · counter " + quest.meowEdit.timer.counterTarget
+            : quest.escortUnitId?.id || quest.targetNodeKind || "-";
     body = '<div class="card"><h3>' + escapeHtml(quest.title.default) + "</h3>" +
-      "<p>Objective: " + escapeHtml(quest.objectiveKind ?? "-") + " · Reward: " + escapeHtml(quest.rewardKind ?? "-") + "</p>" +
+      "<p>Objective: " + escapeHtml(quest.objectiveKind ?? "-") + " · " + escapeHtml(objectiveDetail) + "</p>" +
+      "<p>Reward: " + escapeHtml(quest.rewardKind ?? "-") + " ×" + String(quest.rewardAmount ?? 0) + "</p>" +
       "<p>Dialogue links · " + escapeHtml(links) + "</p>" +
       "<p>Minimum spacing rules: " + quest.meowEdit.minimumNodeDistances.length + " · Completion effects: " + quest.meowEdit.completionEffects.length + "</p>" +
       '<details class="guided-advanced"><summary>More options (not required)</summary><div class="form-grid">' +
@@ -152,8 +164,10 @@ function questEditor(ctx: RichContext): string {
         ref(slot + " dialogue", ext + ".dialogueLinks." + slot + "[0].id", quest.meowEdit.dialogueLinks[slot][0]) +
         button("create-dialogue-link", "Create Dialogue", ' data-slot="' + slot + '"')).join("") +
       quest.meowEdit.completionEffects.map((effect, index) => '<div class="v2-row">' +
-        field("Effect", ext + ".completionEffects[" + index + "].kind", effect.kind) +
+        field("Effect", ext + ".completionEffects[" + index + "].kind", effect.kind, "text",
+          ["play-event", "unlock-path", "unlock-shop-item"]) +
         ref("Target", ext + ".completionEffects[" + index + "].targetId", effect.targetId) +
+        field("Note", ext + ".completionEffects[" + index + "].label.default", effect.label.default) +
         button("remove-effect", "Remove", ' data-index="' + index + '"') + "</div>").join("") +
       button("add-effect", "+ Effect") + "</div></details></div>";
   }
@@ -336,8 +350,15 @@ function armyEditor(ctx: RichContext): string {
       '<div class="army-grid" style="grid-template-columns:repeat(' + width + ',34px)">' + cells.join("") + "</div>";
   } else if (step === 3 || step === 4) {
     const kind = step === 3 ? "spellIds" : "blessingIds";
-    const ids = step === 3 ? ctx.capabilities.ids.spells : ctx.capabilities.ids.blessings;
-    body = '<div class="guided-fields"><label class="field"><span class="field-label">' +
+    const filter = ctx.rich.abilityFilter ?? "all";
+    const ids = (step === 3 ? ctx.capabilities.ids.spells : ctx.capabilities.ids.blessings)
+      .filter(id => filter === "all" || findAbility(ctx.catalog, id)?.family === "cell");
+    body = '<div class="guided-actions">' +
+      '<button type="button" class="button button-small" data-rich-action="ability-filter" data-filter="all">All' +
+      (filter === "all" ? " ✓" : "") + "</button>" +
+      '<button type="button" class="button button-small" data-rich-action="ability-filter" data-filter="field">Field effects' +
+      (filter === "field" ? " ✓" : "") + "</button></div>" +
+      '<div class="guided-fields"><label class="field"><span class="field-label">' +
       (step === 3 ? "Spell" : "Blessing") + '</span><select data-rich-select="ability">' + options(ids, ctx.rich.selectedAbility ?? "") + "</select></label>" +
       (step === 3 ? actionButton("add-spell", "") : actionButton("add-blessing", "")) + "</div>" +
       "<h4>Assigned</h4>" + army[kind].map((item, index) => '<div class="v2-row">' +
@@ -377,8 +398,16 @@ function campaignEditor(ctx: RichContext): string {
     '<button type="button" class="button button-small" data-rich-action="select-floor" data-index="' + index + '">Floor ' + item.number + "</button>").join("");
   let body: string;
 
+  const steps = ctx.rich.approach === "settings-only"
+    ? ["Name", "Floors", "Shops", "Starting Run", "Review"]
+    : CAMPAIGN_STEPS;
   if (step === 0) {
-    body = '<div class="guided-fields">' + field("Campaign name", base + ".name.default", campaign.name.default) +
+    body = '<div class="guided-actions">' +
+      '<button type="button" class="button button-small" data-rich-action="set-approach" data-approach="settings-only">' +
+      (ctx.rich.approach === "settings-only" ? "✓ " : "") + "Randomizer settings only</button>" +
+      '<button type="button" class="button button-small" data-rich-action="set-approach" data-approach="custom">' +
+      (ctx.rich.approach !== "settings-only" ? "✓ " : "") + "Custom campaign</button></div>" +
+      '<div class="guided-fields">' + field("Campaign name", base + ".name.default", campaign.name.default) +
       field("ID", base + ".id", campaign.id) +
       textarea("Description", base + ".description.default", campaign.description.default) + "</div>";
   } else if (step === 1) {
@@ -402,16 +431,22 @@ function campaignEditor(ctx: RichContext): string {
           escapeHtml(node ? node.kind.slice(0, 1) : "·") + "</button>");
       }
     }
-    const routes = floor.routes.map((route, index) => '<div class="v2-row">' +
-      "<strong>" + escapeHtml(route.fromNodeId + " → " + route.toNodeId) + "</strong>" +
+    const routes = floor.routes.map((route, index) => {
+      const from = floor.nodes.find(node => node.id === route.fromNodeId);
+      const to = floor.nodes.find(node => node.id === route.toNodeId);
+      const distance = from && to ? Math.max(Math.abs(from.x - to.x), Math.abs(from.y - to.y)) : 0;
+      return '<div class="v2-row">' +
+        "<strong>" + escapeHtml(route.fromNodeId + " → " + route.toNodeId) + " · " + distance + " step(s)</strong>" +
       '<button type="button" class="button button-small" data-rich-action="toggle-route-direction" data-index="' + index + '">' +
       (route.oneWay ? "One-way" : "Two-way") + "</button>" +
-      button("remove-route", "Disconnect", ' data-index="' + index + '"') + "</div>").join("");
+      button("remove-route", "Disconnect", ' data-index="' + index + '"') + "</div>";
+    });
     body = '<p class="step-copy">Click an empty cell to add the selected node kind. Click a node to edit it. ' +
       'Use "Connect" on a node, then click a neighboring node to add a route.</p>' +
       '<div class="guided-fields"><label class="field"><span class="field-label">Node kind</span><select data-rich-select="node-kind">' +
       options(ctx.capabilities.enums.nodeKind, ctx.rich.selectedNodeKind ?? "Battle") + "</select></label></div>" +
-      '<div class="campaign-grid">' + cells.join("") + "</div><h4>Connections</h4>" + (routes || '<p class="step-copy">No routes yet.</p>');
+      '<div class="campaign-grid">' + cells.join("") + "</div><h4>Connections</h4>" +
+    (routes.length ? routes.join("") : '<p class="step-copy">No routes yet.</p>');
   } else if (step === 3) {
     const nodeIndex = Math.min(ctx.rich.nodeIndex, Math.max(0, floor.nodes.length - 1));
     const node = floor.nodes[nodeIndex];
@@ -505,12 +540,12 @@ function campaignEditor(ctx: RichContext): string {
   }
 
   return '<p class="help-copy">Campaign work is split by task. Only the relevant floor and map controls appear in each step.</p>' +
-    '<div class="guided-progress">' + CAMPAIGN_STEPS.map((name, index) =>
+    '<div class="guided-progress">' + steps.map((name, index) =>
       '<span class="' + (index < step ? "done" : index === step ? "current" : "") + '" title="' + escapeHtml(name) + '"></span>').join("") + "</div>" +
-    '<h3>' + CAMPAIGN_STEPS[step] + '</h3><section class="guided-step">' + body +
+    '<h3>' + steps[Math.min(step, steps.length - 1)] + '</h3><section class="guided-step">' + body +
     '<div class="guided-actions">' +
     (step > 0 ? actionButton("prev-step", ' data-direction="back"') : "") +
-    (step < CAMPAIGN_STEPS.length - 1 ? actionButton("next-step", ' data-direction="next"', true) : "") +
+    (step < steps.length - 1 ? actionButton("next-step", ' data-direction="next"', true) : "") +
     "</div></section>";
 }
 

@@ -292,6 +292,24 @@ export function validateContentSet(value: unknown, capabilities: GameCapabilitie
           hint: "A floor supports at most one Boss node.",
           section: "campaigns", entryIndex: campaignIndex
         });
+      const routeKeys = new Set<string>();
+      for (const route of floor.routes) {
+        const key = [route.fromNodeId, route.toNodeId].sort().join("|");
+        if (routeKeys.has(key))
+          issues.push({
+            path: floorPath + ".routes", code: "duplicate-route",
+            message: 'Floor ' + floor.number + ' repeats a route between the same two nodes.',
+            hint: "Remove one of the duplicate connections.", section: "campaigns", entryIndex: campaignIndex
+          });
+        routeKeys.add(key);
+      }
+      if (bosses.length && !floor.nodes.some(node => node.kind === "Battle"))
+        issues.push({
+          path: floorPath + ".nodes", code: "boss-without-battle",
+          message: 'Floor ' + floor.number + ' has a Boss but no Battle node.',
+          hint: "Add a Battle before the Boss so the encounter has a warm-up fight.",
+          section: "campaigns", entryIndex: campaignIndex
+        });
       for (const route of floor.routes) {
         const from = floor.nodes.find(node => node.id === route.fromNodeId);
         const to = floor.nodes.find(node => node.id === route.toNodeId);

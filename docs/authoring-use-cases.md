@@ -32,13 +32,13 @@ Core jobs: create without manual IDs, continue a draft, make a narrow edit, buil
 | G1 | Create a content set | **+ New set** → 2 fields per step → Review | Set ID and name editable in set details | **[done]** |
 | G2 | Rename / delete a set | Rename button; Delete only for admin | — | **[done]** rename; **[partial]** delete (backend flag/route pending) |
 | G3 | Browse authored work | Set browser list with status badges | — | **[done]** |
-| G4 | Continue a draft after reload | Session restores last set, category, entry, step, Help | — | **[done]** for set/category/entry; **[partial]** nested return stack |
+| G4 | Continue a draft after reload | Session restores last set, category, entry, step, Help | — | **[done]** including nested related-record return stack |
 | G5 | Save without publishing | **Save / Upload** → Draft vN | Same button in set list | **[done]** |
 | G6 | Publish | **Publish** → warning → hash verification | Same | **[done]** |
-| G7 | Validate before publish | Grouped validation panel with hints, suggestions, "Use …" / "Apply fixes" / "Open entry" | Same panel | **[done]** for schema/refs/enums/campaign graph rules; **[partial]** no full v1 dialogue/quest rule set |
+| G7 | Validate before publish | Grouped validation panel with hints, suggestions, "Use …" / "Apply fixes" / "Open entry" | Same panel | **[done]** schema, refs, enums, campaign graph rules, dialogue structure |
 | G8 | Get help | Help toggle reveals field hints | Same toggle | **[done]** |
-| G9 | Import / export JSON or ZIP | — | — | **[missing]** (deliberately replaced by Neon drafts + publish) |
-| G10 | Static examples | — | — | **[missing]** (removed; live published sets are the reference) |
+| G9 | Import / export JSON or ZIP | — | — | **[removed by design]** — Neon drafts + Publish replace it |
+| G10 | Static examples | — | — | **[removed by design]** — live published sets are the reference |
 | G11 | Toasts / save indicator | Toast region, "saved locally" in session | Same | **[done]** |
 | G12 | Mode/step keyboard flow (Enter advances, focus first field) | — | — | **[done]** (Shift+Enter keeps newlines in text areas) |
 
@@ -50,14 +50,14 @@ Core jobs: create without manual IDs, continue a draft, make a narrow edit, buil
 |---|---|---|---|---|
 | D1 | Create a dialogue | Add dialogue → name + optional ID → first moment auto-created | `sequenceId`, `startNodeId` | **[done]** |
 | D2 | Name / rename a moment | Node list → selected node → Headline | `nodes.N.*.headline` | **[done]** |
-| D3 | Pick a speaker | Speaker picker from capability unit IDs; display name | `speakers.S.unitId`, `displayName`, `side`, `mood` | **[partial]** unit + name; **missing** side/mood in guided, roster-driven level labels |
+| D3 | Pick a speaker | Speaker picker from capability unit IDs, display name, side and mood | `speakers.S.unitId`, `displayName`, `side`, `mood` | **[done]** |
 | D4 | Write lines | Lines list → Add line → text | `segments.I.text`, `speakerIds` | **[done]** |
-| D5 | Add choices | Choices list → label + target + outcome | `actions.A.{label,targetNodeId,decision.*}` | **[partial]** no default-Continue affordance or reserved-destination copy |
+| D5 | Add choices | Choices list → label + target + outcome + Default continue; moment-map Connect | `actions.A.{label,targetNodeId,decision.*}` | **[done]** |
 | D6 | See the conversation structure | Moment map with node cards, routed lines, zoom and choice connections | — | **[done]** (no free-form node dragging) |
 | D7 | Preview in game composition | Preview pane with speaker portraits, headline, lines and clickable choices + Start over | — | **[done]** (mood-specific art not yet) |
-| D8 | One-time decisions / outcomes | — | `decision.id/label/outcomeId/outcomeLabel` | **[partial]** fields exist, no dedicated decision box |
+| D8 | One-time decisions / outcomes | Choice row exposes decision ID, label and outcome ID | `decision.id/label/outcomeId/outcomeLabel` | **[done]** |
 | D9 | Switch guided ↔ advanced without losing selection | Guided editor ↔ Raw fields tab | — | **[done]** |
-| D10 | Dialogue-specific validation | Validation panel on review | Same | **[partial]** start-node check only |
+| D10 | Dialogue-specific validation | Validation panel: start node, duplicate IDs, empty headlines, broken choice targets | Same | **[done]** |
 
 ---
 
@@ -66,18 +66,18 @@ Core jobs: create without manual IDs, continue a draft, make a narrow edit, buil
 | # | Use case | Guided path | Advanced path (Raw fields) | Status |
 |---|---|---|---|---|
 | Q1 | Create a quest | Add quest → Basics → Objective → Quest Giver → Offer → In Progress → Reward → Review | `definition.id/title/...` | **[done]** 7 guided steps |
-| Q2 | Basics / source / availability | Basics step: title, ID, description (foldout) | `sourceKind`, `sourceSlot`, `firstFloor`, `repeatEveryFloors`, `priority` | **[partial]** guided lacks source/availability; fields in Raw |
+| Q2 | Basics / source / availability | Basics step: title, ID, description, source/floor/repeat foldout | `sourceKind`, `sourceSlot`, `firstFloor`, `repeatEveryFloors`, `priority` | **[done]** |
 | Q3 | Objective-specific forms | Objective step shows fields for the chosen kind (Fetch items, Battle targets, Kill Count, Escort, Clear Floor, Timer) | Same fields plus distance rules | **[done]** |
-| Q4 | Fetch items with counts | — | `fetchItems.I.{id,displayName,count}` | **[partial]** rows only |
-| Q5 | Battle targets + Army handoff | — | `battleTargets.I.armyId` | **[missing]** create/edit Army in context and return |
+| Q4 | Fetch items with counts | Objective step (Fetch): item rows, display name, count, add/remove | `fetchItems.I.{id,displayName,count}` | **[done]** |
+| Q5 | Battle targets + Army handoff | Objective step → Create Army on a target, returns to the same target | `battleTargets.I.armyId` | **[done]** |
 | Q6 | Quest giver and writing | Quest Giver → Offer → In Progress steps with text areas | `speakerUnitId`, `speakerName`, `offerText`, `activeText`, `acceptLabel`, `declineLabel` | **[done]** |
 | Q7 | Reward configuration | Objective step: reward kind; foldout amount | `rewardKind`, `rewardAmount`, `rewardContentId` | **[done]** |
 | Q8 | Dialogue links | Dialogue links step: offer + active; foldout completion/failure | four link slots | **[done]** |
-| Q9 | Dialogue create/edit handoff | — | — | **[missing]** return-to-slot stack |
-| Q10 | Timer project | — | `timer.*`, `paymentCompletesImmediately` | **[partial]** fields exist, no dedicated progress UI |
-| Q11 | Completion effects | — | `completionEffects` rows | **[partial]** add/remove but no scope/kind UX |
-| Q12 | Minimum node distances | — | `minimumNodeDistances` rows | **[partial]** no disclosure or guided entry |
-| Q13 | Review before publish | Review step: title, objective, reward, link count | Full Raw fields | **[partial]** no concrete readable summary of targets/effects |
+| Q9 | Dialogue create/edit handoff | Review → Create Dialogue per slot, returns to the quest | — | **[done]** |
+| Q10 | Timer project | Objective step shows decision/outcomes/counter/payment fields and completion toggle | `timer.*` | **[done]** |
+| Q11 | Completion effects | Review → effect kind picker, target and author note | `completionEffects` rows | **[done]** |
+| Q12 | Minimum node distances | Objective step → Advanced disclosure with from/to/hops rows | `minimumNodeDistances` rows | **[done]** |
+| Q13 | Review before publish | Review step with concrete targets, reward, links, rules and effects | Full Raw fields | **[done]** |
 
 ---
 
@@ -88,11 +88,11 @@ Core jobs: create without manual IDs, continue a draft, make a narrow edit, buil
 | A1 | Create / name an Army | Add Army → Name → Choose Units → Arrange Grid → Army Spells → Blessings → Review (opens the guided editor immediately) | `id`, `name` | **[done]** |
 | A2 | Pick units from catalogs | Choose Units step: unit select + lineup + add/remove | `units.I.unitId` | **[done]** levels come from the capability catalog; buildings are not exposed in v2 |
 | A3 | Preview unit stats before adding | Choose Units step shows catalog description, footprint and stats | — | **[done]** portrait still omitted |
-| A4 | Arrange formation | Arrange Grid step: click-to-place/remove, grid grows beyond 5 | `units.I.{x,y}` | **[partial]** footprint shown but not enforced; no drag/swaps |
+| A4 | Arrange formation | Arrange Grid step: click-to-place/remove, footprint collision check, grid grows beyond 5 | `units.I.{x,y}` | **[done]** (no drag/swaps) |
 | A5 | Per-entry spells | Choose Units step: per-lineup spell picker with remove chips | `units.I.spellIds` | **[done]** |
-| A6 | Army-wide spells / blessings / curses | Add buttons in rich editor | `spellIds`, `blessingIds` | **[partial]** no tabs, filters, previews or chips |
+| A6 | Army-wide spells / blessings / curses | Separate steps per category, All/Field filter, catalog previews and chips | `spellIds`, `blessingIds` | **[done]** (curses share the blessing list) |
 | A7 | Cell-target focus (boon/bane, lanes, locked) | Blessings step → Configure cells overlay with boon/bane grids, lane and Locked | `CellBlessingPicks` cells/lane/bool | **[done]** (game-specific cell rules are not interpreted) |
-| A8 | Review lineup and loadout | — | — | **[missing]** review screen |
+| A8 | Review lineup and loadout | Review step lists lineup, spells and blessings | — | **[done]** |
 | A9 | Refresh game catalogs | — | — | **[done]** `npm run snapshot-army-catalog` / capabilities |
 
 ---
@@ -102,18 +102,18 @@ Core jobs: create without manual IDs, continue a draft, make a narrow edit, buil
 | # | Use case | Guided path | Advanced path (Raw fields) | Status |
 |---|---|---|---|---|
 | C1 | Create a campaign | Add Campaign → Name → Floors → Map → Node → Quests → Shops → Starting Run → Review | `id`, `name`, `description` | **[done]** |
-| C2 | Choose approach (randomizer-only vs custom) | — | `settings.*` | **[missing]** designMode concept in v2 |
-| C3 | Floors: add / select / remove / mode | Floor tabs + Add floor | `floors.F.{id,number,mode}` | **[partial]** no remove, no random-count controls in rich editor |
-| C4 | Adventure map authoring | Map step: click empty cell to add selected node kind; click node to edit; Connect then click target | `floors.F.nodes.*` | **[partial]** no distance labels or plug dragging |
+| C2 | Choose approach (randomizer-only vs custom) | Name step: approach buttons filter the step list | `settings.*` | **[done]** |
+| C3 | Floors: add / select / remove / mode | Floor tabs, Add/Remove floor, layout mode and generated counts | `floors.F.{id,number,mode}` | **[done]** |
+| C4 | Adventure map authoring | Map step: click empty cell to add node, click node to edit, Connect then click neighbor, distance labels | `floors.F.nodes.*` | **[done]** (click-connect, not drag-plug) |
 | C5 | Routes | Connect from a node, click neighbor; one-way toggle + Disconnect in Connections list | `floors.F.routes.*` | **[done]** adjacency/reachability validated |
 | C6 | Focused node step | Node step: node picker, contextual fields, connect/remove | Raw fields | **[done]** |
 | C7 | Node inspector by kind | Battle/Boss army+faction with Create Army; Quest with Create Quest; Reward; Shop offers | `armyId`, `questId`, `enemyFactionId`, `reward*`, `shopOffers` | **[done]** with return-to-campaign |
-| C8 | Exact three shop offers | — | `shopOffers` rows | **[partial]** validation checks count, UI is generic rows |
+| C8 | Exact three shop offers | Shop node offers: stock mode (generated/exact), pool, item, price, max 3 | `shopOffers` rows | **[done]** |
 | C9 | Quest pool + floor pools | Quests step: toggle chips for authored quests | `questIds`, `questPoolIds` | **[done]** (per-floor subset only in Advanced) |
 | C10 | Shop pools + tiers | Shops step: pool checkboxes + floor tier | `shopPoolKinds`, `shopLevel` | **[done]** |
-| C11 | Events | Rich Events list: ID + trigger + remove | conditions/actions parameters | **[partial]** no focused event screen, floor/node targeting or army handoff |
-| C12 | Starting run / progression panels | Wizard set details + Raw fields | `settings.*` | **[partial]** no dedicated panels or conditional growth controls |
-| C13 | Review every floor | Validation panel | Raw fields | **[partial]** no readable per-floor audit |
+| C11 | Events | Review events: ID, trigger, floor, node, remove | conditions/actions parameters | **[done]** (parameters in Advanced) |
+| C12 | Starting run / progression panels | Starting Run step: board character, resources, faction, toggles, growth settings | `settings.*` | **[done]** |
+| C13 | Review every floor | Review step lists each floor's mode, nodes, routes and shop tier | — | **[done]** |
 | C14 | Publish / revision | Publish in set list | Same | **[done]** |
 
 ---
