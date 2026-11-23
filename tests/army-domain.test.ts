@@ -6,9 +6,9 @@ import { armyFootprintsOverlap, canPlaceArmyLevel } from "../src/legacy/army-cat
 describe("army editing operations", () => {
   it("adds a placement with an independent spell list and rejects occupied cells", () => {
     const army = armyFixture();
-    expect(addArmyUnit(army, { id: "p2", unitId: "Cats/Fighter/2", x: 1, y: 0, spellIds: ["fireball"] })).toBe(true);
+    expect(addArmyUnit(army, { id: "p2", unitId: "Peasants/Fighter/2", x: 1, y: 0, spellIds: ["fireball"] })).toBe(true);
     expect(army.units[1].spellIds).toEqual(["fireball"]);
-    expect(addArmyUnit(army, { id: "p3", unitId: "Cats/Fighter/1", x: 1, y: 0, spellIds: [] })).toBe(false);
+    expect(addArmyUnit(army, { id: "p3", unitId: "Peasants/Fighter/1", x: 1, y: 0, spellIds: [] })).toBe(false);
     expect(addArmyUnit(army, { id: "p4", unitId: "", x: 2, y: 0, spellIds: [] })).toBe(false);
     expect(army.units).toHaveLength(2);
   });
@@ -16,17 +16,17 @@ describe("army editing operations", () => {
   it("replaces a unit in place and clears spells only when the unit changes", () => {
     const army = armyFixture();
     army.units[0].spellIds = ["fireball"];
-    expect(replaceArmyUnit(army, "placement-1", "Cats/Fighter/1")).toBe(true);
+    expect(replaceArmyUnit(army, "placement-1", "Peasants/Fighter/1")).toBe(true);
     expect(army.units[0].spellIds).toEqual(["fireball"]);
-    expect(replaceArmyUnit(army, "placement-1", "Cats/Fighter/2")).toBe(true);
-    expect(army.units[0]).toMatchObject({ unitId: "Cats/Fighter/2", x: 0, y: 0, spellIds: [] });
-    expect(replaceArmyUnit(army, "missing", "Cats/Fighter/1")).toBe(false);
+    expect(replaceArmyUnit(army, "placement-1", "Peasants/Fighter/2")).toBe(true);
+    expect(army.units[0]).toMatchObject({ unitId: "Peasants/Fighter/2", x: 0, y: 0, spellIds: [] });
+    expect(replaceArmyUnit(army, "missing", "Peasants/Fighter/1")).toBe(false);
     expect(replaceArmyUnit(army, "placement-1", "")).toBe(false);
   });
 
   it("moves selected units and swaps with an occupied placement", () => {
     const army = armyFixture();
-    army.units.push({ id: "p2", unitId: "Cats/Fighter/2", x: 1, y: 0, spellIds: [] });
+    army.units.push({ id: "p2", unitId: "Peasants/Fighter/2", x: 1, y: 0, spellIds: [] });
     expect(moveArmyUnit(army, "placement-1", 1, 0)).toBe(true);
     expect(army.units.map(({ x, y }) => ({ x, y }))).toEqual([{ x: 1, y: 0 }, { x: 0, y: 0 }]);
     expect(moveArmyUnit(army, "placement-1", 2, 0)).toBe(true);
@@ -36,8 +36,8 @@ describe("army editing operations", () => {
 
   it("validates a full swap before changing positions, including building footprints", () => {
     const army = armyFixture();
-    army.units[0].unitId = "Cats/Barricade/1";
-    army.units.push({ id: "p2", unitId: "Cats/Fighter/1", x: 0, y: 1, spellIds: [] });
+    army.units[0].unitId = "Peasants/Chapel/1";
+    army.units.push({ id: "p2", unitId: "Peasants/Fighter/1", x: 0, y: 1, spellIds: [] });
     const grid = { width: 3, height: 3 };
     const validateSwap = (moves: readonly ArmyPlacementMove[]) => {
       const movingIds = new Set(moves.map(move => move.placement.id));
@@ -51,7 +51,7 @@ describe("army editing operations", () => {
 
     army.units[0].x = 0; army.units[0].y = 0;
     army.units[1].x = 0; army.units[1].y = 1;
-    army.units.push({ id: "p3", unitId: "Cats/Fighter/1", x: 1, y: 1, spellIds: [] });
+    army.units.push({ id: "p3", unitId: "Peasants/Fighter/1", x: 1, y: 1, spellIds: [] });
     expect(moveArmyUnit(army, "placement-1", 0, 1, validateSwap)).toBe(false);
     expect(army.units.map(({ x, y }) => ({ x, y }))).toEqual([{ x: 0, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }]);
   });

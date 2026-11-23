@@ -138,7 +138,7 @@ describe("restored v1 editor", () => {
     const { reconcileCatalogIds } = await import("../src/legacy/main");
     const army = {
       key: "a", id: "a", name: "Old Army", previewFloor: 1,
-      units: [{ id: "p1", unitId: "Cats/Fighter/1", x: 0, y: 0, spellIds: [] }],
+      units: [{ id: "p1", unitId: "Missing/Fighter/1", x: 0, y: 0, spellIds: [] }],
       spellIds: [], blessingIds: []
     };
     const workspace = draftToWorkspace(draftWithArmy(), capabilities);

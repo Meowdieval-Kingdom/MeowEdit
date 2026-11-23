@@ -4,13 +4,13 @@ import { createCampaignFloor } from "../src/legacy/campaign-domain";
 export const catalog: ArmyCatalog = {
   schemaVersion: 1,
   gridSizes: [{ minFloor: 1, width: 3, height: 3 }, { minFloor: 5, width: 5, height: 5 }],
-  units: [{ id: "Cats/Fighter/1", name: "Fighter", factionId: "Cats", faction: "Cats", levels: [
-    { id: "Cats/Fighter/1", name: "Fighter", level: 1, description: "A sturdy test fighter.", tier: 1, previewImage: "./avatars/Cats-Fighter-1.png", footprint: { width: 1, height: 1 }, stats: { maxHealth: 100, maxMana: 20, manaRegen: 1, attackDamage: 10, attackSpeed: 1, attackRange: 1, minAttackRange: 0, critChance: 0.05, spellPower: 2, armorResist: 3, magicResist: 4, movementSpeed: 2 } },
-    { id: "Cats/Fighter/2", name: "Fighter", level: 2, description: "A stronger test fighter.", tier: 1, previewImage: "./avatars/Cats-Fighter-2.png", footprint: { width: 1, height: 1 }, stats: { maxHealth: 150, maxMana: 25, manaRegen: 2, attackDamage: 15, attackSpeed: 1.2, attackRange: 1, minAttackRange: 0, critChance: 0.1, spellPower: 3, armorResist: 5, magicResist: 6, movementSpeed: 2.5 } }
+  units: [{ id: "Peasants/Fighter/1", name: "Fighter", factionId: "Peasants", faction: "Peasants", levels: [
+    { id: "Peasants/Fighter/1", name: "Fighter", level: 1, description: "A sturdy test fighter.", tier: 1, previewImage: "./avatars/Peasants-Fighter-1.png", footprint: { width: 1, height: 1 }, stats: { maxHealth: 100, maxMana: 20, manaRegen: 1, attackDamage: 10, attackSpeed: 1, attackRange: 1, minAttackRange: 0, critChance: 0.05, spellPower: 2, armorResist: 3, magicResist: 4, movementSpeed: 2 } },
+    { id: "Peasants/Fighter/2", name: "Fighter", level: 2, description: "A stronger test fighter.", tier: 1, previewImage: "./avatars/Peasants-Fighter-2.png", footprint: { width: 1, height: 1 }, stats: { maxHealth: 150, maxMana: 25, manaRegen: 2, attackDamage: 15, attackSpeed: 1.2, attackRange: 1, minAttackRange: 0, critChance: 0.1, spellPower: 3, armorResist: 5, magicResist: 6, movementSpeed: 2.5 } }
   ] }],
-  buildings: [{ id: "Cats/Barricade/1", name: "Barricade", factionId: "Cats", faction: "Cats", levels: [
-    { id: "Cats/Barricade/1", name: "Barricade", level: 1, description: "A broad defensive structure.", tier: 2, footprint: { width: 2, height: 1 }, stats: { maxHealth: 250, maxMana: 0, manaRegen: 0, attackDamage: 0, attackSpeed: 0, attackRange: 0, minAttackRange: 0, critChance: 0, spellPower: 0, armorResist: 20, magicResist: 10, movementSpeed: 0 } }
-  ] }], factions: [{ id: "Cats", name: "Cats" }],
+  buildings: [{ id: "Peasants/Chapel/1", name: "Chapel", factionId: "Peasants", faction: "Peasants", levels: [
+    { id: "Peasants/Chapel/1", name: "Chapel", level: 1, description: "A sturdy chapel that anchors the line.", tier: 2, footprint: { width: 2, height: 1 }, stats: { maxHealth: 250, maxMana: 0, manaRegen: 0, attackDamage: 0, attackSpeed: 0, attackRange: 0, minAttackRange: 0, critChance: 0, spellPower: 0, armorResist: 20, magicResist: 10, movementSpeed: 0 } }
+  ] }], factions: [{ id: "Peasants", name: "Peasants" }],
   spells: [{ id: "fireball", name: "Fireball", description: "Deals fire damage to nearby enemies.", tier: 1, manaCost: 5, coinCost: 2, cooldown: 3, maxTargets: 4 }, { id: "shield", name: "Shield", description: "Protects an ally." }],
   blessings: [
     { id: "blessing", name: "Blessing", description: "Boosts armor for the battle.", level: 1 },
@@ -24,7 +24,7 @@ export const catalog: ArmyCatalog = {
 
 export function armyFixture(): ArmyRecord {
   return { key: "army-key", id: "test-army", idAuto: false, name: "Test Army", previewFloor: 1,
-    units: [{ id: "placement-1", unitId: "Cats/Fighter/1", x: 0, y: 0, spellIds: [] }], spellIds: [], blessingIds: [] };
+    units: [{ id: "placement-1", unitId: "Peasants/Fighter/1", x: 0, y: 0, spellIds: [] }], spellIds: [], blessingIds: [] };
 }
 
 export function dialogueFixture(): DialogueRecord {
@@ -58,3 +58,4 @@ export function workspaceFixture(): Workspace {
 }
 
 export const rosterFixture: UnitRoster = { schemaVersion: 1, rosterVersion: "test", source: "test", units: [] };
+

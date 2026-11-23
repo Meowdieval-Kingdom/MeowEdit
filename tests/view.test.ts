@@ -46,7 +46,7 @@ describe("editor rendering", () => {
     expect(units).toContain("Buildings");
     expect(units).toContain("Health");
     expect(units).toContain("A sturdy test fighter.");
-    expect(units).toContain('src="./avatars/Cats-Fighter-1.png"');
+    expect(units).toContain('src="./avatars/Peasants-Fighter-1.png"');
     expect(units).toContain("army-stats-portrait");
     expect(units.match(/class="army-stats-card"/g)).toHaveLength(1);
 
@@ -54,16 +54,16 @@ describe("editor rendering", () => {
     expect(position).toContain("data-army-grid");
     expect(position).toContain("Drag to move");
     expect(position).toContain("data-army-placement");
-    expect(position).toContain('src="./avatars/Cats-Fighter-1.png"');
+    expect(position).toContain('src="./avatars/Peasants-Fighter-1.png"');
     expect(position.match(/class="army-stats-card"/g)).toHaveLength(1);
 
     const advanced = renderApp(workspace, rosterFixture, catalog, [], 2, "full", "placement-1");
     expect(advanced.match(/class="army-stats-card"/g)).toHaveLength(1);
 
-    const building = renderArmyEntityPreview(catalog, "Cats/Barricade/1", 1, "buildings");
+    const building = renderArmyEntityPreview(catalog, "Peasants/Chapel/1", 1, "buildings");
     expect(building).toContain("BUILDING · LEVEL 1");
     expect(building).toContain("2 × 1");
-    expect(building).toContain("A broad defensive structure.");
+    expect(building).toContain("A sturdy chapel that anchors the line.");
 
     const effect = renderArmyAbilityPreview(catalog, "fireball", "spells");
     expect(effect).toContain("Deals fire damage to nearby enemies.");
@@ -203,14 +203,14 @@ describe("editor rendering", () => {
     const workspace = workspaceFixture();
     workspace.selectedType = "army";
     const army = armyFixture();
-    army.units[0].unitId = "Cats/Fighter/1";
+    army.units[0].unitId = "Missing/Fighter/1";
     workspace.armies = [army];
     workspace.selectedKey = army.key;
     const html = renderApp(workspace, rosterFixture, realCatalog, [], 0, "full");
     expect(html).toContain("army-grid-placement is-invalid");
     expect(html).toContain("Unknown unit");
     expect(html).toContain("pick a unit");
-    expect(html).not.toContain("<strong>Cats/Fighter/1</strong>");
+    expect(html).not.toContain("<strong>Missing/Fighter/1</strong>");
   });
 
   it("inserts spaces between dialogue segments in the preview", () => {
@@ -285,10 +285,10 @@ describe("editor rendering", () => {
     const renderSummary = () => renderApp(workspace, rosterFixture, catalog, [], 6, "guided");
 
     quest.definition.objectiveKind = "Escort";
-    quest.definition.escortUnitId = "Cats/Fighter/1";
+    quest.definition.escortUnitId = "Peasants/Fighter/1";
     quest.definition.targetNodeKind = "Reward";
     quest.definition.targetFloorOffset = 1;
-    expect(renderSummary()).toContain("Escort Cats/Fighter/1 to Reward (floor +1).");
+    expect(renderSummary()).toContain("Escort Peasants/Fighter/1 to Reward (floor +1).");
 
     quest.definition.objectiveKind = "Battle";
     quest.extension.battleTargets = [{ id: "battle-one", label: "Bandit camp", nodeKind: "Battle", floorOffset: 1, armyId: "bandit-army" }];
@@ -316,14 +316,14 @@ describe("editor rendering", () => {
     const workspace = workspaceFixture();
     const army = workspace.armies[0];
     army.units[0].spellIds = ["fireball"];
-    army.units.push({ id: "barricade-placement", unitId: "Cats/Barricade/1", x: 1, y: 0, spellIds: ["shield"] });
+    army.units.push({ id: "barricade-placement", unitId: "Peasants/Chapel/1", x: 1, y: 0, spellIds: ["shield"] });
     workspace.selectedType = "army";
     workspace.selectedKey = army.key;
 
     const html = renderApp(workspace, rosterFixture, catalog, [], 6, "guided");
     expect(html).toContain("Spells by lineup entry");
     expect(html).toContain("Fighter: Fireball");
-    expect(html).toContain("Barricade: Shield");
+    expect(html).toContain("Chapel: Shield");
   });
 
   it("renders campaign editor variants and floor map states", () => {
@@ -333,7 +333,7 @@ describe("editor rendering", () => {
     const view = { selectedFloorId: workspace.campaigns[0].floors[0].id, selectedNodeId: "start", interactionMode: "select" as const, nodeKind: "Battle" as const, addMenuOpen: false, pendingPlugFromId: null, selectedRouteId: null };
     const advanced = renderApp(workspace, rosterFixture, catalog, [], 0, "full", null, view);
     expect(advanced).toContain('data-bind="boardPreviewUnitId"');
-    expect(advanced).toContain('value="Cats/Fighter/1"');
+    expect(advanced).toContain('value="Peasants/Fighter/1"');
     expect(advanced).toContain("Use selected faction hero");
     expect(advanced).toContain('data-bind="settings.factionSelectionEnabled"');
     expect(advanced).toContain("Allow faction selection");
@@ -414,7 +414,7 @@ describe("editor rendering", () => {
     campaign.questIds = [workspace.quests[0].definition.id];
     campaign.settings.startingLives = 5;
     campaign.settings.startingSardines = 42;
-    campaign.settings.playerFactionId = "Cats";
+    campaign.settings.playerFactionId = "Peasants";
     campaign.settings.continueWithGeneratedFloors = true;
     campaign.settings.nodeGrowthPerFloor = 3;
     workspace.armies[0].id = "bridge-guards";
@@ -433,7 +433,7 @@ describe("editor rendering", () => {
     expect(html).toContain("Battle 1 · Battle · Army Bridge Guards (bridge-guards)");
     expect(html).toContain("Start ↔ Battle 1");
     expect(html).toContain("Test Quest (test-quest)");
-    expect(html).toContain("5 lives · 42 Sardines · Cats");
+    expect(html).toContain("5 lives · 42 Sardines · Peasants");
     expect(html).toContain("continues with generated floors");
     expect(html).not.toContain("Current floor");
   });
@@ -515,9 +515,9 @@ describe("editor rendering", () => {
 
   it("renders captured character portraits and falls back for an empty dialogue", () => {
     const record = dialogueFixture();
-    record.sequence.nodes[0].speakers = [{ id: "speaker", unitId: "Cats/Fighter/1", displayName: "Fighter", side: "left", mood: "Normal" }];
+    record.sequence.nodes[0].speakers = [{ id: "speaker", unitId: "Peasants/Fighter/1", displayName: "Fighter", side: "left", mood: "Normal" }];
     record.sequence.nodes[0].segments[0].speakerIds = ["speaker"];
-    const roster: UnitRoster = { ...rosterFixture, units: [{ id: "Cats/Fighter/1", displayName: "Fighter", faction: "Cats", portrait: "/fighter.png", moods: ["Normal"] }] };
+    const roster: UnitRoster = { ...rosterFixture, units: [{ id: "Peasants/Fighter/1", displayName: "Fighter", faction: "Peasants", portrait: "/fighter.png", moods: ["Normal"] }] };
     const previewHtml = renderDialoguePreview(record, { ...workspaceFixture(), activeNodeId: null }, roster);
     expect(previewHtml).toContain("/fighter.png");
     expect(previewHtml).toContain('src="./game-preview/shopframeback.png"');
@@ -537,3 +537,4 @@ describe("editor rendering", () => {
     expect(renderDialoguePreview(record, { ...workspaceFixture(), activeNodeId: null }, roster)).toContain("Add a node to see the dialogue preview");
   });
 });
+

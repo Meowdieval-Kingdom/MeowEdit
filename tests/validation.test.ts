@@ -44,7 +44,7 @@ describe("content validation", () => {
   it("accepts building placements and validates their full footprint", () => {
     const army = armyFixture();
     army.units[0].x = 2;
-    army.units.push({ id: "barricade-placement", unitId: "Cats/Barricade/1", x: 0, y: 0, spellIds: [] });
+    army.units.push({ id: "barricade-placement", unitId: "Peasants/Chapel/1", x: 0, y: 0, spellIds: [] });
     expect(validateArmy(army, catalog).filter(issue => issue.level === "error")).toEqual([]);
 
     army.units[0].x = 1;
@@ -94,7 +94,7 @@ describe("content validation", () => {
   it("validates authored board preview units against the runtime unit catalog", () => {
     const workspace = workspaceFixture();
     const campaign = workspace.campaigns[0];
-    campaign.boardPreviewUnitId = "Cats/Fighter/1";
+    campaign.boardPreviewUnitId = "Peasants/Fighter/1";
     expect(validateCampaign(campaign, workspace, catalog).filter(issue => issue.level === "error")).toEqual([]);
 
     campaign.boardPreviewUnitId = "Missing/Unit/1";
@@ -109,7 +109,7 @@ describe("content validation", () => {
     expect(validateCampaign(campaign, workspace, catalog).map(issue => issue.message))
       .toContain("Choose a player faction when faction selection is disabled.");
 
-    campaign.settings.playerFactionId = "Cats";
+    campaign.settings.playerFactionId = "Peasants";
     expect(validateCampaign(campaign, workspace, catalog).filter(issue => issue.level === "error")).toEqual([]);
   });
 
@@ -119,7 +119,7 @@ describe("content validation", () => {
     const shop = { ...floor.nodes[1], id: "market", label: "Market", kind: "Shop" as const, x: 2, y: 0,
       shopOfferMode: "exact" as const,
       shopOffers: [
-        { kind: "Unit" as const, contentId: "Cats/Fighter/1", price: 15 },
+        { kind: "Unit" as const, contentId: "Peasants/Fighter/1", price: 15 },
         { kind: "Blessing" as const, contentId: "blessing", price: 9 },
         { kind: "SpellUnlock" as const, contentId: "fireball", price: 7 }
       ] };
@@ -129,7 +129,7 @@ describe("content validation", () => {
 
     shop.shopOffers[2].contentId = "missing-spell";
     shop.shopOffers[1].price = -1;
-    shop.shopOffers.push({ kind: "Unit", contentId: "Cats/Fighter/2", price: 0 });
+    shop.shopOffers.push({ kind: "Unit", contentId: "Peasants/Fighter/2", price: 0 });
     floor.shopLevel = 5;
     messages = validateCampaign(campaign, workspaceFixture(), catalog).map(issue => issue.message);
     expect(messages.some(message => message.includes("exact shop “Market” needs exactly three offers"))).toBe(true);
@@ -153,9 +153,9 @@ describe("content validation", () => {
     const node = dialogue.sequence.nodes[0];
     node.id = "";
     node.speakers = [
-      { id: "same", unitId: "Cats/Fighter/1", displayName: "A", side: "left", mood: "Normal" },
-      { id: "same", unitId: "Cats/Fighter/1", displayName: "B", side: "left", mood: "Normal" },
-      { id: "third", unitId: "Cats/Fighter/1", displayName: "C", side: "right", mood: "Normal" }
+      { id: "same", unitId: "Peasants/Fighter/1", displayName: "A", side: "left", mood: "Normal" },
+      { id: "same", unitId: "Peasants/Fighter/1", displayName: "B", side: "left", mood: "Normal" },
+      { id: "third", unitId: "Peasants/Fighter/1", displayName: "C", side: "right", mood: "Normal" }
     ];
     node.segments = [{ speakerIds: ["missing-speaker"], text: "" }];
     node.actions = [{ label: "Broken decision", targetNodeId: "missing", decision: { id: " ", label: "Save", outcomeId: "", outcomeLabel: "" } }];

@@ -10,14 +10,14 @@ describe("content export and ZIP packages", () => {
     army.blessingIds = ["picked-column"];
     army.cellBlessingPicks = [{ rootId: "lane-root", lane: 2, cells: [], locked: true, baneCells: [] }];
     const parsed = JSON.parse(activeArmyJson(army));
-    expect(parsed.army.units[0]).toEqual({ unitId: "Cats/Fighter/1", x: 0, y: 0, spellIds: ["fireball"] });
+    expect(parsed.army.units[0]).toEqual({ unitId: "Peasants/Fighter/1", x: 0, y: 0, spellIds: ["fireball"] });
     expect(parsed.army.CellBlessingPicks).toEqual([{ RootId: "lane-root", Lane: 2, Cells: [], Locked: true, BaneCells: [] }]);
   });
 
   it("preserves workspace-only army fields and emits campaign files", () => {
     const workspace = workspaceFixture();
     workspace.armies[0].units[0].spellIds = ["shield"];
-    workspace.campaigns[0].boardPreviewUnitId = "Cats/Fighter/1";
+    workspace.campaigns[0].boardPreviewUnitId = "Peasants/Fighter/1";
     workspace.campaigns[0].settings.factionSelectionEnabled = false;
     const parsed = JSON.parse(workspaceJson(workspace));
     expect(parsed.armies[0]._meowEditWorkspace.units[0].spellIds).toEqual(["shield"]);
@@ -30,7 +30,7 @@ describe("content export and ZIP packages", () => {
     expect(manifest.campaignRuntimeSupported).toBe(true);
     const campaignEntry = entries.find(entry => entry.path.endsWith("campaigns/Campaigns.json"));
     const exportedCampaign = JSON.parse(String(campaignEntry?.content)).campaigns[0];
-    expect(exportedCampaign.boardPreviewUnitId).toBe("Cats/Fighter/1");
+    expect(exportedCampaign.boardPreviewUnitId).toBe("Peasants/Fighter/1");
     expect(exportedCampaign.settings.factionSelectionEnabled).toBe(false);
   });
 
