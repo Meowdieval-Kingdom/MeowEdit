@@ -28,9 +28,18 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
+      - name: Fetch the canonical contract doc
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p .authority
+          curl -fsSL -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github.raw+json" \
+            "https://api.github.com/repos/Meowdieval-Kingdom/MeowdievalKingdom/contents/Docs/MeowEdit-Content-Contract.md?ref=feature/adventure-map-content" \
+            -o .authority/MeowEdit-Content-Contract.md
       - name: Verify the content contract
         env:
-          MEOWEDIT_SKIP_AUTHORITY_DOC: "1"
+          MEOWEDIT_AUTHORITY_DOC: ${{ github.workspace }}/.authority/MeowEdit-Content-Contract.md
         run: npm run contract:check
       - name: Run tests with coverage
         run: npm run test:coverage
