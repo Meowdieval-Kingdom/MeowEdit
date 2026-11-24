@@ -18,6 +18,7 @@ export function emptyContentSet(setId: string, name: string): ContentSetDocument
       name: localized(name),
       description: localized(""),
       displayOrder: 0,
+      kind: "missions",
       missionOrder: []
     },
     quests: [],

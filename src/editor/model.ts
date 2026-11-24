@@ -185,7 +185,7 @@ export interface ArmyRecord {
 
 export type AdventureNodeKind = "Start" | "Battle" | "Reward" | "Boss" | "Quest" | "Shop";
 export type MissionFloorMode = "authored" | "random" | "mixed";
-export type MissionRewardKind = "Sardines" | "ExtraLife" | "Blessing" | "UnitUnlock" | "ShopLevelUnlock" | "SpellUnlock";
+export type MissionRewardKind = "Sardines" | "ExtraLife" | "Blessing" | "UnitUnlock" | "ShopLevelUnlock" | "SpellUnlock" | "UnitReward";
 export type MissionShopOfferKind = "Unit" | "Blessing" | "Research" | "SpellUnlock";
 
 export interface MissionShopOffer {

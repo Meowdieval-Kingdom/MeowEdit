@@ -14,7 +14,7 @@
     "objectiveKind": ["Escort", "Fetch", "Battle", "ClearFloor", "Timer", "KillCount"],
     "shopPoolKind": ["Unit", "Blessing", "Research", "SpellUnlock"],
     "floorMode": ["authored", "random", "mixed"],
-    "rewardKind": ["Sardines", "ExtraLife", "Blessing", "UnitUnlock", "ShopLevelUnlock", "SpellUnlock"],
+    "rewardKind": ["Sardines", "ExtraLife", "Blessing", "UnitUnlock", "ShopLevelUnlock", "UnitReward", "SpellUnlock"],
     "shopOfferKind": ["Unit", "Blessing", "Research", "SpellUnlock"],
     "faction": ["Nobles", "Peasants", "HarborClaws", "CrystalCats", "WanderingTrader", "MagicCats", "Neutral"]
   },

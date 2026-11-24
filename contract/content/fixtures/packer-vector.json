@@ -4,6 +4,6 @@
   "algorithm": "sha256 of sorted paths, each entry as path + LF + UTF8(content) + LF",
   "minAppVersion": "0.2.2",
   "requiredCapabilities": [],
-  "contentHash": "e146dd4f828550fdb35da5011ba7f2e61dab4e09bfa368cab9aad1f2aa45bd0c",
-  "packageId": "test-set-e146dd4f828550fd"
+  "contentHash": "797dc6499ee613d7bc82230aee84610c872d6ef9e3493902106869a82176da88",
+  "packageId": "test-set-797dc6499ee613d7"
 }

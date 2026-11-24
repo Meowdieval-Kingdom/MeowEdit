@@ -12,7 +12,7 @@ describe("published-set validation rules", () => {
     const set: ContentSetDocument = {
       schemaVersion: 2,
       set: { schemaVersion: 2, setId: "unit-missions", name: localized("Unit Missions"),
-        description: localized(""), displayOrder: 0, missionOrder: [] },
+        description: localized(""), displayOrder: 0, kind: "missions", missionOrder: [] },
       quests: [{ schemaVersion: 2, id: "fighter-introduction", title: localized("Intro"), description: localized(""), meowEdit: {
         schemaVersion: 2, dialogueLinks: { offer: [namedRef("fighter-introduction")], active: [], completion: [], failure: [] },
         logicKind: "standard", timer: { decisionId: namedRef("none"), payOutcomeId: namedRef("none"), waitOutcomeId: namedRef("none"),
@@ -34,7 +34,7 @@ describe("published-set validation rules", () => {
     const draft: ContentSetDocument = {
       schemaVersion: 2,
       set: { schemaVersion: 2, setId: "unit-missions", name: localized("Unit Missions"),
-        description: localized(""), displayOrder: 0, missionOrder: [] },
+        description: localized(""), displayOrder: 0, kind: "missions", missionOrder: [] },
       quests: [], missions: [],
       armies: [{ schemaVersion: 2, id: "guarded", name: localized("Guarded Formation"),
         units: [{ unitId: namedRef("Peasants/Tomeowto Thrower/2"), x: 0, y: 0, spellIds: [] }],
@@ -56,7 +56,7 @@ describe("published-set validation rules", () => {
     const set: ContentSetDocument = {
       schemaVersion: 2,
       set: { schemaVersion: 2, setId: "tutorial-dialogues", name: localized("Tutorial"), description: localized(""),
-        displayOrder: 0, missionOrder: [] },
+        displayOrder: 0, kind: "missions", missionOrder: [] },
       quests: [], armies: [], missions: [],
       dialogues: [{ schemaVersion: 2, sequenceId: "tutorial", startNodeId: "greeting", pauseMode: "pause",
         defaultCharactersPerSecond: 30, nodes: [{ id: "greeting", headline: localized(""), textSpeed: 30,
@@ -69,7 +69,7 @@ describe("published-set validation rules", () => {
   it("still flags duplicate dialogue records within the dialogues section", () => {
     const set: ContentSetDocument = {
       schemaVersion: 2,
-      set: { schemaVersion: 2, setId: "dups", name: localized("Dups"), description: localized(""), displayOrder: 0, missionOrder: [] },
+      set: { schemaVersion: 2, setId: "dups", name: localized("Dups"), description: localized(""), displayOrder: 0, kind: "missions", missionOrder: [] },
       quests: [], armies: [], missions: [],
       dialogues: [0, 1].map(() => ({ schemaVersion: 2 as const, sequenceId: "same", startNodeId: "n", pauseMode: "pause",
         defaultCharactersPerSecond: 30, nodes: [{ id: "n", headline: localized("H"), textSpeed: 30,

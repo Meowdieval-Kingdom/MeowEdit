@@ -51,6 +51,7 @@ export const setDocumentSchema = z.object({
   name: localizedTextSchema,
   description: localizedTextSchema,
   displayOrder: z.number().int(),
+  kind: z.enum(["missions", "data"]),
   missionOrder: z.array(z.string()),
   minAppVersion: z.string().optional(),
   requiredCapabilities: z.array(z.string()).optional()

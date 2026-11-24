@@ -178,6 +178,7 @@
       "Blessing",
       "UnitUnlock",
       "ShopLevelUnlock",
+      "UnitReward",
       "SpellUnlock"
     ],
     "shopOfferKind": [

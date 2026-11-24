@@ -6,6 +6,7 @@
     "name": { "default": "Test Set", "locales": { "de": "Test-Set" } },
     "description": { "default": "A hand-authored v2 contract fixture.", "locales": {} },
     "displayOrder": 1,
+    "kind": "missions",
     "missionOrder": ["first-mission"]
   },
   "quests": [

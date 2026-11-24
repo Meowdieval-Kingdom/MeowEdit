@@ -13,6 +13,7 @@ export interface MissionSetSummary {
   setId: string;
   name: LocalizedText;
   displayOrder: number;
+  kind: "missions" | "data";
   draftVersion: number;
   publishedPackageId?: string;
   publishedHash?: string;

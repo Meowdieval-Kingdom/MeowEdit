@@ -30,6 +30,7 @@ import type { Workspace } from "../editor/model";
 interface SetSummary {
   setId: string;
   name?: string;
+  kind?: "missions" | "data";
   draftVersion: number;
   publishedPackageId?: string;
   updatedAt?: string;
@@ -341,19 +342,23 @@ function renderBrowser(container: HTMLElement, state: AppState): void {
   for (const [setId, record] of Object.entries(records))
     if (!sets.some(item => item.setId === setId))
       sets.push({
-        setId, name: record.draft.set.name.default || setId,
+        setId, name: record.draft.set.name.default || setId, kind: record.draft.set.kind,
         draftVersion: record.draftVersion, publishedPackageId: record.publishedPackageId
       });
-  const rows = sets.length ? sets.map(summary =>
+  const setRow = (summary: SetSummary) =>
     '<div class="set-row"><div class="set-row-main"><strong>' + escapeHtml(summary.name || summary.setId) + "</strong>" +
     "<small>" + escapeHtml(summary.setId) + "</small></div>" +
+    '<span class="set-badge">' + (summary.kind === "data" ? "Data" : "Missions") + "</span>" +
     badge(summary) +
     '<button type="button" class="text-button" data-rename="' + escapeHtml(summary.setId) + '">Rename</button>' +
     (canDeleteSets()
       ? '<button type="button" class="text-button danger-text" data-delete="' + escapeHtml(summary.setId) + '">Delete</button>'
       : "") +
-    '<button type="button" class="button button-outline" data-open="' + escapeHtml(summary.setId) + '">Open</button></div>'
-  ).join("") : '<div class="set-empty">No content sets yet. Create one below.</div>';
+    '<button type="button" class="button button-outline" data-open="' + escapeHtml(summary.setId) + '">Open</button></div>';
+  const missionRows = sets.filter(set => set.kind !== "data");
+  const dataRows = sets.filter(set => set.kind === "data");
+  const rows = (list: SetSummary[]) => list.length ? list.map(setRow).join("")
+    : '<div class="set-empty">None yet.</div>';
   const locals = scratchRecords();
   const localRows = locals.length ? locals.map(record =>
     '<div class="set-row"><div class="set-row-main"><strong>' + escapeHtml(record.label) + "</strong><small>" +
@@ -374,7 +379,8 @@ function renderBrowser(container: HTMLElement, state: AppState): void {
     "<p>Create content locally, then assign it to a set to upload it.</p></div>" +
     '<button type="button" class="button button-primary" data-new-set>+ New set</button></div>' +
     '<section class="set-group"><h2>Continue editing</h2>' + (continueCard(state) || '<div class="set-empty">Nothing in progress.</div>') + '</section>' +
-    '<section class="set-group"><h2>Sets</h2><div class="set-list">' + rows + "</div></section>" +
+    '<section class="set-group"><h2>Mission sets</h2><div class="set-list">' + rows(missionRows) + "</div></section>" +
+    '<section class="set-group"><h2>Data sets</h2><div class="set-list">' + rows(dataRows) + "</div></section>" +
     '<section class="set-group"><h2>Create new content</h2><div class="guided-actions">' +
     SECTIONS.map(section => '<button type="button" class="button button-outline" data-create="' + section + '">+ ' +
       SECTION_LABELS[section] + "</button>").join("") + "</div></section>" +

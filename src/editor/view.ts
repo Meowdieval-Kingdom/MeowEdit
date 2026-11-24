@@ -1439,9 +1439,13 @@ function renderMissionEditor(
         '<div class="related-editor-actions">' + actionButton("create-mission-node-quest", "＋ Create quest", "text-button related-create") +
         (selectedNode.questId ? actionButton("open-mission-node-quest", "Edit linked quest", "text-button related-open", ' data-quest-id="' + escapeHtml(selectedNode.questId) + '"') : "") + '</div>' : "") +
       (selectedNode.kind === "Reward" ? '<div class="form-grid two">' +
-        selectField("Reward", path("rewardKind"), selectedNode.rewardKind, [["Sardines", "Sardines"], ["ExtraLife", "Extra life"], ["Blessing", "Blessing"], ["UnitUnlock", "Unit unlock"], ["ShopLevelUnlock", "Shop level unlock"], ["SpellUnlock", "Spell unlock"]]) +
-        inputField("Amount", path("rewardAmount"), selectedNode.rewardAmount, { type: "number", min: 0, max: 9999 }) +
-        (selectedNode.rewardKind === "Blessing" || selectedNode.rewardKind === "UnitUnlock" || selectedNode.rewardKind === "SpellUnlock" ? inputField("Content ID", path("rewardContentId"), selectedNode.rewardContentId, { placeholder: "Catalog ID" }) : "") +
+        selectField("Reward", path("rewardKind"), selectedNode.rewardKind, [["Sardines", "Sardines"], ["ExtraLife", "Extra life"], ["Blessing", "Blessing"], ["UnitUnlock", "Unlock unit in shop"], ["UnitReward", "Unit reward"], ["ShopLevelUnlock", "Shop level unlock"], ["SpellUnlock", "Spell unlock"]]) +
+        (selectedNode.rewardKind === "UnitUnlock" || selectedNode.rewardKind === "UnitReward"
+          ? selectField("Unit", path("rewardContentId"), selectedNode.rewardContentId,
+            [["", "Choose a unit level"], ...missionShopItemOptions(catalog, "Unit")],
+            selectedNode.rewardKind === "UnitUnlock" ? "Unlocked in this run's battle shop." : "Added to the player's army for this run.")
+          : inputField("Amount", path("rewardAmount"), selectedNode.rewardAmount, { type: "number", min: 0, max: 9999 }) +
+            (selectedNode.rewardKind === "Blessing" || selectedNode.rewardKind === "SpellUnlock" ? inputField("Content ID", path("rewardContentId"), selectedNode.rewardContentId, { placeholder: "Catalog ID" }) : "")) +
         '</div>' : "") +
       (selectedNode.kind === "Shop" ? '<details class="mission-shop-node-settings"' + (mode === "guided" ? " open" : "") + '><summary>Shop stock · ' + (selectedNode.shopOfferMode === "exact" ? selectedNode.shopOffers.length + " exact offers" : "uses floor pools") + '</summary><div class="mission-shop-node-content">' +
         selectField("Stock", path("shopOfferMode"), selectedNode.shopOfferMode, [["generated", "Use pools unlocked on this floor"], ["exact", "Set exact items and prices"]], "", true) +

@@ -21,6 +21,7 @@ export interface SetDocument {
   name: LocalizedText;
   description: LocalizedText;
   displayOrder: number;
+  kind: "missions" | "data";
   missionOrder: string[];
   minAppVersion?: string;
   requiredCapabilities?: string[];
