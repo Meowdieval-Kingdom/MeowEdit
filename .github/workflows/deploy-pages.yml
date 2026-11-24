@@ -39,6 +39,7 @@ jobs:
             -o .authority/MeowEdit-Content-Contract.md; then
             echo "MEOWEDIT_AUTHORITY_DOC=${{ github.workspace }}/.authority/MeowEdit-Content-Contract.md" >> "$GITHUB_ENV"
           else
+            echo "MEOWEDIT_SKIP_AUTHORITY_DOC=1" >> "$GITHUB_ENV"
             echo "::warning::Canonical contract doc is not readable with this token; the checked-in schema.sha256 gate still applies."
           fi
       - name: Verify the content contract
