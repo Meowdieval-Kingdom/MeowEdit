@@ -8,7 +8,7 @@ The browser authoring studio for Meowdieval content sets: campaigns, quests, arm
 
 Install dependencies with `npm install`, start the editor with `npm run dev`, and create a production build with `npm run build`.
 
-Run the automated suite with `npm test`; use `npm run test:coverage` for the HTML and terminal coverage reports. `npm run contract:check` verifies the authority hash, the strict JSON Schemas, hand-authored fixtures, and JSON Schema/zod agreement. The jsdom suite covers the sign-in gate, the set browser, the classic editor screens, the restored v1 domain logic and the structured-content validators. See [docs/testing.md](docs/testing.md).
+Run the automated suite with `npm test`; use `npm run test:coverage` for the HTML and terminal coverage reports. `npm run contract:check` verifies the authority hash, the strict JSON Schemas, hand-authored fixtures, and JSON Schema/zod agreement. The jsdom suite covers the sign-in gate, the set browser, the classic editor screens, the editor domain logic and the structured-content validators. See [docs/testing.md](docs/testing.md).
 
 The app is static HTML, CSS and TypeScript. Neon Auth handles sign-in; the game backend stores version-guarded drafts and published revisions. No credentials or publisher secrets are in the browser build. The set browser lists your backend sets with Local only / Draft vN / Published badges. **Save / Upload** creates or updates a private draft; **Publish** makes it the latest public revision for the set and warns that tester progress resets. The set view lists entries per category with an Edit button that opens the single classic editor; adding and removing records happen in that editor's sidebar.
 
@@ -26,11 +26,11 @@ To refresh demo copies after changing local originals, put them under `.local-as
 
 - **Content sets** are the unit of authoring and publishing: one set contains one or more campaigns plus shared quests, armies and dialogues.
 - Creating a set asks for an ID and a name, then opens its set dashboard.
-- Each category opens in the **one classic editor**: the original Drawflow dialogue map with game preview, full quest and campaign editors, and the footprint-aware army grid with drag/swap placement. It has exactly two modes per content type — **Guided** (focused steps) and **Full/Advanced** (complete record). Set/cloud controls (Save / Upload, Publish, Back to set, Sign out) sit in the topbar; JSON import/export is in the editor area, not the toolbar. The editor uses its native per-set workspace, so Drawflow node positions, editor labels, army placement IDs and campaign design mode still work exactly as in v1; conversion to the strict v2 cloud format happens only at Save / Publish.
+- Each category opens in the **one classic editor**: the original Drawflow dialogue map with game preview, full quest and campaign editors, and the footprint-aware army grid with drag/swap placement. It has exactly two modes per content type — **Guided** (focused steps) and **Full/Advanced** (complete record). Set/cloud controls (Save / Upload, Publish, Dashboard/Set, Sign out) sit in the topbar; JSON import/export is in the editor area, not the toolbar. The editor uses its native per-set workspace, so Drawflow node positions, editor labels, army placement IDs and campaign design mode still work exactly as before; conversion to the strict cloud format happens only at Save / Publish.
 - Validation reports plain-language issues in the set dashboard and in the editor; dialogue-only sets are valid.
 - The capability manifest (`public/game-capabilities.json`) drives pickers, strict validation and enum whitelists; `npm run snapshot-game-capabilities` regenerates it from the game checkout.
 
-Meowdieval Kingdom reads published revisions through a public, read-only catalog and caches them locally. New runs use the latest published revision of each set; a started run stays pinned to its package ID and content hash. Bundled v1 packages still require manual `PackageIndex.json` registration in the Unity project; published structured sets do not.
+Meowdieval Kingdom reads published revisions through a public, read-only catalog and caches them locally. New runs use the latest published revision of each set; a started run stays pinned to its package ID and content hash. Bundled historical packages still require manual `PackageIndex.json` registration in the Unity project; published structured sets do not.
 
 ## GitHub Pages
 

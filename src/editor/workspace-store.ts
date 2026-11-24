@@ -7,9 +7,9 @@ import type { Workspace } from "./model";
 export const SCRATCH_WORKSPACE = "__scratch__";
 
 /**
- * The restored editor keeps its native v1 workspace as its own state, scoped
- * per set. Drawflow positions, editor labels, army placement IDs and campaign
- * design mode live here exactly as they did in v1 — they are authoring state,
+ * The editor keeps its native workspace as its own state, scoped per set.
+ * Drawflow positions, editor labels, army placement IDs and campaign design
+ * mode live here exactly as authored — they are authoring state,
  * not part of the game's strict structured content contract.
  */
 

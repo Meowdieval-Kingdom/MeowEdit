@@ -10,8 +10,8 @@ export default defineConfig({
       provider: "v8",
       reporter: ["text", "html"],
       include: ["src/**/*.ts"],
-      // The restored v1 controller is verbatim upstream UI code (2.7k lines);
-      // its screens are exercised by legacy-editor.test.ts and the original
+      // The editor controller is native editor UI code (2.7k lines);
+      // its screens are exercised by editor.test.ts and the editor
       // module tests cover the pure modules it drives. Keep the gate focused
       // on code we own and change.
       exclude: ["src/editor/main.ts"],

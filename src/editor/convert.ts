@@ -18,7 +18,7 @@ import {
 
 /**
  * One-way conversion at the cloud boundary only. The editor itself uses native
- * v1 records, so Drawflow positions, editor labels and placement IDs stay intact.
+ * editor records, so Drawflow positions, editor labels and placement IDs stay intact.
  */
 
 const text = (value: { default?: string } | undefined): string => value?.default ?? "";
@@ -46,7 +46,7 @@ function toContentSpeed(value: string, base: number): number {
   return value === "fast" ? base * 1.5 : value === "slow" ? base * 0.5 : base;
 }
 
-/** Converts the authoritative structured draft into the shape the restored v1 screens render. */
+/** Converts the authoritative structured draft into the shape the editor screens render. */
 export function draftToWorkspace(
   draft: ContentSetDocument,
   capabilities: GameCapabilities,
@@ -244,7 +244,7 @@ export function draftToWorkspace(
   };
 }
 
-/** Writes all v1 screen edits back into the authoritative structured draft, preserving structured-only fields. */
+/** Writes all editor screen edits back into the authoritative structured draft, preserving structured-only fields. */
 export function workspaceToDraft(
   draft: ContentSetDocument,
   workspace: Workspace,

@@ -554,11 +554,11 @@ interface EditorTarget {
 
 async function openEditor(container: HTMLElement, state: AppState, target: EditorTarget): Promise<void> {
   try {
-    const { mountLegacyEditor } = await import("../editor/main");
+    const { mountEditor } = await import("../editor/main");
     state.lastEdited = { workspace: target.workspace, section: target.section, key: target.key, label: target.label };
     syncSession(state);
     const scratch = target.workspace === SCRATCH_WORKSPACE;
-    mountLegacyEditor({
+    mountEditor({
       setId: scratch ? undefined : target.workspace,
       draft: scratch ? undefined : state.draft,
       capabilities: state.capabilities,
@@ -967,8 +967,8 @@ function flashStatus(container: HTMLElement, state: AppState): void {
 /** Opens the single classic editor, which owns both Guided and Full modes per category. */
 async function openClassicEditor(container: HTMLElement, state: AppState, selected?: { section: string; index: number }): Promise<void> {
   try {
-    const { mountLegacyEditor } = await import("../editor/main");
-    mountLegacyEditor({
+    const { mountEditor } = await import("../editor/main");
+    mountEditor({
       setId: state.setId,
       draft: state.draft,
       capabilities: state.capabilities,

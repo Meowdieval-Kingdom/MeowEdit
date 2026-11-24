@@ -56,7 +56,7 @@ const ROSTER_FALLBACK: UnitRoster = {
 const root = document.querySelector<HTMLDivElement>("#app");
 if (!root) throw new Error("MeowEdit app root is missing.");
 
-export interface LegacyMountOptions {
+export interface EditorMountOptions {
   /** Undefined for the unassigned scratch workspace. */
   setId?: string;
   draft?: ContentSetDocument;
@@ -72,7 +72,7 @@ export interface LegacyMountOptions {
   onRecordChange?(section: string, key: string, label: string): void;
 }
 
-let mountOptions: LegacyMountOptions | null = null;
+let mountOptions: EditorMountOptions | null = null;
 let mountGeneration = 0;
 let guidedContextUnlocked = false;
 let lastFocusSignature = "";
@@ -111,8 +111,8 @@ export function reconcileCatalogIds(workspaceToRepair: typeof workspace, catalog
   return changed;
 }
 
-/** Mounts the restored v1 editor on its native, per-set workspace. */
-export function mountLegacyEditor(options: LegacyMountOptions): void {
+/** Mounts the editor on its native, per-set workspace. */
+export function mountEditor(options: EditorMountOptions): void {
   const generation = ++mountGeneration;
   mountOptions = options;
   // Entering the editor from the dashboard or a set is a fresh navigation. Restore

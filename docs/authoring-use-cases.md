@@ -1,6 +1,6 @@
 # MeowEdit authoring use cases (definitive)
 
-This is the single authoring checklist. It merges the v1 workflow overview with the structured set-based layout. For each job it records the **Guided path** (focused, 1–2 inputs per step), the **Advanced path** (all fields, section jumps, stable IDs), and the **current implementation status** against the structured screens. `docs/content-contract-structured.md`-style field rules live in the contract doc; this file is about *how an author gets work done*.
+This is the single authoring checklist. It merges the workflow overview with the structured set-based layout. For each job it records the **Guided path** (focused, 1–2 inputs per step), the **Advanced path** (all fields, section jumps, stable IDs), and the **current implementation status** against the structured screens. `docs/content-contract-structured.md`-style field rules live in the contract doc; this file is about *how an author gets work done*.
 
 Status legend: **[done]** works in the current build · **[partial]** data/field exists but the UX is degraded · **[missing]** not built yet.
 
@@ -128,4 +128,4 @@ Core jobs: create without manual IDs, continue a draft, make a narrow edit, buil
 
 ## 9. Workflow-to-test map
 
-Current automated coverage lives in `tests/content-contract.test.ts` (schema, registries, fixtures), `tests/content-schema-agreement.test.ts` (JSON Schema ↔ zod), `tests/content-app.test.ts` (set browser, set dashboard, save/publish, session), `tests/legacy-editor.test.ts` (all four restored editor screens and the cloud boundary), and the original v1 module tests under `tests/`. Tests are the executable form of this checklist.
+Current automated coverage lives in `tests/content-contract.test.ts` (schema, registries, fixtures), `tests/content-schema-agreement.test.ts` (JSON Schema ↔ zod), `tests/content-app.test.ts` (set browser, set dashboard, save/publish, session), `tests/editor.test.ts` (all four editor screens and the cloud boundary), and the editor module tests under `tests/`. Tests are the executable form of this checklist.

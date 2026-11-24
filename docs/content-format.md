@@ -1,10 +1,10 @@
-# MeowEdit content format (v1 — historical)
+# MeowEdit content format (historical ZIP reference)
 
 > **SUPERSEDED — do not implement from this document.** The single source of truth for the structured
 > content contract is `C:\Users\ekkii\Projects\MeowdievalKingdom\Docs\WIP\MeowEdit-Content-Contract.md`.
 > It defines the structured authoring records, the generated runtime package, strict validation,
 > named values, the capability snapshot and the HTTP payloads. This file is retained only as
-> evidence of the v1 format that the migration must convert.
+> evidence of the historical ZIP format that the migration must convert.
 
 MeowEdit keeps authored content as ordinary JSON. It does not use Unity asset references or a server database.
 
@@ -115,12 +115,12 @@ Campaign events have a stable `id`, a trigger (`campaign-start`, `before-battle`
 
 Campaigns may set an optional `boardPreviewUnitId` to choose the character displayed as the player's map piece. It must resolve to a unit level in the game's catalog; an empty value uses the selected faction's default hero. This is presentation-only and does not alter the starting Army. Campaign settings include `factionSelectionEnabled`; when false, the campaign must name `playerFactionId` and the game uses that faction without showing a chooser. Missing values default to enabled for older campaign data. Other settings include starting lives, Sardines, initial random-floor node count, random Quest/Shop counts, node growth, the battle shop toggle, and whether generated floors continue after authored boards end. Generated Adventure map shops can draw from Units, Blessings, Research (unit unlocks), and Spell unlocks. Campaign settings select the general pools; each floor can inherit them or restrict its pools and set its shop tier from 1 to 4. The current Adventure run starts at tier 1, raises the tier with floor progression up to tier 4, and also supports a Shop level unlock reward. Authored, random, and mixed floors, fixed routes, quest pools, exact three-item shop stock, and campaign progression are loaded by the game.
 
-## v1 ZIP package layout (historical)
+## ZIP package layout (historical)
 
 Published structured sets use the same closed file set below, but they are produced by the backend
 `packContentSet`, signed, and identified by a canonical SHA-256 content hash. They are never
-downloaded and re-imported by MeowEdit. The v1 ZIP described here is retained only for migration
-evidence.
+downloaded and re-imported by MeowEdit. The historical ZIP described here is retained only for
+migration evidence.
 
 The workspace ZIP contains:
 

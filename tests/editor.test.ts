@@ -11,7 +11,7 @@ const catalog = JSON.parse(readFileSync(path.resolve(process.cwd(), "public/army
 const roster = JSON.parse(readFileSync(path.resolve(process.cwd(), "public/unit-roster.json"), "utf8"));
 
 function draftWithArmy(): ContentSetDocument {
-  const draft = emptyContentSet("legacy-set", "Legacy Set");
+  const draft = emptyContentSet("editor-set", "Editor Set");
   draft.armies.push({
     schemaVersion: 2, id: "test-army", name: localized("Test Army"),
     units: [{ unitId: namedRef(capabilities.ids.units[0]), x: 0, y: 0, spellIds: [] }],
@@ -32,7 +32,7 @@ function draftWithArmy(): ContentSetDocument {
   return draft;
 }
 
-describe("restored v1 editor", () => {
+describe("editor", () => {
   beforeEach(async () => {
     vi.resetModules();
     if (!document.querySelector("#app")) document.body.innerHTML = '<div id="app"></div>';
@@ -45,7 +45,7 @@ describe("restored v1 editor", () => {
       selectedCampaignNodeId: null, relatedReturnContexts: []
     };
     localStorage.setItem("meowedit.editor-session.v1.author-1", JSON.stringify(editorSession));
-    localStorage.setItem("meowedit.editor-session.v1.author-1.legacy-set", JSON.stringify(editorSession));
+    localStorage.setItem("meowedit.editor-session.v1.author-1.editor-set", JSON.stringify(editorSession));
     const bridge = await import("../src/bridge-context");
     bridge.setBridgeState({ userId: "author-1", canPublish: true, canDeleteSets: false, actions: { signOut: vi.fn() } });
     vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request) => {
@@ -64,11 +64,11 @@ describe("restored v1 editor", () => {
     vi.unstubAllGlobals();
   });
 
-  it("renders the real v1 army editor with the footprint-aware grid and cloud controls", async () => {
-    const { mountLegacyEditor } = await import("../src/editor/main");
+  it("renders the army editor with the footprint-aware grid and cloud controls", async () => {
+    const { mountEditor } = await import("../src/editor/main");
     const onSave = vi.fn();
-    mountLegacyEditor({
-      setId: "legacy-set",
+    mountEditor({
+      setId: "editor-set",
       draft: draftWithArmy(), capabilities, selected: { section: "armies", index: 0 },
       onSave, onDraftChange: vi.fn(), onBack: vi.fn()
     });
@@ -81,9 +81,9 @@ describe("restored v1 editor", () => {
   });
 
   it("starts a fresh mount at the first guided step instead of a stale saved step", async () => {
-    const { mountLegacyEditor } = await import("../src/editor/main");
-    mountLegacyEditor({
-      setId: "legacy-set", draft: draftWithArmy(), capabilities, selected: { section: "armies", index: 0 },
+    const { mountEditor } = await import("../src/editor/main");
+    mountEditor({
+      setId: "editor-set", draft: draftWithArmy(), capabilities, selected: { section: "armies", index: 0 },
       forceMode: "guided", onSave: vi.fn(), onDraftChange: vi.fn(), onBack: vi.fn()
     });
     await vi.waitFor(() => expect(document.querySelector(".army-guided-heading")).not.toBeNull());
@@ -91,11 +91,11 @@ describe("restored v1 editor", () => {
     expect(document.querySelector('[data-action="editor-next"]')).not.toBeNull();
   });
 
-  it("renders the v1 dialogue, quest and campaign screens with their real layouts", async () => {
+  it("renders the dialogue, quest and campaign screens with their real layouts", async () => {
     const fullSet = JSON.parse(readFileSync(path.resolve(process.cwd(), "contract/content/fixtures/valid-set.fixture.json"), "utf8")) as ContentSetDocument;
-    const { mountLegacyEditor } = await import("../src/editor/main");
-    const mount = (section: string, index: number) => mountLegacyEditor({
-      setId: "legacy-set",
+    const { mountEditor } = await import("../src/editor/main");
+    const mount = (section: string, index: number) => mountEditor({
+      setId: "editor-set",
       draft: fullSet, capabilities, selected: { section, index },
       onSave: vi.fn(async () => "saved"), onDraftChange: vi.fn(), onBack: vi.fn()
     });
@@ -112,8 +112,8 @@ describe("restored v1 editor", () => {
 
   it("offers JSON transfer in the full editor and not in the topbar", async () => {
     const fullSet = JSON.parse(readFileSync(path.resolve(process.cwd(), "contract/content/fixtures/valid-set.fixture.json"), "utf8")) as ContentSetDocument;
-    const { mountLegacyEditor } = await import("../src/editor/main");
-    const mount = (section: string, index: number) => mountLegacyEditor({
+    const { mountEditor } = await import("../src/editor/main");
+    const mount = (section: string, index: number) => mountEditor({
       setId: "transfer-set", draft: fullSet, capabilities,
       selected: { section, index }, forceMode: "full", onSave: vi.fn(async () => "saved"), onDraftChange: vi.fn(), onBack: vi.fn()
     });
@@ -125,7 +125,7 @@ describe("restored v1 editor", () => {
     }
   });
 
-  it("round-trips a structured draft through the v1 workspace without losing structured-only fields", () => {
+  it("round-trips a structured draft through the editor workspace without losing structured-only fields", () => {
     const draft = draftWithArmy();
     draft.campaigns.push({
       schemaVersion: 2, id: "campaign-1", name: localized("Campaign"), description: localized(""),
@@ -202,7 +202,7 @@ describe("restored v1 editor", () => {
     expect(structured.campaigns[0].settings.sardinePayoutPerFloor).toBe(3);
   });
 
-  it("maps v1 event armyId to the structured registry parameter key", () => {
+  it("maps event armyId to the structured registry parameter key", () => {
     const draft = draftWithArmy();
     const workspace = draftToWorkspace(draft, capabilities);
     workspace.campaigns.push({
@@ -248,8 +248,8 @@ describe("restored v1 editor", () => {
 
   it("restores dimmed guided context when clicking outside the focus area", async () => {
     const fullSet = JSON.parse(readFileSync(path.resolve(process.cwd(), "contract/content/fixtures/valid-set.fixture.json"), "utf8")) as ContentSetDocument;
-    const { mountLegacyEditor } = await import("../src/editor/main");
-    mountLegacyEditor({
+    const { mountEditor } = await import("../src/editor/main");
+    mountEditor({
       setId: "focus-set", draft: fullSet, capabilities, selected: { section: "campaigns", index: 0 }, forceMode: "guided",
       onSave: vi.fn(async () => "saved"), onDraftChange: vi.fn(), onBack: vi.fn()
     });
