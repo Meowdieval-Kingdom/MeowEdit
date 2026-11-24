@@ -70,11 +70,18 @@ export function capabilityParameters(): Record<string, {
 function matchesType(value: unknown, parameter: RegistryParameter, enums?: Record<string, string[]>): boolean {
   switch (parameter.type) {
     case "NamedRef":
-      return typeof value === "object" && value !== null && !Array.isArray(value)
-        && typeof (value as { id?: unknown }).id === "string";
+      // Unity's runtime adapter accepts plain IDs as well as NamedRef objects for
+      // action parameters (AdventureContentRuntimeAdapter.ParameterValue).
+      return (typeof value === "object" && value !== null && !Array.isArray(value)
+        && typeof (value as { id?: unknown }).id === "string")
+        || (typeof value === "string" && value.length > 0);
     case "NamedRef[]":
-      return Array.isArray(value) && value.every(item =>
-        typeof item === "object" && item !== null && typeof (item as { id?: unknown }).id === "string");
+      // The bundled missions author these as pipe-delimited ID strings; ParameterList splits
+      // them at runtime. Accept both that and a true array of NamedRefs/strings.
+      return typeof value === "string"
+        || (Array.isArray(value) && value.every(item =>
+          typeof item === "string" || (typeof item === "object" && item !== null
+            && typeof (item as { id?: unknown }).id === "string")));
     case "int":
       return typeof value === "number" && Number.isInteger(value);
     case "string":

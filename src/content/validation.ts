@@ -211,18 +211,22 @@ export function validateContentSet(value: unknown, capabilities: GameCapabilitie
   const local = localIds(set);
   const allowed = new Set([...local, ...capabilityIds(capabilities)]);
 
-  const seenIds = new Map<string, string>();
-  for (const [kind, id, path] of [
-    ...set.quests.map(quest => ["quest", quest.id, "quests"] as const),
-    ...set.armies.map(army => ["army", army.id, "armies"] as const),
-    ...set.campaigns.map(campaign => ["campaign", campaign.id, "campaigns"] as const),
-    ...set.dialogues.map(dialogue => ["dialogue", dialogue.sequenceId, "dialogues"] as const)
-  ]) {
-    if (seenIds.has(id)) issues.push({
-      path, code: "duplicate-id", message: 'Duplicate ' + kind + ' ID "' + id + '".',
-      hint: "Every item needs its own ID. Rename one of them."
-    });
-    seenIds.set(id, kind);
+  // IDs are namespaced per record type: a quest and its offer dialogue commonly
+  // share an id (the game's bundled missions do). Only duplicates within one type matter.
+  for (const [kind, ids, path] of [
+    ["quest", set.quests.map(quest => quest.id), "quests"],
+    ["army", set.armies.map(army => army.id), "armies"],
+    ["campaign", set.campaigns.map(campaign => campaign.id), "campaigns"],
+    ["dialogue", set.dialogues.map(dialogue => dialogue.sequenceId), "dialogues"]
+  ] as const) {
+    const seen = new Set<string>();
+    for (const id of ids) {
+      if (seen.has(id)) issues.push({
+        path, code: "duplicate-id", message: 'Duplicate ' + kind + ' ID "' + id + '".',
+        hint: "Every " + kind + " needs its own ID. Rename one of them."
+      });
+      seen.add(id);
+    }
   }
 
   walk(set, "", (node, path) => {
@@ -466,11 +470,15 @@ export function validateContentSet(value: unknown, capabilities: GameCapabilitie
         hint: "Every moment needs its own ID.", section: "dialogues", entryIndex: dialogueIndex
       });
     dialogue.nodes.forEach((node, nodeIndex) => {
-      if (!node.headline.default.trim())
+      // Headline is optional in the game: when empty, speaker display names are
+      // joined for the on-screen headline (DialogueSequenceData.cs:25-26).
+      if (!node.headline.default.trim() && node.speakers.length === 0)
         issues.push({
           path: "dialogues[" + dialogueIndex + "].nodes[" + nodeIndex + "].headline", code: "missing-headline",
-          message: 'Moment "' + node.id + '" has no headline.',
-          hint: "Give the moment a name so authors can recognise it.", section: "dialogues", entryIndex: dialogueIndex
+          severity: "warning",
+          message: 'Moment "' + node.id + '" has no headline or speaker name.',
+          hint: "Add a headline or a speaker so the game has something to show here.",
+          section: "dialogues", entryIndex: dialogueIndex
         });
       node.actions.forEach(action => {
         if (action.targetNodeId && !nodeIds.has(action.targetNodeId))

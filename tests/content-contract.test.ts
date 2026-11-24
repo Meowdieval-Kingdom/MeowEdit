@@ -134,6 +134,7 @@ describe("structured contract fixtures", () => {
     const broken = structuredClone(validSet) as ContentSetDocument;
     broken.dialogues[0].nodes[0].actions[0].targetNodeId = "missing-moment";
     broken.dialogues[0].nodes[0].headline.default = "";
+    broken.dialogues[0].nodes[0].speakers = [];
     const codes = validateContentSet(broken, capabilities).issues.map(issue => issue.code);
     expect(codes).toContain("broken-choice-target");
     expect(codes).toContain("missing-headline");

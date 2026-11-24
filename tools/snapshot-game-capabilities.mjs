@@ -74,7 +74,13 @@ function sortedIds(values) {
 }
 
 const ids = {
-  units: sortedIds([...idList(catalog.units), ...idList(roster.units)]),
+  // Authored content references specific unit LEVELS (e.g. Peasants/Fighter/2),
+  // not just catalog roots, so publish every resolved level ID as a valid unit id.
+  units: sortedIds([
+    ...idList(catalog.units),
+    ...catalog.units.flatMap(unit => (unit.levels ?? []).map(level => level.id)),
+    ...idList(roster.units)
+  ]),
   blessings: sortedIds(idList(catalog.blessings)),
   curses: sortedIds(idList(catalog.curses)),
   spells: sortedIds(idList(catalog.spells)),
