@@ -3,8 +3,8 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import type { ContentSetDocument, GameCapabilities } from "../src/content/types";
 import { validateContentSet } from "../src/content/validation";
-import { draftToWorkspace, workspaceToDraft } from "../src/legacy/convert";
-import { renderApp } from "../src/legacy/view";
+import { draftToWorkspace, workspaceToDraft } from "../src/editor/convert";
+import { renderApp } from "../src/editor/view";
 import { catalog, dialogueFixture, workspaceFixture } from "./fixtures";
 
 const caps = JSON.parse(readFileSync(path.resolve(process.cwd(), "public/game-capabilities.json"), "utf8")) as GameCapabilities;

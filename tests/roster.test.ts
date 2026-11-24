@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { includeArmyUnitsInRoster } from "../src/legacy/roster";
-import type { ArmyCatalog, UnitRoster } from "../src/legacy/model";
+import { includeArmyUnitsInRoster } from "../src/editor/roster";
+import type { ArmyCatalog, UnitRoster } from "../src/editor/model";
 import { catalog, rosterFixture } from "./fixtures";
 
 describe("dialogue character roster", () => {

@@ -1,8 +1,8 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { draftToWorkspace, workspaceToDraft } from "../src/legacy/convert";
-import { loadWorkspace, saveWorkspace } from "../src/legacy/workspace-store";
+import { draftToWorkspace, workspaceToDraft } from "../src/editor/convert";
+import { loadWorkspace, saveWorkspace } from "../src/editor/workspace-store";
 import { emptyContentSet, localized, namedRef } from "../src/content/factory";
 import type { ContentSetDocument, GameCapabilities } from "../src/content/types";
 
@@ -39,11 +39,13 @@ describe("restored v1 editor", () => {
     else document.querySelector("#app")!.innerHTML = "";
     for (const key of Object.keys(localStorage))
       if (key.startsWith("meowedit.workspace.v1.")) localStorage.removeItem(key);
-    localStorage.setItem("meowedit.editor-session.v1.author-1", JSON.stringify({
-      activeEditorStep: 0, editorMode: "full", helpVisible: false, sidebarCollapsed: false,
+    const editorSession = {
+      activeEditorStep: 6, editorMode: "full", helpVisible: false, sidebarCollapsed: false,
       selectedArmyPlacementId: null, armyCatalogKind: "units", selectedCampaignFloorId: null,
       selectedCampaignNodeId: null, relatedReturnContexts: []
-    }));
+    };
+    localStorage.setItem("meowedit.editor-session.v1.author-1", JSON.stringify(editorSession));
+    localStorage.setItem("meowedit.editor-session.v1.author-1.legacy-set", JSON.stringify(editorSession));
     const bridge = await import("../src/bridge-context");
     bridge.setBridgeState({ userId: "author-1", canPublish: true, canDeleteSets: false, actions: { signOut: vi.fn() } });
     vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request) => {
@@ -63,7 +65,7 @@ describe("restored v1 editor", () => {
   });
 
   it("renders the real v1 army editor with the footprint-aware grid and cloud controls", async () => {
-    const { mountLegacyEditor } = await import("../src/legacy/main");
+    const { mountLegacyEditor } = await import("../src/editor/main");
     const onSave = vi.fn();
     mountLegacyEditor({
       setId: "legacy-set",
@@ -78,9 +80,20 @@ describe("restored v1 editor", () => {
     await vi.waitFor(() => expect(onSave).toHaveBeenCalled());
   });
 
+  it("starts a fresh mount at the first guided step instead of a stale saved step", async () => {
+    const { mountLegacyEditor } = await import("../src/editor/main");
+    mountLegacyEditor({
+      setId: "legacy-set", draft: draftWithArmy(), capabilities, selected: { section: "armies", index: 0 },
+      forceMode: "guided", onSave: vi.fn(), onDraftChange: vi.fn(), onBack: vi.fn()
+    });
+    await vi.waitFor(() => expect(document.querySelector(".army-guided-heading")).not.toBeNull());
+    expect(document.querySelector(".army-guided-heading")!.textContent).toContain("Step 1 of 7");
+    expect(document.querySelector('[data-action="editor-next"]')).not.toBeNull();
+  });
+
   it("renders the v1 dialogue, quest and campaign screens with their real layouts", async () => {
     const fullSet = JSON.parse(readFileSync(path.resolve(process.cwd(), "contract/content/fixtures/valid-set.fixture.json"), "utf8")) as ContentSetDocument;
-    const { mountLegacyEditor } = await import("../src/legacy/main");
+    const { mountLegacyEditor } = await import("../src/editor/main");
     const mount = (section: string, index: number) => mountLegacyEditor({
       setId: "legacy-set",
       draft: fullSet, capabilities, selected: { section, index },
@@ -99,7 +112,7 @@ describe("restored v1 editor", () => {
 
   it("offers JSON transfer in the full editor and not in the topbar", async () => {
     const fullSet = JSON.parse(readFileSync(path.resolve(process.cwd(), "contract/content/fixtures/valid-set.fixture.json"), "utf8")) as ContentSetDocument;
-    const { mountLegacyEditor } = await import("../src/legacy/main");
+    const { mountLegacyEditor } = await import("../src/editor/main");
     const mount = (section: string, index: number) => mountLegacyEditor({
       setId: "transfer-set", draft: fullSet, capabilities,
       selected: { section, index }, forceMode: "full", onSave: vi.fn(async () => "saved"), onDraftChange: vi.fn(), onBack: vi.fn()
@@ -137,7 +150,7 @@ describe("restored v1 editor", () => {
   });
 
   it("repairs stale catalog IDs to the matching current unit", async () => {
-    const { reconcileCatalogIds } = await import("../src/legacy/main");
+    const { reconcileCatalogIds } = await import("../src/editor/main");
     const army = {
       key: "a", id: "a", name: "Old Army", previewFloor: 1,
       units: [{ id: "p1", unitId: "Missing/Fighter/1", x: 0, y: 0, spellIds: [] }],
@@ -235,7 +248,7 @@ describe("restored v1 editor", () => {
 
   it("restores dimmed guided context when clicking outside the focus area", async () => {
     const fullSet = JSON.parse(readFileSync(path.resolve(process.cwd(), "contract/content/fixtures/valid-set.fixture.json"), "utf8")) as ContentSetDocument;
-    const { mountLegacyEditor } = await import("../src/legacy/main");
+    const { mountLegacyEditor } = await import("../src/editor/main");
     mountLegacyEditor({
       setId: "focus-set", draft: fullSet, capabilities, selected: { section: "campaigns", index: 0 }, forceMode: "guided",
       onSave: vi.fn(async () => "saved"), onDraftChange: vi.fn(), onBack: vi.fn()

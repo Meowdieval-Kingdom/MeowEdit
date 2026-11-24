@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dialogueActionsForNode, dialogueMomentName, emptyQuestExtension, emptyTimerLogic, slugify } from "../src/legacy/model";
+import { dialogueActionsForNode, dialogueMomentName, emptyQuestExtension, emptyTimerLogic, slugify } from "../src/editor/model";
 import { dialogueFixture } from "./fixtures";
 
 describe("shared content model helpers", () => {

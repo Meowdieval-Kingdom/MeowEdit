@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createSeedWorkspace } from "../src/legacy/seed";
+import { createSeedWorkspace } from "../src/editor/seed";
 
 describe("new workspace seed", () => {
   it("starts clean with no imported game content", () => {

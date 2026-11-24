@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizeArmy, normalizeCampaign, normalizeQuest } from "../src/legacy/import-normalizers";
+import { normalizeArmy, normalizeCampaign, normalizeQuest } from "../src/editor/import-normalizers";
 
 describe("content import normalization", () => {
   it("upgrades old army files and preserves per-placement spell IDs", () => {

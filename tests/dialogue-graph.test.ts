@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { compactDialogueGraph } from "../src/legacy/dialogue-graph";
+import { compactDialogueGraph } from "../src/editor/dialogue-graph";
 import { dialogueFixture } from "./fixtures";
 
 describe("dialogue graph arrangement", () => {

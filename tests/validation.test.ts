@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { validateArmy, validateCampaign, validateDialogue, validateQuest, validateWorkspace } from "../src/legacy/validation";
+import { validateArmy, validateCampaign, validateDialogue, validateQuest, validateWorkspace } from "../src/editor/validation";
 import { armyFixture, campaignFixture, catalog, dialogueFixture, questFixture, workspaceFixture } from "./fixtures";
 
 describe("content validation", () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { activeArmyJson, activeCampaignJson, activeDialogueJson, activeQuestJson, createPackageEntries, decodeZipText, parseImportedJson, suggestedFilename, toZipFileBytes, workspaceJson, workspacePackage } from "../src/legacy/export";
-import { createStoredZip, readStoredZip } from "../src/legacy/zip";
+import { activeArmyJson, activeCampaignJson, activeDialogueJson, activeQuestJson, createPackageEntries, decodeZipText, parseImportedJson, suggestedFilename, toZipFileBytes, workspaceJson, workspacePackage } from "../src/editor/export";
+import { createStoredZip, readStoredZip } from "../src/editor/zip";
 import { armyFixture, campaignFixture, dialogueFixture, questFixture, rosterFixture, workspaceFixture } from "./fixtures";
 
 describe("content export and ZIP packages", () => {

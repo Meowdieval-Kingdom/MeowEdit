@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { editorSessionKey, defaultEditorSession, loadEditorSession, saveEditorSession } from "../src/legacy/editor-session";
-import { EditorNavigationHistory } from "../src/legacy/editor-navigation";
+import { editorSessionKey, defaultEditorSession, loadEditorSession, saveEditorSession } from "../src/editor/editor-session";
+import { EditorNavigationHistory } from "../src/editor/editor-navigation";
 
 function storageFixture() {
   const values = new Map<string, string>();

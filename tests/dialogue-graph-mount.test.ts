@@ -54,7 +54,7 @@ vi.mock("drawflow", () => ({
 }));
 
 import type Drawflow from "drawflow";
-import { mountDialogueGraph } from "../src/legacy/dialogue-graph";
+import { mountDialogueGraph } from "../src/editor/dialogue-graph";
 import { dialogueFixture } from "./fixtures";
 
 interface MockGraph {

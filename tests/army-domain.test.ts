@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { addArmyUnit, addArmyUnitSpell, moveArmyUnit, removeArmyUnitSpell, replaceArmyUnit, type ArmyPlacementMove } from "../src/legacy/army-domain";
+import { addArmyUnit, addArmyUnitSpell, moveArmyUnit, removeArmyUnitSpell, replaceArmyUnit, type ArmyPlacementMove } from "../src/editor/army-domain";
 import { armyFixture, catalog } from "./fixtures";
-import { armyFootprintsOverlap, canPlaceArmyLevel } from "../src/legacy/army-catalog";
+import { armyFootprintsOverlap, canPlaceArmyLevel } from "../src/editor/army-catalog";
 
 describe("army editing operations", () => {
   it("adds a placement with an independent spell list and rejects occupied cells", () => {

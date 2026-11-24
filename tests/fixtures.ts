@@ -1,5 +1,5 @@
-import { DEFAULT_QUEST, emptyQuestExtension, type ArmyCatalog, type ArmyRecord, type CampaignRecord, type DialogueRecord, type QuestRecord, type UnitRoster, type Workspace } from "../src/legacy/model";
-import { createCampaignFloor } from "../src/legacy/campaign-domain";
+import { DEFAULT_QUEST, emptyQuestExtension, type ArmyCatalog, type ArmyRecord, type CampaignRecord, type DialogueRecord, type QuestRecord, type UnitRoster, type Workspace } from "../src/editor/model";
+import { createCampaignFloor } from "../src/editor/campaign-domain";
 
 export const catalog: ArmyCatalog = {
   schemaVersion: 1,

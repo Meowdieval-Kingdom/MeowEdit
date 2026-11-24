@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resetBridgeFetch, resetBridgeState, setBridgeFetch, setBridgeState } from "../src/bridge-context";
-import { markWorkspaceDirty, markWorkspaceSynced, hasUnsyncedWorkspace } from "../src/legacy/workspace-store";
+import { markWorkspaceDirty, markWorkspaceSynced, hasUnsyncedWorkspace } from "../src/editor/workspace-store";
 import { mountApp } from "../src/content/app";
 
 const caps = JSON.parse(readFileSync(path.resolve(process.cwd(), "public/game-capabilities.json"), "utf8"));

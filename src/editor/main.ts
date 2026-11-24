@@ -115,7 +115,20 @@ export function reconcileCatalogIds(workspaceToRepair: typeof workspace, catalog
 export function mountLegacyEditor(options: LegacyMountOptions): void {
   const generation = ++mountGeneration;
   mountOptions = options;
-  if (options.forceMode) editorMode = options.forceMode;
+  // Entering the editor from the dashboard or a set is a fresh navigation. Restore
+  // that destination's saved preferences, but never resume a stale guided step.
+  const session = loadEditorSession(localStorage, options.setId);
+  editorMode = options.forceMode ?? session.editorMode;
+  helpVisible = session.helpVisible;
+  sidebarCollapsed = session.sidebarCollapsed;
+  armyCatalogKind = session.armyCatalogKind;
+  activeEditorStep = 0;
+  selectedArmyPlacementId = null;
+  selectedCampaignFloorId = null;
+  selectedCampaignNodeId = null;
+  relatedReturnContexts.clear();
+  guidedContextUnlocked = false;
+  lastFocusSignature = "";
   workspace = options.setId && options.draft
     ? loadWorkspace(options.setId, options.draft, options.capabilities, options.selected)
     : loadScratchWorkspace();

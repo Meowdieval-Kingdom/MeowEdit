@@ -84,14 +84,18 @@ describe("set manager and single editor", () => {
     expect(localStorage.getItem("meowedit.v2.sets.author-1")).toContain("new-set");
   });
 
-  it("opens the classic editor from an entry and returns to the dashboard", async () => {
+  it("opens the classic editor from an entry and returns to the set dashboard", async () => {
     container.querySelector<HTMLElement>('[data-open="published-set"]')!.click();
     await vi.waitFor(() => expect(container.querySelector("[data-open-editor]")).not.toBeNull());
+    expect(container.querySelector<HTMLElement>("[data-back-browser]")!.textContent).toBe("Dashboard");
     container.querySelector<HTMLElement>("[data-edit='campaigns:0']")!.click();
     await vi.waitFor(() => expect(container.querySelector(".app-shell")).not.toBeNull());
-    expect(container.querySelector('[data-action="open-content-editor"]')).not.toBeNull();
-    container.querySelector<HTMLElement>('[data-action="open-content-editor"]')!.click();
+    const backToSet = container.querySelector<HTMLElement>('[data-action="open-content-editor"]')!;
+    expect(backToSet.textContent).toContain("Set");
+    backToSet.click();
     await vi.waitFor(() => expect(container.querySelector("[data-open-editor]")).not.toBeNull());
+    container.querySelector<HTMLElement>("[data-back-browser]")!.click();
+    expect(container.textContent).toContain("Your dashboard");
   });
 
   it("reports a hash mismatch when publishing", async () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EditorNavigationHistory, type RelatedEditorReturnContext } from "../src/legacy/editor-navigation";
+import { EditorNavigationHistory, type RelatedEditorReturnContext } from "../src/editor/editor-navigation";
 
 const campaignContext: RelatedEditorReturnContext = {
   parentType: "campaign", parentKey: "campaign-1", floorId: "floor-2", nodeId: "battle-2",

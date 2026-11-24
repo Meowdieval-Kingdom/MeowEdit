@@ -1,9 +1,9 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import type { UnitRoster } from "../src/legacy/model";
-import { includeArmyUnitsInRoster } from "../src/legacy/roster";
-import { escapeHtml, renderApp, renderArmyAbilityPreview, renderArmyEntityPreview, renderDialoguePreview, renderLivePreview, renderValidationSummary } from "../src/legacy/view";
+import type { UnitRoster } from "../src/editor/model";
+import { includeArmyUnitsInRoster } from "../src/editor/roster";
+import { escapeHtml, renderApp, renderArmyAbilityPreview, renderArmyEntityPreview, renderDialoguePreview, renderLivePreview, renderValidationSummary } from "../src/editor/view";
 import { armyFixture, catalog, dialogueFixture, rosterFixture, workspaceFixture } from "./fixtures";
 
 function dom(html: string): HTMLElement {

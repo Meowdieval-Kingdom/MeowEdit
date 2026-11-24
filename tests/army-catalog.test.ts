@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { armyFootprintsOverlap, armyGridSize, canPlaceArmyLevel, firstAvailableArmyCell } from "../src/legacy/army-catalog";
+import { armyFootprintsOverlap, armyGridSize, canPlaceArmyLevel, firstAvailableArmyCell } from "../src/editor/army-catalog";
 import { catalog } from "./fixtures";
 
 describe("army catalog formation geometry", () => {

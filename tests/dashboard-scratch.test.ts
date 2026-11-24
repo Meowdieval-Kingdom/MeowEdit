@@ -3,7 +3,7 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resetBridgeFetch, resetBridgeState, setBridgeFetch, setBridgeState } from "../src/bridge-context";
 import { mountApp } from "../src/content/app";
-import { loadScratchWorkspace, SCRATCH_WORKSPACE } from "../src/legacy/workspace-store";
+import { loadScratchWorkspace, SCRATCH_WORKSPACE } from "../src/editor/workspace-store";
 
 const caps = JSON.parse(readFileSync(path.resolve(process.cwd(), "public/game-capabilities.json"), "utf8"));
 const valid = JSON.parse(readFileSync(path.resolve(process.cwd(), "contract/content/fixtures/valid-set.fixture.json"), "utf8"));
@@ -48,6 +48,7 @@ describe("dashboard and scratch content", () => {
     await vi.waitFor(() => expect(container.querySelector(".app-shell")).not.toBeNull(), { timeout: 10000 });
     expect(loadScratchWorkspace().armies[0].id).toBe("army-1");
     expect(container.querySelector('[data-action="save-package"]')?.textContent).toContain("Save locally");
+    expect(container.querySelector('[data-action="open-content-editor"]')?.textContent).toContain("Dashboard");
     for (let i = 0; i < 10 && !container.querySelector('[data-action="assign-to-set"]'); i++)
       container.querySelector<HTMLElement>('[data-action="editor-next"]')?.click();
     await vi.waitFor(() => expect(container.querySelector('[data-action="assign-to-set"]')).not.toBeNull());

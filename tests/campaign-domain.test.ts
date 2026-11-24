@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addCampaignNode, connectCampaignNodes, createCampaignFloor, moveCampaignNode, removeCampaignFloor, removeCampaignNode } from "../src/legacy/campaign-domain";
+import { addCampaignNode, connectCampaignNodes, createCampaignFloor, moveCampaignNode, removeCampaignFloor, removeCampaignNode } from "../src/editor/campaign-domain";
 import { campaignFixture } from "./fixtures";
 
 describe("campaign board operations", () => {

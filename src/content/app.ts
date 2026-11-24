@@ -17,14 +17,14 @@ import { validateContentSet, type ValidationResult } from "./validation";
 import {
   hasUnsyncedWorkspace, loadScratchWorkspace, loadWorkspace, markWorkspaceSynced,
   saveScratchWorkspace, SCRATCH_WORKSPACE
-} from "../legacy/workspace-store";
-import { workspaceToDraft } from "../legacy/convert";
+} from "../editor/workspace-store";
+import { workspaceToDraft } from "../editor/convert";
 import {
   activeArmyJson, activeCampaignJson, activeDialogueJson, activeQuestJson,
   parseImportedJson, decodeZipText
-} from "../legacy/export";
-import { readStoredZip } from "../legacy/zip";
-import type { Workspace } from "../legacy/model";
+} from "../editor/export";
+import { readStoredZip } from "../editor/zip";
+import type { Workspace } from "../editor/model";
 
 interface SetSummary {
   setId: string;
@@ -554,7 +554,7 @@ interface EditorTarget {
 
 async function openEditor(container: HTMLElement, state: AppState, target: EditorTarget): Promise<void> {
   try {
-    const { mountLegacyEditor } = await import("../legacy/main");
+    const { mountLegacyEditor } = await import("../editor/main");
     state.lastEdited = { workspace: target.workspace, section: target.section, key: target.key, label: target.label };
     syncSession(state);
     const scratch = target.workspace === SCRATCH_WORKSPACE;
@@ -921,7 +921,7 @@ function renderSetView(container: HTMLElement, state: AppState): void {
   container.innerHTML = '<main class="editor-shell"><div class="topbar"><div class="topbar-context">' +
     '<span class="brand-mark">M</span><strong>MeowEdit</strong><span class="context-divider">/</span>' +
     '<span class="context-crumb">' + escapeHtml(state.setId) + '</span></div><div class="topbar-actions">' +
-    '<button type="button" class="text-button" data-back-browser>Sets</button>' +
+    '<button type="button" class="text-button" data-back-browser>Dashboard</button>' +
     '<span class="version-tag">' + APP_VERSION + '</span>' +
     '<button type="button" class="text-button" data-toggle-help aria-pressed="' + state.help + '">' + (state.help ? "Hide help" : "Help") + '</button>' +
     '<button type="button" class="text-button" data-sign-out>Sign out</button></div></div>' +
@@ -967,7 +967,7 @@ function flashStatus(container: HTMLElement, state: AppState): void {
 /** Opens the single classic editor, which owns both Guided and Full modes per category. */
 async function openClassicEditor(container: HTMLElement, state: AppState, selected?: { section: string; index: number }): Promise<void> {
   try {
-    const { mountLegacyEditor } = await import("../legacy/main");
+    const { mountLegacyEditor } = await import("../editor/main");
     mountLegacyEditor({
       setId: state.setId,
       draft: state.draft,

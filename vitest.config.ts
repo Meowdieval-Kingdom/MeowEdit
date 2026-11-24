@@ -14,9 +14,9 @@ export default defineConfig({
       // its screens are exercised by legacy-editor.test.ts and the original
       // module tests cover the pure modules it drives. Keep the gate focused
       // on code we own and change.
-      exclude: ["src/legacy/main.ts"],
+      exclude: ["src/editor/main.ts"],
       thresholds: {
-        // Project-wide floors cover the content editor, restored legacy modules and authenticated bootstrap.
+        // Project-wide floors cover the content editor, restored editor modules and authenticated bootstrap.
         statements: 78,
         branches: 70,
         functions: 84,
