@@ -31,7 +31,7 @@ describe("save and publish flows", () => {
     mockApi(requestPath => {
       let body: unknown = { sets: [{ setId: "test-set", draftVersion: 2 }] };
       if (requestPath === "/v1/editor/capabilities") body = caps;
-      else if (requestPath.includes("/campaign-sets/") && !requestPath.endsWith("/publish")) body = { draftVersion: 2, draft: valid };
+      else if (requestPath.includes("/mission-sets/") && !requestPath.endsWith("/publish")) body = { draftVersion: 2, draft: valid };
       else if (requestPath.endsWith("/publish")) body = { packageId: "pkg-1", contentHash: "hash" };
       return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
     });
@@ -46,9 +46,9 @@ describe("save and publish flows", () => {
     mockApi((requestPath, init) => {
       if (requestPath === "/v1/editor/capabilities")
         return new Response(JSON.stringify(caps), { status: 200, headers: { "content-type": "application/json" } });
-      if (requestPath.endsWith("/campaign-sets/test-set") && init?.method === "POST")
+      if (requestPath.endsWith("/mission-sets/test-set") && init?.method === "POST")
         return new Response(JSON.stringify({ draftVersion: 3 }), { status: 200, headers: { "content-type": "application/json" } });
-      if (requestPath === "/v1/editor/campaign-sets")
+      if (requestPath === "/v1/editor/mission-sets")
         return new Response(JSON.stringify({ sets: [{ setId: "test-set", draftVersion: 2 }] }), { status: 200, headers: { "content-type": "application/json" } });
       return new Response(JSON.stringify({ sets: [{ setId: "test-set", draftVersion: 2 }] }), { status: 200, headers: { "content-type": "application/json" } });
     });
@@ -59,7 +59,7 @@ describe("save and publish flows", () => {
   it("reports a 409 draft conflict from the HTTP error body", async () => {
     await openSet();
     mockApi(requestPath => {
-      if (requestPath.endsWith("/campaign-sets/test-set"))
+      if (requestPath.endsWith("/mission-sets/test-set"))
         return new Response(JSON.stringify({ code: "draft_conflict", currentVersion: 9 }), { status: 409, headers: { "content-type": "application/json" } });
       if (requestPath === "/v1/editor/capabilities")
         return new Response(JSON.stringify(caps), { status: 200, headers: { "content-type": "application/json" } });

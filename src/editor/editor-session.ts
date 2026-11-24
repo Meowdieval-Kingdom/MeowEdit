@@ -17,8 +17,8 @@ export interface EditorSessionState {
   sidebarCollapsed: boolean;
   selectedArmyPlacementId: string | null;
   armyCatalogKind: ArmyCatalogKind;
-  selectedCampaignFloorId: string | null;
-  selectedCampaignNodeId: string | null;
+  selectedMissionFloorId: string | null;
+  selectedMissionNodeId: string | null;
   relatedReturnContexts: RelatedEditorReturnContext[];
 }
 
@@ -30,8 +30,8 @@ export function defaultEditorSession(): EditorSessionState {
     sidebarCollapsed: false,
     selectedArmyPlacementId: null,
     armyCatalogKind: "units",
-    selectedCampaignFloorId: null,
-    selectedCampaignNodeId: null,
+    selectedMissionFloorId: null,
+    selectedMissionNodeId: null,
     relatedReturnContexts: []
   };
 }
@@ -49,8 +49,8 @@ export function loadEditorSession(storage: Pick<Storage, "getItem">, setId?: str
       sidebarCollapsed: parsed.sidebarCollapsed === true,
       selectedArmyPlacementId: typeof parsed.selectedArmyPlacementId === "string" ? parsed.selectedArmyPlacementId : null,
       armyCatalogKind: parsed.armyCatalogKind === "buildings" ? "buildings" : "units",
-      selectedCampaignFloorId: typeof parsed.selectedCampaignFloorId === "string" ? parsed.selectedCampaignFloorId : null,
-      selectedCampaignNodeId: typeof parsed.selectedCampaignNodeId === "string" ? parsed.selectedCampaignNodeId : null,
+      selectedMissionFloorId: typeof parsed.selectedMissionFloorId === "string" ? parsed.selectedMissionFloorId : null,
+      selectedMissionNodeId: typeof parsed.selectedMissionNodeId === "string" ? parsed.selectedMissionNodeId : null,
       relatedReturnContexts: Array.isArray(parsed.relatedReturnContexts)
         ? parsed.relatedReturnContexts as RelatedEditorReturnContext[] : []
     };

@@ -1,9 +1,9 @@
 import type {
   ArmyCatalog,
   ArmyRecord,
-  CampaignRecord,
-  CampaignFloor,
-  CampaignShopOfferKind,
+  MissionRecord,
+  MissionFloor,
+  MissionShopOfferKind,
   DialogueRecord,
   QuestRecord,
   Workspace
@@ -20,7 +20,7 @@ export interface ValidationIssue {
 const ALLOWED_OBJECTIVES = ["Escort", "Fetch", "Battle", "ClearFloor", "Timer", "KillCount"];
 const ALLOWED_SOURCES = ["QuestGiver", "Letter", "Item"];
 const ALLOWED_REWARDS = ["Sardines", "ExtraLife", "Blessing"];
-const CAMPAIGN_SHOP_KINDS: CampaignShopOfferKind[] = ["Unit", "Blessing", "Research", "SpellUnlock"];
+const MISSION_SHOP_KINDS: MissionShopOfferKind[] = ["Unit", "Blessing", "Research", "SpellUnlock"];
 
 function nonEmpty(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
@@ -221,77 +221,77 @@ export function validateWorkspace(workspace: Workspace, catalog: ArmyCatalog = {
       issues.push({ ...issue, message: "Army “" + army.id + "”: " + issue.message });
     }
   }
-  const campaignIds = workspace.campaigns.map(item => item.id);
-  if (!uniqueValues(campaignIds)) issues.push({ level: "error", message: "Campaign IDs must be unique across this workspace." });
-  for (const campaign of workspace.campaigns) {
-    for (const issue of validateCampaign(campaign, workspace, catalog)) {
-      issues.push({ ...issue, message: "Campaign “" + (campaign.name || campaign.id) + "”: " + issue.message });
+  const missionIds = workspace.missions.map(item => item.id);
+  if (!uniqueValues(missionIds)) issues.push({ level: "error", message: "Mission IDs must be unique across this workspace." });
+  for (const mission of workspace.missions) {
+    for (const issue of validateMission(mission, workspace, catalog)) {
+      issues.push({ ...issue, message: "Mission “" + (mission.name || mission.id) + "”: " + issue.message });
     }
   }
   return issues;
 }
 
-const CAMPAIGN_NODE_KINDS = new Set(["Start", "Battle", "Reward", "Boss", "Quest", "Shop"]);
-const CAMPAIGN_REWARD_KINDS = new Set(["Sardines", "ExtraLife", "Blessing", "UnitUnlock", "ShopLevelUnlock", "SpellUnlock"]);
+const MISSION_NODE_KINDS = new Set(["Start", "Battle", "Reward", "Boss", "Quest", "Shop"]);
+const MISSION_REWARD_KINDS = new Set(["Sardines", "ExtraLife", "Blessing", "UnitUnlock", "ShopLevelUnlock", "SpellUnlock"]);
 // Use the canonical registry vocabulary instead of a stale local whitelist; the
 // runtime and publisher accept every trigger listed there (for example battle-won).
 
-export function validateCampaign(
-  campaign: CampaignRecord,
+export function validateMission(
+  mission: MissionRecord,
   workspace: Workspace,
   catalog: ArmyCatalog
 ): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
-  if (!nonEmpty(campaign.id)) issues.push({ level: "error", message: "Campaign ID is required." });
-  if (!nonEmpty(campaign.name)) issues.push({ level: "error", message: "Campaign name is required." });
-  if (campaign.floors.length === 0) issues.push({ level: "error", message: "Add at least one floor board." });
-  if (!Number.isInteger(campaign.settings.startingLives) || campaign.settings.startingLives < 1) issues.push({ level: "error", message: "Starting lives must be a whole number of at least one." });
-  if (!campaign.settings.factionSelectionEnabled && !campaign.settings.playerFactionId) {
+  if (!nonEmpty(mission.id)) issues.push({ level: "error", message: "Mission ID is required." });
+  if (!nonEmpty(mission.name)) issues.push({ level: "error", message: "Mission name is required." });
+  if (mission.floors.length === 0) issues.push({ level: "error", message: "Add at least one floor board." });
+  if (!Number.isInteger(mission.settings.startingLives) || mission.settings.startingLives < 1) issues.push({ level: "error", message: "Starting lives must be a whole number of at least one." });
+  if (!mission.settings.factionSelectionEnabled && !mission.settings.playerFactionId) {
     issues.push({ level: "error", message: "Choose a player faction when faction selection is disabled." });
   }
   // 0 is a legitimate "start broke" value at runtime (AdventureRunFactory clamps at 0).
-  if (!Number.isInteger(campaign.settings.startingSardines) || campaign.settings.startingSardines < 0 || campaign.settings.startingSardines > 50) issues.push({ level: "error", message: "Starting Sardines must be a whole number between 0 and 50, matching Adventure settings." });
-  if (!Number.isInteger(campaign.settings.startingNodeCount) || campaign.settings.startingNodeCount < 12 || campaign.settings.startingNodeCount > 30 || campaign.settings.startingNodeCount % 2 !== 0) issues.push({ level: "error", message: "Starting random floor node count must be an even number between 12 and 30." });
-  if (!Number.isInteger(campaign.settings.questNodeCountPerRandomFloor) || campaign.settings.questNodeCountPerRandomFloor < 0 || campaign.settings.questNodeCountPerRandomFloor > 4) issues.push({ level: "error", message: "Generated Quest nodes per floor must be a whole number between 0 and 4." });
-  if (!Number.isInteger(campaign.settings.shopNodeCountPerRandomFloor) || campaign.settings.shopNodeCountPerRandomFloor < 0 || campaign.settings.shopNodeCountPerRandomFloor > 7) issues.push({ level: "error", message: "Generated Shop nodes per floor must be a whole number between 0 and 7." });
-  if (!Number.isInteger(campaign.settings.nodeGrowthPerFloor) || campaign.settings.nodeGrowthPerFloor < 1 || campaign.settings.nodeGrowthPerFloor > 10) issues.push({ level: "error", message: "Generated floor node growth must be a whole number between 1 and 10." });
-  if (campaign.settings.startingNodeCount - campaign.settings.questNodeCountPerRandomFloor - campaign.settings.shopNodeCountPerRandomFloor < 4) {
+  if (!Number.isInteger(mission.settings.startingSardines) || mission.settings.startingSardines < 0 || mission.settings.startingSardines > 50) issues.push({ level: "error", message: "Starting Sardines must be a whole number between 0 and 50, matching Adventure settings." });
+  if (!Number.isInteger(mission.settings.startingNodeCount) || mission.settings.startingNodeCount < 12 || mission.settings.startingNodeCount > 30 || mission.settings.startingNodeCount % 2 !== 0) issues.push({ level: "error", message: "Starting random floor node count must be an even number between 12 and 30." });
+  if (!Number.isInteger(mission.settings.questNodeCountPerRandomFloor) || mission.settings.questNodeCountPerRandomFloor < 0 || mission.settings.questNodeCountPerRandomFloor > 4) issues.push({ level: "error", message: "Generated Quest nodes per floor must be a whole number between 0 and 4." });
+  if (!Number.isInteger(mission.settings.shopNodeCountPerRandomFloor) || mission.settings.shopNodeCountPerRandomFloor < 0 || mission.settings.shopNodeCountPerRandomFloor > 7) issues.push({ level: "error", message: "Generated Shop nodes per floor must be a whole number between 0 and 7." });
+  if (!Number.isInteger(mission.settings.nodeGrowthPerFloor) || mission.settings.nodeGrowthPerFloor < 1 || mission.settings.nodeGrowthPerFloor > 10) issues.push({ level: "error", message: "Generated floor node growth must be a whole number between 1 and 10." });
+  if (mission.settings.startingNodeCount - mission.settings.questNodeCountPerRandomFloor - mission.settings.shopNodeCountPerRandomFloor < 4) {
     issues.push({ level: "error", message: "Random floor settings must leave room for Start, Boss, and at least two Battles." });
   }
-  if (campaign.settings.playerFactionId && !catalog.factions.some(item => item.id === campaign.settings.playerFactionId)) {
+  if (mission.settings.playerFactionId && !catalog.factions.some(item => item.id === mission.settings.playerFactionId)) {
     issues.push({ level: "error", message: "Choose a player faction from the game catalog." });
   }
-  if (campaign.boardPreviewUnitId && !catalog.units.some(unit =>
-    unit.levels.some(level => level.id === campaign.boardPreviewUnitId))) {
+  if (mission.boardPreviewUnitId && !catalog.units.some(unit =>
+    unit.levels.some(level => level.id === mission.boardPreviewUnitId))) {
     issues.push({ level: "error", message: "Choose a board preview unit from the game catalog, or use the selected faction hero." });
   }
-  if (!uniqueValues(campaign.settings.shopPoolKinds) || campaign.settings.shopPoolKinds.some(kind => !CAMPAIGN_SHOP_KINDS.includes(kind))) {
-    issues.push({ level: "error", message: "Campaign shop pools must use unique, supported offer categories." });
+  if (!uniqueValues(mission.settings.shopPoolKinds) || mission.settings.shopPoolKinds.some(kind => !MISSION_SHOP_KINDS.includes(kind))) {
+    issues.push({ level: "error", message: "Mission shop pools must use unique, supported offer categories." });
   }
 
-  const events = campaign.events ?? [];
-  if (!uniqueValues(events.map(event => event.id))) issues.push({ level: "error", message: "Campaign event IDs must be present and unique." });
+  const events = mission.events ?? [];
+  if (!uniqueValues(events.map(event => event.id))) issues.push({ level: "error", message: "Mission event IDs must be present and unique." });
   for (const event of events) {
-    const label = "Campaign event “" + (event.id || "(missing ID)") + "”: ";
+    const label = "Mission event “" + (event.id || "(missing ID)") + "”: ";
     if (!nonEmpty(event.id)) issues.push({ level: "error", message: label + "ID is required." });
     if (!isKnownTrigger(event.trigger)) {
       issues.push({ level: "error", message: label + "choose a supported trigger." });
       continue;
     }
     // floorNumber 0 plus a blank nodeId is the runtime sentinel for "no floor"
-    // on campaign-start events (AdventureContentPackageCatalog).
+    // on mission-start events (AdventureContentPackageCatalog).
     const floorNumber = event.floorNumber ?? 0;
-    if (event.trigger === "campaign-start" && (floorNumber !== 0 || event.nodeId)) {
-      issues.push({ level: "error", message: label + "Campaign start events cannot target a floor or node." });
+    if (event.trigger === "mission-start" && (floorNumber !== 0 || event.nodeId)) {
+      issues.push({ level: "error", message: label + "Mission start events cannot target a floor or node." });
     }
-    if (floorNumber !== 0 && (!Number.isInteger(floorNumber) || !campaign.floors.some(floor => floor.number === floorNumber))) {
-      issues.push({ level: "error", message: label + "choose a floor that exists in this campaign." });
+    if (floorNumber !== 0 && (!Number.isInteger(floorNumber) || !mission.floors.some(floor => floor.number === floorNumber))) {
+      issues.push({ level: "error", message: label + "choose a floor that exists in this mission." });
     }
     if (event.nodeId) {
       if (event.floorNumber === undefined || !Number.isInteger(event.floorNumber)) {
         issues.push({ level: "error", message: label + "choose a floor before targeting a specific node." });
       } else {
-        const floor = campaign.floors.find(item => item.number === event.floorNumber);
+        const floor = mission.floors.find(item => item.number === event.floorNumber);
         const node = floor?.nodes.find(item => item.id === event.nodeId);
         if (!node) {
           issues.push({ level: "error", message: label + "target node “" + event.nodeId + "” does not exist on Floor " + event.floorNumber + "." });
@@ -317,25 +317,25 @@ export function validateCampaign(
     }
   }
 
-  const questIds = campaign.questIds ?? [];
-  if (!uniqueValues(questIds)) issues.push({ level: "error", message: "Campaign quest IDs must be unique." });
+  const questIds = mission.questIds ?? [];
+  if (!uniqueValues(questIds)) issues.push({ level: "error", message: "Mission quest IDs must be unique." });
   for (const questId of questIds) {
     if (!workspace.quests.some(item => item.definition.id === questId)) {
-      issues.push({ level: "error", message: "Campaign quest pool refers to missing quest “" + questId + "”." });
+      issues.push({ level: "error", message: "Mission quest pool refers to missing quest “" + questId + "”." });
     }
   }
 
-  const floorNumbers = campaign.floors.map(floor => floor.number);
-  if (new Set(floorNumbers).size !== floorNumbers.length) issues.push({ level: "error", message: "Floor numbers must be unique within a campaign." });
-  for (const floor of campaign.floors) {
-    issues.push(...validateCampaignFloor(floor, campaign, workspace, catalog));
+  const floorNumbers = mission.floors.map(floor => floor.number);
+  if (new Set(floorNumbers).size !== floorNumbers.length) issues.push({ level: "error", message: "Floor numbers must be unique within a mission." });
+  for (const floor of mission.floors) {
+    issues.push(...validateMissionFloor(floor, mission, workspace, catalog));
   }
   return issues;
 }
 
-function validateCampaignFloor(
-  floor: CampaignFloor,
-  campaign: CampaignRecord,
+function validateMissionFloor(
+  floor: MissionFloor,
+  mission: MissionRecord,
   workspace: Workspace,
   catalog: ArmyCatalog
 ): ValidationIssue[] {
@@ -343,11 +343,11 @@ function validateCampaignFloor(
   const prefix = "Floor " + floor.number + ": ";
   if (!Number.isInteger(floor.number) || floor.number < 1) issues.push({ level: "error", message: prefix + "floor number must be a whole number of at least one." });
   if (!Number.isInteger(floor.shopLevel) || floor.shopLevel < 1 || floor.shopLevel > 4) issues.push({ level: "error", message: prefix + "shop tier must be a whole number from 1 to 4." });
-  if (floor.shopPoolMode !== "campaign" && floor.shopPoolMode !== "custom") issues.push({ level: "error", message: prefix + "choose the campaign shop pools or a custom floor pool." });
-  if (!uniqueValues(floor.shopPoolKinds) || floor.shopPoolKinds.some(kind => !CAMPAIGN_SHOP_KINDS.includes(kind))) {
+  if (floor.shopPoolMode !== "mission" && floor.shopPoolMode !== "custom") issues.push({ level: "error", message: prefix + "choose the mission shop pools or a custom floor pool." });
+  if (!uniqueValues(floor.shopPoolKinds) || floor.shopPoolKinds.some(kind => !MISSION_SHOP_KINDS.includes(kind))) {
     issues.push({ level: "error", message: prefix + "floor shop pools must use unique, supported offer categories." });
   }
-  const activeShopKinds = floor.shopPoolMode === "custom" ? floor.shopPoolKinds : campaign.settings.shopPoolKinds;
+  const activeShopKinds = floor.shopPoolMode === "custom" ? floor.shopPoolKinds : mission.settings.shopPoolKinds;
   const hasShopNodes = floor.nodes.some(node => node.kind === "Shop") || (floor.mode !== "authored" && floor.randomSettings.shopNodeCount > 0);
   if (hasShopNodes && activeShopKinds.length === 0) issues.push({ level: "error", message: prefix + "generated shops need at least one enabled offer pool." });
   if (!["authored", "random", "mixed"].includes(floor.mode)) {
@@ -356,8 +356,8 @@ function validateCampaignFloor(
   }
 
   const random = floor.randomSettings;
-  if (floor.questPoolMode !== "campaign" && floor.questPoolMode !== "custom") issues.push({ level: "error", message: prefix + "choose a campaign or custom quest pool." });
-  const randomQuestPool = floor.questPoolMode === "custom" ? floor.questPoolIds : campaign.questIds;
+  if (floor.questPoolMode !== "mission" && floor.questPoolMode !== "custom") issues.push({ level: "error", message: prefix + "choose a mission or custom quest pool." });
+  const randomQuestPool = floor.questPoolMode === "custom" ? floor.questPoolIds : mission.questIds;
   if (floor.mode !== "authored" && randomQuestPool.some(questId => {
     const quest = workspace.quests.find(item => item.definition.id === questId);
     return (quest?.extension.minimumNodeDistances?.length ?? 0) > 0;
@@ -366,7 +366,7 @@ function validateCampaignFloor(
   }
   if (!uniqueValues(floor.questPoolIds)) issues.push({ level: "error", message: prefix + "floor Quest pool IDs must be unique." });
   for (const questId of floor.questPoolIds) {
-    if (!campaign.questIds.includes(questId)) issues.push({ level: "error", message: prefix + "floor Quest pool contains “" + questId + "” outside the campaign Quest pool." });
+    if (!mission.questIds.includes(questId)) issues.push({ level: "error", message: prefix + "floor Quest pool contains “" + questId + "” outside the mission Quest pool." });
   }
   if (floor.mode === "random" || floor.mode === "mixed") {
     if (!Number.isInteger(random.nodeCount) || !(random.nodeCount >= (floor.mode === "random" ? 12 : 0))) {
@@ -414,7 +414,7 @@ function validateCampaignFloor(
   if (!uniqueValues(occupiedPositions)) issues.push({ level: "error", message: prefix + "only one node can occupy a board cell." });
   const nodeMap = new Map(floor.nodes.map(node => [node.id, node]));
   for (const node of floor.nodes) {
-    if (!CAMPAIGN_NODE_KINDS.has(node.kind)) issues.push({ level: "error", message: prefix + "node “" + node.label + "” has an unsupported type." });
+    if (!MISSION_NODE_KINDS.has(node.kind)) issues.push({ level: "error", message: prefix + "node “" + node.label + "” has an unsupported type." });
     if (!nonEmpty(node.id) || !nonEmpty(node.label)) issues.push({ level: "error", message: prefix + "every node needs a stable ID and label." });
     if (!Number.isInteger(node.x) || Math.abs(node.x) > 30 || !Number.isInteger(node.y) || Math.abs(node.y) > 30) {
       issues.push({ level: "error", message: prefix + "nodes use integer Adventure-map grid coordinates within 30 steps of the origin." });
@@ -427,11 +427,11 @@ function validateCampaignFloor(
       issues.push({ level: "error", message: prefix + "node “" + node.label + "” refers to a missing faction." });
     }
     if (node.kind === "Quest" && node.questId) {
-      if (!campaign.questIds.includes(node.questId)) issues.push({ level: "error", message: prefix + "Quest node “" + node.label + "” uses a quest outside the campaign quest pool." });
+      if (!mission.questIds.includes(node.questId)) issues.push({ level: "error", message: prefix + "Quest node “" + node.label + "” uses a quest outside the mission quest pool." });
       if (!workspace.quests.some(quest => quest.definition.id === node.questId)) issues.push({ level: "error", message: prefix + "Quest node “" + node.label + "” refers to a missing quest." });
     }
     if (node.kind === "Reward") {
-      if (!CAMPAIGN_REWARD_KINDS.has(node.rewardKind)) issues.push({ level: "error", message: prefix + "choose a supported reward for “" + node.label + "”." });
+      if (!MISSION_REWARD_KINDS.has(node.rewardKind)) issues.push({ level: "error", message: prefix + "choose a supported reward for “" + node.label + "”." });
       if (node.rewardAmount < 0) issues.push({ level: "error", message: prefix + "reward amounts cannot be negative." });
       if (["Blessing", "UnitUnlock", "SpellUnlock"].includes(node.rewardKind) && !nonEmpty(node.rewardContentId)) {
         issues.push({ level: "error", message: prefix + "node “" + node.label + "” needs a reward content ID." });
@@ -446,7 +446,7 @@ function validateCampaignFloor(
         const offerKeys = node.shopOffers.map(offer => offer.kind + ":" + offer.contentId);
         if (!uniqueValues(offerKeys)) issues.push({ level: "error", message: prefix + "exact shop offers must be unique." });
         for (const offer of node.shopOffers) {
-          if (!CAMPAIGN_SHOP_KINDS.includes(offer.kind)) {
+          if (!MISSION_SHOP_KINDS.includes(offer.kind)) {
             issues.push({ level: "error", message: prefix + "shop “" + node.label + "” has an unsupported offer category." });
             continue;
           }

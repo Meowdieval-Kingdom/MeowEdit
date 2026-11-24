@@ -161,14 +161,14 @@ describe("editor rendering", () => {
     expect(advancedHelp).toContain('class="app-shell help-visible"');
     expect(advancedHelp).toContain('class="help-copy"');
 
-    const campaignWorkspace = workspaceFixture();
-    campaignWorkspace.selectedType = "campaign";
-    campaignWorkspace.selectedKey = campaignWorkspace.campaigns[0].key;
-    campaignWorkspace.campaigns[0].designMode = "choose";
-    const campaignStart = renderApp(campaignWorkspace, rosterFixture, catalog, [], 0, "guided");
-    expect(campaignStart).toContain('class="campaign-step-prompt help-copy"');
-    expect(campaignStart).toContain('<span class="help-copy">Generated floors, starting rules, and progression.');
-    expect(campaignStart).not.toContain('<span>Generated floors, starting rules, and progression.');
+    const missionWorkspace = workspaceFixture();
+    missionWorkspace.selectedType = "mission";
+    missionWorkspace.selectedKey = missionWorkspace.missions[0].key;
+    missionWorkspace.missions[0].designMode = "choose";
+    const missionStart = renderApp(missionWorkspace, rosterFixture, catalog, [], 0, "guided");
+    expect(missionStart).toContain('class="mission-step-prompt help-copy"');
+    expect(missionStart).toContain('<span class="help-copy">Generated floors, starting rules, and progression.');
+    expect(missionStart).not.toContain('<span>Generated floors, starting rules, and progression.');
 
     const armyWorkspace = workspaceFixture();
     armyWorkspace.selectedType = "army";
@@ -335,11 +335,11 @@ describe("editor rendering", () => {
     expect(html).toContain("Chapel: Shield");
   });
 
-  it("renders campaign editor variants and floor map states", () => {
+  it("renders mission editor variants and floor map states", () => {
     const workspace = workspaceFixture();
-    workspace.selectedType = "campaign";
-    workspace.selectedKey = workspace.campaigns[0].key;
-    const view = { selectedFloorId: workspace.campaigns[0].floors[0].id, selectedNodeId: "start", interactionMode: "select" as const, nodeKind: "Battle" as const, addMenuOpen: false, pendingPlugFromId: null, selectedRouteId: null };
+    workspace.selectedType = "mission";
+    workspace.selectedKey = workspace.missions[0].key;
+    const view = { selectedFloorId: workspace.missions[0].floors[0].id, selectedNodeId: "start", interactionMode: "select" as const, nodeKind: "Battle" as const, addMenuOpen: false, pendingPlugFromId: null, selectedRouteId: null };
     const advanced = renderApp(workspace, rosterFixture, catalog, [], 0, "full", null, view);
     expect(advanced).toContain('data-bind="boardPreviewUnitId"');
     expect(advanced).toContain('value="Peasants/Fighter/1"');
@@ -347,92 +347,92 @@ describe("editor rendering", () => {
     expect(advanced).toContain('data-bind="settings.factionSelectionEnabled"');
     expect(advanced).toContain("Allow faction selection");
     expect(advanced).not.toContain("ADVENTURE NODE MAP");
-    for (const section of ["campaign-basics", "campaign-floors", "campaign-map", "campaign-quests", "campaign-shops", "campaign-starting-run", "campaign-progression"]) {
+    for (const section of ["mission-basics", "mission-floors", "mission-map", "mission-quests", "mission-shops", "mission-starting-run", "mission-progression"]) {
       expect(advanced).toContain('id="' + section + '"');
       expect(advanced).toContain('href="#' + section + '"');
     }
-    expect(advanced).not.toContain("CAMPAIGN · ADVANCED");
-    expect(advanced).toContain('details class="campaign-advanced-node" open');
-    expect(advanced).toContain('class="campaign-floor-pool" open');
+    expect(advanced).not.toContain("MISSION · ADVANCED");
+    expect(advanced).toContain('details class="mission-advanced-node" open');
+    expect(advanced).toContain('class="mission-floor-pool" open');
     const nameStep = renderApp(workspace, rosterFixture, catalog, [], 0, "guided", null, view);
     expect(nameStep).toContain("Step 1 of 9");
     expect(nameStep).toContain('data-bind="name"');
-    expect(nameStep).not.toContain('data-campaign-canvas');
-    expect(nameStep).not.toContain('class="campaign-settings-panel"');
+    expect(nameStep).not.toContain('data-mission-canvas');
+    expect(nameStep).not.toContain('class="mission-settings-panel"');
     const floorStep = renderApp(workspace, rosterFixture, catalog, [], 1, "guided", null, view);
     expect(floorStep).toContain("Step 2 of 9");
     expect(floorStep).toContain("Choose the boards");
     expect(floorStep).toContain("Place nodes and connect routes");
-    expect(floorStep).toContain('data-campaign-port="output"');
-    expect(floorStep).toContain('data-action="campaign-toggle-add-menu"');
-    expect(floorStep).toContain('class="campaign-route-distance"');
+    expect(floorStep).toContain('data-mission-port="output"');
+    expect(floorStep).toContain('data-action="mission-toggle-add-menu"');
+    expect(floorStep).toContain('class="mission-route-distance"');
     expect(floorStep).toContain("map distance 1 step");
     expect(floorStep).toContain("grid cell 0, 0");
-    expect(floorStep).not.toContain('data-action="campaign-connect-mode"');
+    expect(floorStep).not.toContain('data-action="mission-connect-mode"');
     const nodeStep = renderApp(workspace, rosterFixture, catalog, [], 2, "guided", null, view);
     expect(nodeStep).toContain("Step 3 of 9");
-    expect(nodeStep).toContain('data-action="campaign-back-to-map"');
-    expect(nodeStep).toContain('class="campaign-map-step campaign-context-map"');
-    expect(nodeStep).toContain('data-campaign-canvas');
+    expect(nodeStep).toContain('data-action="mission-back-to-map"');
+    expect(nodeStep).toContain('class="mission-map-step mission-context-map"');
+    expect(nodeStep).toContain('data-mission-canvas');
     expect(renderApp(workspace, rosterFixture, catalog, [], 3, "guided", null, view)).toContain("Find a quest");
-    expect(renderApp(workspace, rosterFixture, catalog, [], 8, "guided", null, view)).toContain("Review your campaign");
-    workspace.campaigns[0].floors[0].mode = "random";
+    expect(renderApp(workspace, rosterFixture, catalog, [], 8, "guided", null, view)).toContain("Review your mission");
+    workspace.missions[0].floors[0].mode = "random";
     expect(renderApp(workspace, rosterFixture, catalog, [], 0, "full", null, view)).toContain("GENERATED BOARD");
   });
 
-  it("renders campaign event editing as an optional guided step and an advanced section", () => {
+  it("renders mission event editing as an optional guided step and an advanced section", () => {
     const workspace = workspaceFixture();
-    const campaign = workspace.campaigns[0];
+    const mission = workspace.missions[0];
     const army = workspace.armies[0];
-    const battleId = campaign.floors[0].nodes.find(node => node.kind === "Battle")!.id;
-    campaign.events = [{ id: "event-battle", trigger: "before-battle", floorNumber: 1, nodeId: battleId,
+    const battleId = mission.floors[0].nodes.find(node => node.kind === "Battle")!.id;
+    mission.events = [{ id: "event-battle", trigger: "before-battle", floorNumber: 1, nodeId: battleId,
       actions: [{ kind: "replace-player-army", armyId: army.id }] }];
-    workspace.selectedType = "campaign";
-    workspace.selectedKey = campaign.key;
-    const view = { selectedFloorId: campaign.floors[0].id, selectedNodeId: "start", interactionMode: "select" as const, nodeKind: "Battle" as const, addMenuOpen: false, pendingPlugFromId: null, selectedRouteId: null };
+    workspace.selectedType = "mission";
+    workspace.selectedKey = mission.key;
+    const view = { selectedFloorId: mission.floors[0].id, selectedNodeId: "start", interactionMode: "select" as const, nodeKind: "Battle" as const, addMenuOpen: false, pendingPlugFromId: null, selectedRouteId: null };
 
     const advanced = renderApp(workspace, rosterFixture, catalog, [], 0, "full", null, view);
-    expect(advanced).toContain('id="campaign-events"');
+    expect(advanced).toContain('id="mission-events"');
     expect(advanced).toContain('data-bind="events.0.trigger"');
     expect(advanced).toContain('data-bind="events.0.actions.0.armyId"');
     expect(advanced).toContain("Create army");
     expect(advanced).toContain("Edit linked army");
 
     const eventStep = renderApp(workspace, rosterFixture, catalog, [], 8, "guided", null, view, undefined, "units", false, undefined, undefined, undefined, undefined, "event-battle");
-    expect(eventStep).toContain("Step 9 of 10 · Campaign");
-    expect(eventStep).toContain('class="campaign-event-editor campaign-event-focus"');
+    expect(eventStep).toContain("Step 9 of 10 · Mission");
+    expect(eventStep).toContain('class="mission-event-editor mission-event-focus"');
     expect(eventStep).toContain('data-bind="events.0.floorNumber"');
     expect(eventStep).toContain('<option value="battle-a-1" selected>Battle 1 · Battle</option>');
 
     const review = renderApp(workspace, rosterFixture, catalog, [], 9, "guided", null, view);
-    expect(review).toContain("Review your campaign");
+    expect(review).toContain("Review your mission");
     expect(review).toContain("Before a battle · Floor 1 · Battle 1");
   });
 
-  it("reviews every Campaign floor, authored reference, quest pool, and run setting", () => {
+  it("reviews every Mission floor, authored reference, quest pool, and run setting", () => {
     const workspace = workspaceFixture();
-    const campaign = workspace.campaigns[0];
+    const mission = workspace.missions[0];
     const randomFloor = {
-      ...campaign.floors[0], id: "floor-two", number: 2, mode: "random" as const,
+      ...mission.floors[0], id: "floor-two", number: 2, mode: "random" as const,
       nodes: [], routes: [], randomSettings: { nodeCount: 18, questNodeCount: 2, shopNodeCount: 4 }
     };
     const mixedFloor = {
-      ...campaign.floors[0], id: "floor-three", number: 3, mode: "mixed" as const,
+      ...mission.floors[0], id: "floor-three", number: 3, mode: "mixed" as const,
       randomSettings: { nodeCount: 2, questNodeCount: 1, shopNodeCount: 1 }
     };
-    campaign.floors.push(randomFloor, mixedFloor);
-    campaign.questIds = [workspace.quests[0].definition.id];
-    campaign.settings.startingLives = 5;
-    campaign.settings.startingSardines = 42;
-    campaign.settings.playerFactionId = "Peasants";
-    campaign.settings.continueWithGeneratedFloors = true;
-    campaign.settings.nodeGrowthPerFloor = 3;
+    mission.floors.push(randomFloor, mixedFloor);
+    mission.questIds = [workspace.quests[0].definition.id];
+    mission.settings.startingLives = 5;
+    mission.settings.startingSardines = 42;
+    mission.settings.playerFactionId = "Peasants";
+    mission.settings.continueWithGeneratedFloors = true;
+    mission.settings.nodeGrowthPerFloor = 3;
     workspace.armies[0].id = "bridge-guards";
     workspace.armies[0].name = "Bridge Guards";
-    campaign.floors[0].nodes[1].armyId = "bridge-guards";
-    workspace.selectedType = "campaign";
-    workspace.selectedKey = campaign.key;
-    const view = { selectedFloorId: campaign.floors[0].id, selectedNodeId: "start", interactionMode: "select" as const, nodeKind: "Battle" as const, addMenuOpen: false, pendingPlugFromId: null, selectedRouteId: null };
+    mission.floors[0].nodes[1].armyId = "bridge-guards";
+    workspace.selectedType = "mission";
+    workspace.selectedKey = mission.key;
+    const view = { selectedFloorId: mission.floors[0].id, selectedNodeId: "start", interactionMode: "select" as const, nodeKind: "Battle" as const, addMenuOpen: false, pendingPlugFromId: null, selectedRouteId: null };
 
     const html = renderApp(workspace, rosterFixture, catalog, [], 10, "guided", null, view);
     expect(html).toContain("Floor 1 · Hand placed");
@@ -468,53 +468,53 @@ describe("editor rendering", () => {
     expect(renderApp(workspace, rosterFixture, catalog, [], 0, "guided")).not.toContain('data-bind="id"');
     expect(renderApp(workspace, rosterFixture, catalog, [], 0, "full")).toContain('data-bind="id"');
 
-    workspace.selectedType = "campaign";
-    workspace.selectedKey = workspace.campaigns[0].key;
+    workspace.selectedType = "mission";
+    workspace.selectedKey = workspace.missions[0].key;
     expect(renderApp(workspace, rosterFixture, catalog, [], 0, "guided")).not.toContain('data-bind="id"');
     expect(renderApp(workspace, rosterFixture, catalog, [], 0, "full")).toContain('data-bind="id"');
   });
 
   it("puts generated board controls in a focused guided settings surface", () => {
     const workspace = workspaceFixture();
-    const campaign = workspace.campaigns[0];
-    campaign.designMode = "settings-only";
-    campaign.floors[0].mode = "random";
-    campaign.floors[0].nodes = [];
-    campaign.floors[0].routes = [];
-    workspace.selectedType = "campaign";
-    workspace.selectedKey = campaign.key;
+    const mission = workspace.missions[0];
+    mission.designMode = "settings-only";
+    mission.floors[0].mode = "random";
+    mission.floors[0].nodes = [];
+    mission.floors[0].routes = [];
+    workspace.selectedType = "mission";
+    workspace.selectedKey = mission.key;
 
     const html = renderApp(workspace, rosterFixture, catalog, [], 1, "guided");
-    expect(html).toContain('class="campaign-floor-tabs"');
-    expect(html).toContain('class="campaign-mode-switch"');
-    expect(html).toContain('class="campaign-random-settings"');
+    expect(html).toContain('class="mission-floor-tabs"');
+    expect(html).toContain('class="mission-mode-switch"');
+    expect(html).toContain('class="mission-random-settings"');
     expect(html).toContain("Total nodes");
   });
 
-  it("keeps the campaign validation badge separate from the Guided mode button", () => {
+  it("keeps the mission validation badge separate from the Guided mode button", () => {
     const workspace = workspaceFixture();
-    const campaign = workspace.campaigns[0];
-    campaign.floors[0].nodes[0].x = 1;
-    workspace.selectedType = "campaign";
-    workspace.selectedKey = campaign.key;
+    const mission = workspace.missions[0];
+    mission.floors[0].nodes[0].x = 1;
+    workspace.selectedType = "mission";
+    workspace.selectedKey = mission.key;
 
     const html = renderApp(workspace, rosterFixture, catalog, [], 0, "full");
-    const actions = html.match(/<div class="campaign-heading-actions">([\s\S]*?)<\/div>/)?.[1] ?? "";
-    expect(actions).toContain('class="campaign-validation-badge has-errors"');
+    const actions = html.match(/<div class="mission-heading-actions">([\s\S]*?)<\/div>/)?.[1] ?? "";
+    expect(actions).toContain('class="mission-validation-badge has-errors"');
     expect(actions).toMatch(/\d+ to fix/);
     expect(actions).toContain('data-action="open-guided-editor"');
   });
 
   it("renders contextual return actions and linked-content shortcuts", () => {
     const workspace = workspaceFixture();
-    const campaign = workspace.campaigns[0];
-    workspace.selectedType = "campaign";
-    workspace.selectedKey = campaign.key;
-    const view = { selectedFloorId: campaign.floors[0].id, selectedNodeId: "battle-a-1", interactionMode: "select" as const, nodeKind: "Battle" as const, addMenuOpen: false, pendingPlugFromId: null, selectedRouteId: null };
-    const returnState = { parent: "Campaign" as const, label: campaign.name };
-    const campaignHtml = renderApp(workspace, rosterFixture, catalog, [], 2, "guided", null, view, returnState);
-    expect(campaignHtml).toContain('data-action="return-to-parent"');
-    expect(campaignHtml).toContain('data-action="create-campaign-army"');
+    const mission = workspace.missions[0];
+    workspace.selectedType = "mission";
+    workspace.selectedKey = mission.key;
+    const view = { selectedFloorId: mission.floors[0].id, selectedNodeId: "battle-a-1", interactionMode: "select" as const, nodeKind: "Battle" as const, addMenuOpen: false, pendingPlugFromId: null, selectedRouteId: null };
+    const returnState = { parent: "Mission" as const, label: mission.name };
+    const missionHtml = renderApp(workspace, rosterFixture, catalog, [], 2, "guided", null, view, returnState);
+    expect(missionHtml).toContain('data-action="return-to-parent"');
+    expect(missionHtml).toContain('data-action="create-mission-army"');
 
     workspace.selectedType = "quest";
     workspace.selectedKey = workspace.quests[0].key;

@@ -8,7 +8,7 @@ export function namedRef(id: string, label?: string): NamedRef {
   return { id, label: localized(label ?? id) };
 }
 
-/** A minimal, schema-valid structured set with one campaign and no authored content. */
+/** A minimal, schema-valid structured set with one mission and no authored content. */
 export function emptyContentSet(setId: string, name: string): ContentSetDocument {
   return {
     schemaVersion: 2,
@@ -18,11 +18,11 @@ export function emptyContentSet(setId: string, name: string): ContentSetDocument
       name: localized(name),
       description: localized(""),
       displayOrder: 0,
-      campaignOrder: []
+      missionOrder: []
     },
     quests: [],
     armies: [],
-    campaigns: [],
+    missions: [],
     dialogues: []
   };
 }

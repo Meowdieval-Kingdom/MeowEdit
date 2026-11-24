@@ -10,10 +10,10 @@ import {
   slugify,
   type ArmyCatalog,
   type ArmyRecord,
-  type CampaignRecord,
-  type CampaignFloor,
-  type AdventureNodeKind as CampaignNodeKind,
-  type CampaignFloorMode,
+  type MissionRecord,
+  type MissionFloor,
+  type AdventureNodeKind as MissionNodeKind,
+  type MissionFloorMode,
   type CompletionEffect,
   type DialogueNode,
   type DialogueRecord,
@@ -27,7 +27,7 @@ import { validateWorkspace } from "./validation";
 import { compactDialogueGraph, mountDialogueGraph } from "./dialogue-graph";
 import { addArmyUnit as addArmyUnitToArmy, addArmyUnitSpell, moveArmyUnit, replaceArmyUnit, removeArmyUnitSpell, type ArmyPlacementMove } from "./army-domain";
 import { armyFootprint, armyFootprintsOverlap, armyGridSize, canPlaceArmyLevel, firstAvailableArmyCell, resolveArmyLevel, type ArmyCatalogKind } from "./army-catalog";
-import { addCampaignNode, connectCampaignNodes, createCampaignFloor, moveCampaignNode, removeCampaignFloor, removeCampaignNode } from "./campaign-domain";
+import { addMissionNode, connectMissionNodes, createMissionFloor, moveMissionNode, removeMissionFloor, removeMissionNode } from "./mission-domain";
 import { EditorNavigationHistory, type RelatedEditorReturnContext } from "./editor-navigation";
 import { defaultEditorSession, loadEditorSession, saveEditorSession } from "./editor-session";
 import { includeArmyUnitsInRoster } from "./roster";
@@ -36,11 +36,11 @@ import type { ContentSetDocument, GameCapabilities } from "../content/types";
 import { workspaceToDraft } from "./convert";
 import { loadScratchWorkspace, loadWorkspace, markWorkspaceDirty, saveScratchWorkspace, saveWorkspace as persistWorkspace } from "./workspace-store";
 import {
-  activeDialogueJson, activeArmyJson, activeCampaignJson, activeQuestJson,
+  activeDialogueJson, activeArmyJson, activeMissionJson, activeQuestJson,
   decodeZipText, parseImportedJson, suggestedFilename, workspacePackage
 } from "./export";
 import { readStoredZip } from "./zip";
-import { normalizeArmy, normalizeCampaign, normalizeQuest } from "./import-normalizers";
+import { normalizeArmy, normalizeMission, normalizeQuest } from "./import-normalizers";
 import { escapeHtml, renderApp, renderLivePreview, renderValidationSummary, renderArmyEntityPreview, renderArmyAbilityPreview, setScratchMode, setGuidedContextUnmuted, type ArmyAbilityFilters, type ArmyAbilityKind, type ArmyAbilitySelections, type EditorMode } from "./view";
 
 const initialEditorSession = (() => {
@@ -113,8 +113,8 @@ export function reconcileCatalogIds(workspaceToRepair: typeof workspace, catalog
   };
   for (const army of workspaceToRepair.armies)
     for (const unit of army.units) unit.unitId = repair(unit.unitId);
-  for (const campaign of workspaceToRepair.campaigns)
-    campaign.boardPreviewUnitId = repair(campaign.boardPreviewUnitId ?? "");
+  for (const mission of workspaceToRepair.missions)
+    mission.boardPreviewUnitId = repair(mission.boardPreviewUnitId ?? "");
   return changed;
 }
 
@@ -130,11 +130,11 @@ function applyMountSelection(options: EditorMountOptions): void {
   const selected = options.selected;
   if (!selected) return;
   const types: Record<string, Workspace["selectedType"]> = {
-    dialogues: "dialogue", quests: "quest", armies: "army", campaigns: "campaign"
+    dialogues: "dialogue", quests: "quest", armies: "army", missions: "mission"
   };
   const type = types[selected.section];
   if (!type) return;
-  const collection = workspace[selected.section as "dialogues" | "quests" | "armies" | "campaigns"] as unknown as Array<Record<string, unknown>>;
+  const collection = workspace[selected.section as "dialogues" | "quests" | "armies" | "missions"] as unknown as Array<Record<string, unknown>>;
   const item = collection[selected.index];
   if (!item) return;
   workspace.selectedType = type;
@@ -142,10 +142,10 @@ function applyMountSelection(options: EditorMountOptions): void {
   workspace.activeNodeId = type === "dialogue"
     ? String((item.sequence as { nodes?: Array<{ id: string }> } | undefined)?.nodes?.[0]?.id ?? "") || null
     : null;
-  selectedCampaignFloorId = type === "campaign"
+  selectedMissionFloorId = type === "mission"
     ? String((item.floors as Array<{ id: string }> | undefined)?.[0]?.id ?? "") || null
     : null;
-  selectedCampaignNodeId = null;
+  selectedMissionNodeId = null;
 }
 
 /** Mounts the editor on its native, per-set workspace. */
@@ -163,8 +163,8 @@ export function mountEditor(options: EditorMountOptions): void {
   lastNotifiedStep = -1;
   lastNotifiedMode = null;
   selectedArmyPlacementId = null;
-  selectedCampaignFloorId = null;
-  selectedCampaignNodeId = null;
+  selectedMissionFloorId = null;
+  selectedMissionNodeId = null;
   relatedReturnContexts.clear();
   guidedContextUnlocked = false;
   lastFocusSignature = "";
@@ -189,7 +189,7 @@ export function mountEditor(options: EditorMountOptions): void {
 function reportRecord(): void {
   if (!mountOptions?.onRecordChange || !workspace.selectedType || !workspace.selectedKey) return;
   const singular = workspace.selectedType;
-  const section = ({ dialogue: "dialogues", quest: "quests", army: "armies", campaign: "campaigns" } as const)[singular];
+  const section = ({ dialogue: "dialogues", quest: "quests", army: "armies", mission: "missions" } as const)[singular];
   const key = workspace.selectedKey;
   const collection = workspace[section] as unknown as Array<Record<string, unknown>>;
   const item = collection.find(record => record.key === key);
@@ -218,7 +218,7 @@ let guidedFocusAfterPath: string | null = null;
 let guidedFocusExactPath: string | null = null;
 let renderVersion = 0;
 let activeDialogueGraph: Drawflow | null = null;
-let deleteCandidate: { type: "dialogue" | "quest" | "army" | "campaign"; key: string } | null = null;
+let deleteCandidate: { type: "dialogue" | "quest" | "army" | "mission"; key: string } | null = null;
 let selectedArmyPlacementId: string | null = initialEditorSession.selectedArmyPlacementId;
 let selectedArmyBattlefieldEffectId: string | null = null;
 let selectedArmyCellRegion: "boon" | "bane" = "boon";
@@ -228,14 +228,14 @@ let armyAbilitySelections: ArmyAbilitySelections = { spells: "", blessings: "", 
 let armyCatalogKind: ArmyCatalogKind = initialEditorSession.armyCatalogKind;
 let armyDragDraft: { placementId: string; startX: number; startY: number; pointerId: number; dragging: boolean } | null = null;
 let suppressArmyClick = false;
-let selectedCampaignFloorId: string | null = initialEditorSession.selectedCampaignFloorId;
-let selectedCampaignNodeId: string | null = initialEditorSession.selectedCampaignNodeId;
-let selectedCampaignEventId: string | null = null;
-let campaignInteractionMode: "select" | "add" = "select";
-let campaignNodeKindDraft: CampaignNodeKind = "Battle";
-let campaignAddMenuOpen = false;
-let pendingCampaignPlugFromId: string | null = null;
-let selectedCampaignRouteId: string | null = null;
+let selectedMissionFloorId: string | null = initialEditorSession.selectedMissionFloorId;
+let selectedMissionNodeId: string | null = initialEditorSession.selectedMissionNodeId;
+let selectedMissionEventId: string | null = null;
+let missionInteractionMode: "select" | "add" = "select";
+let missionNodeKindDraft: MissionNodeKind = "Battle";
+let missionAddMenuOpen = false;
+let pendingMissionPlugFromId: string | null = null;
+let selectedMissionRouteId: string | null = null;
 const relatedReturnContexts = new EditorNavigationHistory();
 relatedReturnContexts.restore(initialEditorSession.relatedReturnContexts);
 let toastTimer: number | undefined;
@@ -292,8 +292,8 @@ function persistEditorSession(): void {
       sidebarCollapsed,
       selectedArmyPlacementId,
       armyCatalogKind,
-      selectedCampaignFloorId,
-      selectedCampaignNodeId,
+      selectedMissionFloorId,
+      selectedMissionNodeId,
       relatedReturnContexts: relatedReturnContexts.snapshot()
     }, mountOptions?.setId);
   } catch {
@@ -307,12 +307,12 @@ function render(): void {
     lastNotifiedMode = editorMode;
     mountOptions.onNavigation({ step: activeEditorStep, mode: editorMode });
   }
-  const campaign = currentCampaign();
-  if (campaign) {
-    if (!campaign.floors.some(item => item.id === selectedCampaignFloorId)) selectedCampaignFloorId = campaign.floors[0]?.id ?? null;
-    const floor = currentCampaignFloor(campaign);
-    if (selectedCampaignNodeId && !floor?.nodes.some(node => node.id === selectedCampaignNodeId)) selectedCampaignNodeId = null;
-    if (selectedCampaignNodeId === null && floor?.nodes.length) selectedCampaignNodeId = floor.nodes[0].id;
+  const mission = currentMission();
+  if (mission) {
+    if (!mission.floors.some(item => item.id === selectedMissionFloorId)) selectedMissionFloorId = mission.floors[0]?.id ?? null;
+    const floor = currentMissionFloor(mission);
+    if (selectedMissionNodeId && !floor?.nodes.some(node => node.id === selectedMissionNodeId)) selectedMissionNodeId = null;
+    if (selectedMissionNodeId === null && floor?.nodes.length) selectedMissionNodeId = floor.nodes[0].id;
   }
   if (selectedArmyPlacementId && !currentArmy()?.units.some(unit => unit.id === selectedArmyPlacementId)) selectedArmyPlacementId = null;
   if (selectedArmyBattlefieldEffectId && !currentArmy()?.blessingIds.some(id => id === selectedArmyBattlefieldEffectId)) selectedArmyBattlefieldEffectId = null;
@@ -334,17 +334,17 @@ function render(): void {
     setGuidedContextUnmuted(false);
   } else setGuidedContextUnmuted(guidedContextUnlocked);
   root!.innerHTML = renderApp(workspace, roster, armyCatalog, issues, activeEditorStep, editorMode, selectedArmyPlacementId, {
-    selectedFloorId: selectedCampaignFloorId,
-    selectedNodeId: selectedCampaignNodeId,
-    interactionMode: campaignInteractionMode,
-    nodeKind: campaignNodeKindDraft,
-    addMenuOpen: campaignAddMenuOpen,
-    pendingPlugFromId: pendingCampaignPlugFromId,
-    selectedRouteId: selectedCampaignRouteId
+    selectedFloorId: selectedMissionFloorId,
+    selectedNodeId: selectedMissionNodeId,
+    interactionMode: missionInteractionMode,
+    nodeKind: missionNodeKindDraft,
+    addMenuOpen: missionAddMenuOpen,
+    pendingPlugFromId: pendingMissionPlugFromId,
+    selectedRouteId: selectedMissionRouteId
   }, returnContext ? {
-    parent: returnContext.parentType === "campaign" ? "Campaign" : "Quest",
+    parent: returnContext.parentType === "mission" ? "Mission" : "Quest",
     label: returnContext.returnLabel
-  } : undefined, armyCatalogKind, helpVisible, { abilityId: selectedArmyBattlefieldEffectId, region: selectedArmyCellRegion }, armyAbilityFilters, armyAbilityCategory, armyAbilitySelections, selectedCampaignEventId,
+  } : undefined, armyCatalogKind, helpVisible, { abilityId: selectedArmyBattlefieldEffectId, region: selectedArmyCellRegion }, armyAbilityFilters, armyAbilityCategory, armyAbilitySelections, selectedMissionEventId,
     (mountOptions?.canPublishEditor?.() ?? true) && !isScratch());
   const appLayout = root!.querySelector<HTMLElement>(".app-layout");
   appLayout?.classList.toggle("is-sidebar-collapsed", sidebarCollapsed);
@@ -462,15 +462,15 @@ function currentArmy(): ArmyRecord | null {
     : null;
 }
 
-function currentCampaign(): CampaignRecord | null {
-  return workspace.selectedType === "campaign"
-    ? workspace.campaigns.find(item => item.key === workspace.selectedKey) ?? null
+function currentMission(): MissionRecord | null {
+  return workspace.selectedType === "mission"
+    ? workspace.missions.find(item => item.key === workspace.selectedKey) ?? null
     : null;
 }
 
-function currentCampaignFloor(campaign = currentCampaign()): CampaignFloor | null {
-  if (!campaign) return null;
-  return campaign.floors.find(floor => floor.id === selectedCampaignFloorId) ?? campaign.floors[0] ?? null;
+function currentMissionFloor(mission = currentMission()): MissionFloor | null {
+  if (!mission) return null;
+  return mission.floors.find(floor => floor.id === selectedMissionFloorId) ?? mission.floors[0] ?? null;
 }
 
 function setValue(target: unknown, path: string, value: unknown): void {
@@ -491,7 +491,7 @@ function setValue(target: unknown, path: string, value: unknown): void {
 }
 
 function selectedDocument(): object | null {
-  return currentDialogue()?.sequence ?? currentQuest() ?? currentArmy() ?? currentCampaign() ?? null;
+  return currentDialogue()?.sequence ?? currentQuest() ?? currentArmy() ?? currentMission() ?? null;
 }
 
 function fieldValue(element: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement): unknown {
@@ -502,15 +502,15 @@ function fieldValue(element: HTMLInputElement | HTMLTextAreaElement | HTMLSelect
   return element.value;
 }
 
-function reconcileCampaignEventTarget(event: CampaignRecord["events"][number], campaign: CampaignRecord): void {
-  if (event.trigger === "campaign-start") {
+function reconcileMissionEventTarget(event: MissionRecord["events"][number], mission: MissionRecord): void {
+  if (event.trigger === "mission-start") {
     delete event.floorNumber;
     delete event.nodeId;
     return;
   }
   if (!event.nodeId) { delete event.nodeId; return; }
   if (event.floorNumber === undefined) { delete event.nodeId; return; }
-  const floor = campaign.floors.find(item => item.number === event.floorNumber);
+  const floor = mission.floors.find(item => item.number === event.floorNumber);
   const node = floor?.nodes.find(item => item.id === event.nodeId);
   const isBattleTrigger = event.trigger === "before-battle" || event.trigger === "after-battle";
   if (!node || isBattleTrigger && node.kind !== "Battle" && node.kind !== "Boss" ||
@@ -541,21 +541,21 @@ function bindField(element: HTMLInputElement | HTMLTextAreaElement | HTMLSelectE
   const shouldFollowRosterName = !previousSpeakerDisplayName || previousSpeakerDisplayName === previousRosterName;
   setValue(documentValue, path, value);
   const shopOfferKindPath = path.match(/^floors\.(\d+)\.nodes\.(\d+)\.shopOffers\.(\d+)\.kind$/);
-  const campaignDocument = currentCampaign();
+  const missionDocument = currentMission();
   const eventTriggerPath = path.match(/^events\.(\d+)\.trigger$/);
   const eventFloorPath = path.match(/^events\.(\d+)\.floorNumber$/);
   const eventTargetIndex = eventTriggerPath ? Number(eventTriggerPath[1]) : eventFloorPath ? Number(eventFloorPath[1]) : -1;
-  if (campaignDocument && eventTargetIndex >= 0) {
-    const campaignEvent = campaignDocument.events[eventTargetIndex];
-    if (campaignEvent) reconcileCampaignEventTarget(campaignEvent, campaignDocument);
+  if (missionDocument && eventTargetIndex >= 0) {
+    const missionEvent = missionDocument.events[eventTargetIndex];
+    if (missionEvent) reconcileMissionEventTarget(missionEvent, missionDocument);
   }
   const eventNodePath = path.match(/^events\.(\d+)\.nodeId$/);
-  if (campaignDocument && eventNodePath) {
-    const campaignEvent = campaignDocument.events[Number(eventNodePath[1])];
-    if (campaignEvent) reconcileCampaignEventTarget(campaignEvent, campaignDocument);
+  if (missionDocument && eventNodePath) {
+    const missionEvent = missionDocument.events[Number(eventNodePath[1])];
+    if (missionEvent) reconcileMissionEventTarget(missionEvent, missionDocument);
   }
-  if (shopOfferKindPath && campaignDocument) {
-    const offer = campaignDocument.floors[Number(shopOfferKindPath[1])]?.nodes[Number(shopOfferKindPath[2])]?.shopOffers[Number(shopOfferKindPath[3])];
+  if (shopOfferKindPath && missionDocument) {
+    const offer = missionDocument.floors[Number(shopOfferKindPath[1])]?.nodes[Number(shopOfferKindPath[2])]?.shopOffers[Number(shopOfferKindPath[3])];
     if (offer) offer.contentId = "";
   }
   if (dialogue && path === "sequenceId") dialogue.sequenceIdAuto = false;
@@ -595,11 +595,11 @@ function bindField(element: HTMLInputElement | HTMLTextAreaElement | HTMLSelectE
     }
   }
   if (army && path === "id") army.idAuto = false;
-  const campaign = currentCampaign();
-  if (campaign && path === "name" && campaign.idAuto && typeof value === "string") {
-    campaign.id = uniqueId(value, workspace.campaigns.filter(item => item.key !== campaign.key).map(item => item.id), "campaign");
+  const mission = currentMission();
+  if (mission && path === "name" && mission.idAuto && typeof value === "string") {
+    mission.id = uniqueId(value, workspace.missions.filter(item => item.key !== mission.key).map(item => item.id), "mission");
   }
-  if (campaign && path === "id") campaign.idAuto = false;
+  if (mission && path === "id") mission.idAuto = false;
   const quest = currentQuest();
   if (quest && path === "definition.id") quest.idAuto = false;
   if (quest && quest.idAuto && path === "definition.title" && typeof value === "string") {
@@ -709,35 +709,35 @@ function addArmy(returnContext: RelatedEditorReturnContext | null = null): void 
   render();
 }
 
-function newCampaignFloor(number: number, mode: CampaignFloorMode = "authored"): CampaignFloor {
-  return createCampaignFloor(number, mode);
+function newMissionFloor(number: number, mode: MissionFloorMode = "authored"): MissionFloor {
+  return createMissionFloor(number, mode);
 }
 
-function addCampaignEvent(): void {
-  const campaign = currentCampaign();
-  if (!campaign) return;
-  campaign.events ??= [];
-  const eventNumber = campaign.events.length + 1;
+function addMissionEvent(): void {
+  const mission = currentMission();
+  if (!mission) return;
+  mission.events ??= [];
+  const eventNumber = mission.events.length + 1;
   const event = {
-    id: uniqueId("event-" + eventNumber, campaign.events.map(item => item.id), "campaign-event"),
-    trigger: "campaign-start" as const,
+    id: uniqueId("event-" + eventNumber, mission.events.map(item => item.id), "mission-event"),
+    trigger: "mission-start" as const,
     actions: [{ kind: "replace-player-army", armyId: "" }]
   };
-  campaign.events.push(event);
-  selectedCampaignEventId = event.id;
+  mission.events.push(event);
+  selectedMissionEventId = event.id;
   saveWorkspace();
   render();
 }
 
-function addCampaign(): void {
+function addMission(): void {
   relatedReturnContexts.clear();
-  selectedCampaignEventId = null;
-  const name = "New Campaign";
-  const id = uniqueId(name, workspace.campaigns.map(item => item.id), "campaign");
-  const key = createKey("campaign");
-  const campaign: CampaignRecord = {
+  selectedMissionEventId = null;
+  const name = "New Mission";
+  const id = uniqueId(name, workspace.missions.map(item => item.id), "mission");
+  const key = createKey("mission");
+  const mission: MissionRecord = {
     key, id, idAuto: true, name, description: "", boardPreviewUnitId: "", designMode: "choose", questIds: [], events: [],
-    floors: [newCampaignFloor(1)],
+    floors: [newMissionFloor(1)],
     settings: {
       startingLives: 3, startingSardines: 10, startingNodeCount: 12, playerFactionId: "",
       factionSelectionEnabled: true, battleShopEnabled: true,
@@ -747,58 +747,58 @@ function addCampaign(): void {
       continueWithGeneratedFloors: false
     }
   };
-  workspace.campaigns.push(campaign);
-  workspace.selectedType = "campaign";
+  workspace.missions.push(mission);
+  workspace.selectedType = "mission";
   workspace.selectedKey = key;
   workspace.activeNodeId = null;
-  selectedCampaignFloorId = campaign.floors[0].id;
-  selectedCampaignNodeId = campaign.floors[0].nodes[0]?.id ?? null;
-  campaignInteractionMode = "select";
-  campaignAddMenuOpen = false;
-  pendingCampaignPlugFromId = null;
-  selectedCampaignRouteId = null;
+  selectedMissionFloorId = mission.floors[0].id;
+  selectedMissionNodeId = mission.floors[0].nodes[0]?.id ?? null;
+  missionInteractionMode = "select";
+  missionAddMenuOpen = false;
+  pendingMissionPlugFromId = null;
+  selectedMissionRouteId = null;
   activeEditorStep = 0;
   saveWorkspace();
   render();
 }
 
-function addCampaignFloor(): void {
-  const campaign = currentCampaign();
-  if (!campaign) return;
-  const number = campaign.floors.reduce((max, floor) => Math.max(max, floor.number), 0) + 1;
-  const floor = newCampaignFloor(number, campaign.designMode === "settings-only" ? "random" : "authored");
-  if (campaign.designMode === "settings-only") floor.randomSettings.questNodeCount = 0;
-  campaign.floors.push(floor);
-  selectedCampaignFloorId = floor.id;
-  selectedCampaignNodeId = floor.nodes[0]?.id ?? null;
-  campaignAddMenuOpen = false;
-  campaignInteractionMode = "select";
-  pendingCampaignPlugFromId = null;
-  selectedCampaignRouteId = null;
+function addMissionFloor(): void {
+  const mission = currentMission();
+  if (!mission) return;
+  const number = mission.floors.reduce((max, floor) => Math.max(max, floor.number), 0) + 1;
+  const floor = newMissionFloor(number, mission.designMode === "settings-only" ? "random" : "authored");
+  if (mission.designMode === "settings-only") floor.randomSettings.questNodeCount = 0;
+  mission.floors.push(floor);
+  selectedMissionFloorId = floor.id;
+  selectedMissionNodeId = floor.nodes[0]?.id ?? null;
+  missionAddMenuOpen = false;
+  missionInteractionMode = "select";
+  pendingMissionPlugFromId = null;
+  selectedMissionRouteId = null;
   activeEditorStep = 1;
   saveWorkspace();
   render();
 }
 
-function campaignRelatedContext(target: "army" | "quest-node" | "quest-pool", includeQuestInPool = false): RelatedEditorReturnContext | null {
-  const campaign = currentCampaign();
-  const floor = currentCampaignFloor(campaign);
-  if (!campaign || !floor) return null;
+function missionRelatedContext(target: "army" | "quest-node" | "quest-pool", includeQuestInPool = false): RelatedEditorReturnContext | null {
+  const mission = currentMission();
+  const floor = currentMissionFloor(mission);
+  if (!mission || !floor) return null;
   return {
-    parentType: "campaign", parentKey: campaign.key, floorId: floor.id,
-    nodeId: selectedCampaignNodeId, target, includeQuestInPool, parentStep: activeEditorStep,
-    returnLabel: campaign.name || "Campaign"
+    parentType: "mission", parentKey: mission.key, floorId: floor.id,
+    nodeId: selectedMissionNodeId, target, includeQuestInPool, parentStep: activeEditorStep,
+    returnLabel: mission.name || "Mission"
   };
 }
 
-function campaignEventArmyContext(eventId: string): RelatedEditorReturnContext | null {
-  const campaign = currentCampaign();
-  const floor = currentCampaignFloor(campaign);
-  if (!campaign || !floor || !campaign.events.some(item => item.id === eventId)) return null;
+function missionEventArmyContext(eventId: string): RelatedEditorReturnContext | null {
+  const mission = currentMission();
+  const floor = currentMissionFloor(mission);
+  if (!mission || !floor || !mission.events.some(item => item.id === eventId)) return null;
   return {
-    parentType: "campaign", parentKey: campaign.key, floorId: floor.id,
-    nodeId: selectedCampaignNodeId, target: "event-army", eventId, parentStep: activeEditorStep,
-    returnLabel: campaign.name || "Campaign"
+    parentType: "mission", parentKey: mission.key, floorId: floor.id,
+    nodeId: selectedMissionNodeId, target: "event-army", eventId, parentStep: activeEditorStep,
+    returnLabel: mission.name || "Mission"
   };
 }
 
@@ -830,31 +830,31 @@ function openRelatedRecord(type: "army" | "quest" | "dialogue", key: string, con
 function returnToRelatedParent(): void {
   const context = relatedReturnContexts.current();
   if (!context) return;
-  if (context.parentType === "campaign") {
-    const campaign = workspace.campaigns.find(item => item.key === context.parentKey);
-    if (!campaign) return;
-    const floor = campaign.floors.find(item => item.id === context.floorId) ?? campaign.floors[0];
+  if (context.parentType === "mission") {
+    const mission = workspace.missions.find(item => item.key === context.parentKey);
+    if (!mission) return;
+    const floor = mission.floors.find(item => item.id === context.floorId) ?? mission.floors[0];
     const node = floor?.nodes.find(item => item.id === context.nodeId);
     if (context.target === "army") {
       const army = currentArmy();
       if (node && army) node.armyId = army.id;
     } else if (context.target === "event-army") {
       const army = currentArmy();
-      const campaignEvent = campaign.events.find(item => item.id === context.eventId);
-      const action = campaignEvent?.actions.find(item => item.kind === "replace-player-army");
+      const missionEvent = mission.events.find(item => item.id === context.eventId);
+      const action = missionEvent?.actions.find(item => item.kind === "replace-player-army");
       if (army && action) action.armyId = army.id;
     } else {
       const quest = currentQuest();
       const shouldIncludeQuest = context.target === "quest-node" || context.includeQuestInPool;
-      if (quest && shouldIncludeQuest && !campaign.questIds.includes(quest.definition.id)) campaign.questIds.push(quest.definition.id);
+      if (quest && shouldIncludeQuest && !mission.questIds.includes(quest.definition.id)) mission.questIds.push(quest.definition.id);
       if (context.target === "quest-node" && node && quest) node.questId = quest.definition.id;
     }
-    workspace.selectedType = "campaign";
-    workspace.selectedKey = campaign.key;
+    workspace.selectedType = "mission";
+    workspace.selectedKey = mission.key;
     workspace.activeNodeId = null;
-    selectedCampaignFloorId = floor?.id ?? null;
-    selectedCampaignNodeId = node?.id ?? context.nodeId;
-    selectedCampaignEventId = context.target === "event-army" ? context.eventId ?? null : null;
+    selectedMissionFloorId = floor?.id ?? null;
+    selectedMissionNodeId = node?.id ?? context.nodeId;
+    selectedMissionEventId = context.target === "event-army" ? context.eventId ?? null : null;
   } else {
     const quest = workspace.quests.find(item => item.key === context.parentKey);
     if (!quest) return;
@@ -877,52 +877,52 @@ function returnToRelatedParent(): void {
   render();
 }
 
-function addCampaignNodeAt(x: number, y: number): void {
-  const campaign = currentCampaign();
-  const floor = currentCampaignFloor(campaign);
-  if (!campaign || !floor || floor.mode === "random" || floor.nodes.some(node => node.x === x && node.y === y)) return;
+function addMissionNodeAt(x: number, y: number): void {
+  const mission = currentMission();
+  const floor = currentMissionFloor(mission);
+  if (!mission || !floor || floor.mode === "random" || floor.nodes.some(node => node.x === x && node.y === y)) return;
   if (Math.abs(x) > 30 || Math.abs(y) > 30) { showToast("Place nodes within 30 map steps of the Start.", "warning"); return; }
-  const result = addCampaignNode(floor, campaignNodeKindDraft, x, y);
+  const result = addMissionNode(floor, missionNodeKindDraft, x, y);
   if (!result.ok) { showToast(result.message, "warning"); return; }
-  selectedCampaignNodeId = result.node.id;
-  campaignInteractionMode = "select";
-  campaignAddMenuOpen = false;
-  selectedCampaignRouteId = null;
+  selectedMissionNodeId = result.node.id;
+  missionInteractionMode = "select";
+  missionAddMenuOpen = false;
+  selectedMissionRouteId = null;
   if (editorMode === "guided") activeEditorStep = 2;
   saveWorkspace();
   render();
 }
 
-function handleCampaignCell(x: number, y: number): void {
-  if (campaignInteractionMode === "add") { addCampaignNodeAt(x, y); return; }
+function handleMissionCell(x: number, y: number): void {
+  if (missionInteractionMode === "add") { addMissionNodeAt(x, y); return; }
 }
 
-function moveCampaignNodeTo(nodeId: string, x: number, y: number): void {
-  const floor = currentCampaignFloor();
+function moveMissionNodeTo(nodeId: string, x: number, y: number): void {
+  const floor = currentMissionFloor();
   if (!floor) return;
-  const error = moveCampaignNode(floor, nodeId, x, y);
+  const error = moveMissionNode(floor, nodeId, x, y);
   if (error) { showToast(error, "warning"); return; }
-  selectedCampaignNodeId = nodeId;
-  campaignInteractionMode = "select";
-  selectedCampaignRouteId = null;
+  selectedMissionNodeId = nodeId;
+  missionInteractionMode = "select";
+  selectedMissionRouteId = null;
   saveWorkspace(); render();
 }
 
-function selectCampaignNode(nodeId: string): void {
-  const floor = currentCampaignFloor();
+function selectMissionNode(nodeId: string): void {
+  const floor = currentMissionFloor();
   const node = floor?.nodes.find(item => item.id === nodeId);
   if (!floor || !node) return;
-  selectedCampaignNodeId = nodeId;
-  selectedCampaignRouteId = null;
-  campaignInteractionMode = "select";
+  selectedMissionNodeId = nodeId;
+  selectedMissionRouteId = null;
+  missionInteractionMode = "select";
   if (editorMode === "guided" && activeEditorStep === 1) activeEditorStep = 2;
   render();
 }
 
-function connectCampaignPlugs(fromNodeId: string, toNodeId: string): void {
-  const floor = currentCampaignFloor();
+function connectMissionPlugs(fromNodeId: string, toNodeId: string): void {
+  const floor = currentMissionFloor();
   if (!floor || fromNodeId === toNodeId) return;
-  const result = connectCampaignNodes(floor, fromNodeId, toNodeId, false);
+  const result = connectMissionNodes(floor, fromNodeId, toNodeId, false);
   if (result === "not-neighbors") {
     const from = floor.nodes.find(node => node.id === fromNodeId);
     const to = floor.nodes.find(node => node.id === toNodeId);
@@ -934,19 +934,19 @@ function connectCampaignPlugs(fromNodeId: string, toNodeId: string): void {
     showToast("These nodes are already connected.", "warning");
     return;
   }
-  selectedCampaignNodeId = toNodeId;
-  selectedCampaignRouteId = null;
+  selectedMissionNodeId = toNodeId;
+  selectedMissionRouteId = null;
   saveWorkspace();
   render();
   showToast("Nodes connected. Select the line to disconnect it or open a node for route options.");
 }
 
-function updateCampaignPlugDraft(clientX: number, clientY: number): void {
-  if (!pendingCampaignPlugFromId) return;
-  const canvas = root?.querySelector<HTMLElement>("[data-campaign-canvas]");
-  const line = root?.querySelector<SVGLineElement>(".campaign-route-draft");
-  const source = Array.from(root?.querySelectorAll<HTMLElement>('[data-campaign-port="output"]') ?? [])
-    .find(port => port.dataset.nodeId === pendingCampaignPlugFromId);
+function updateMissionPlugDraft(clientX: number, clientY: number): void {
+  if (!pendingMissionPlugFromId) return;
+  const canvas = root?.querySelector<HTMLElement>("[data-mission-canvas]");
+  const line = root?.querySelector<SVGLineElement>(".mission-route-draft");
+  const source = Array.from(root?.querySelectorAll<HTMLElement>('[data-mission-port="output"]') ?? [])
+    .find(port => port.dataset.nodeId === pendingMissionPlugFromId);
   if (!canvas || !line || !source) return;
   const canvasRect = canvas.getBoundingClientRect();
   const sourceRect = source.getBoundingClientRect();
@@ -957,9 +957,9 @@ function updateCampaignPlugDraft(clientX: number, clientY: number): void {
   line.setAttribute("y2", String(clientY - canvasRect.top));
 }
 
-function clearCampaignPlugDraft(): void {
-  root?.querySelector<SVGLineElement>(".campaign-route-draft")?.setAttribute("hidden", "");
-  root?.querySelector<HTMLElement>(".campaign-node.is-route-source")?.classList.remove("is-route-source");
+function clearMissionPlugDraft(): void {
+  root?.querySelector<SVGLineElement>(".mission-route-draft")?.setAttribute("hidden", "");
+  root?.querySelector<HTMLElement>(".mission-node.is-route-source")?.classList.remove("is-route-source");
 }
 
 function armyCellAtPoint(clientX: number, clientY: number): { x: number; y: number } | undefined {
@@ -1296,9 +1296,9 @@ function handleDeleteDialogClose(event: Event): void {
       const removedQuest = workspace.quests.find(item => item.key === key);
       workspace.quests = workspace.quests.filter(item => item.key !== key);
       if (removedQuest) {
-        for (const campaign of workspace.campaigns) {
-          campaign.questIds = campaign.questIds.filter(id => id !== removedQuest.definition.id);
-          for (const floor of campaign.floors) {
+        for (const mission of workspace.missions) {
+          mission.questIds = mission.questIds.filter(id => id !== removedQuest.definition.id);
+          for (const floor of mission.floors) {
             floor.questPoolIds = floor.questPoolIds.filter(id => id !== removedQuest.definition.id);
             for (const node of floor.nodes) if (node.questId === removedQuest.definition.id) node.questId = "";
           }
@@ -1313,43 +1313,43 @@ function handleDeleteDialogClose(event: Event): void {
             if (battle.armyId === removedArmy.id) battle.armyId = "";
           }
         }
-        for (const campaign of workspace.campaigns) for (const floor of campaign.floors) for (const node of floor.nodes) {
+        for (const mission of workspace.missions) for (const floor of mission.floors) for (const node of floor.nodes) {
           if (node.armyId === removedArmy.id) node.armyId = "";
         }
-        for (const campaign of workspace.campaigns) for (const event of campaign.events) for (const action of event.actions) {
+        for (const mission of workspace.missions) for (const event of mission.events) for (const action of event.actions) {
           if (action.kind === "replace-player-army" && action.armyId === removedArmy.id) action.armyId = "";
         }
       }
     } else {
-      workspace.campaigns = workspace.campaigns.filter(item => item.key !== key);
+      workspace.missions = workspace.missions.filter(item => item.key !== key);
     }
     if (selectionWasRemoved) {
-      const sameTypeItems = itemType === "dialogue" ? workspace.dialogues : itemType === "quest" ? workspace.quests : itemType === "army" ? workspace.armies : workspace.campaigns;
+      const sameTypeItems = itemType === "dialogue" ? workspace.dialogues : itemType === "quest" ? workspace.quests : itemType === "army" ? workspace.armies : workspace.missions;
       const candidates = [
         { type: "dialogue" as const, item: workspace.dialogues[0] },
         { type: "quest" as const, item: workspace.quests[0] },
         { type: "army" as const, item: workspace.armies[0] },
-        { type: "campaign" as const, item: workspace.campaigns[0] }
+        { type: "mission" as const, item: workspace.missions[0] }
       ].filter(candidate => candidate.type !== itemType && candidate.item);
       const nextSameType = sameTypeItems[0];
       if (nextSameType) {
         workspace.selectedType = itemType;
         workspace.selectedKey = nextSameType.key;
         workspace.activeNodeId = itemType === "dialogue" ? (nextSameType as DialogueRecord).sequence.startNodeId : null;
-        if (itemType === "campaign") {
-          const campaign = nextSameType as CampaignRecord;
-          selectedCampaignFloorId = campaign.floors[0]?.id ?? null;
-          selectedCampaignNodeId = campaign.floors[0]?.nodes[0]?.id ?? null;
+        if (itemType === "mission") {
+          const mission = nextSameType as MissionRecord;
+          selectedMissionFloorId = mission.floors[0]?.id ?? null;
+          selectedMissionNodeId = mission.floors[0]?.nodes[0]?.id ?? null;
         }
       } else if (candidates[0]?.item) {
         const next = candidates[0];
         workspace.selectedType = next.type;
         workspace.selectedKey = next.item.key;
         workspace.activeNodeId = next.type === "dialogue" ? (next.item as DialogueRecord).sequence.startNodeId : null;
-        if (next.type === "campaign") {
-          const campaign = next.item as CampaignRecord;
-          selectedCampaignFloorId = campaign.floors[0]?.id ?? null;
-          selectedCampaignNodeId = campaign.floors[0]?.nodes[0]?.id ?? null;
+        if (next.type === "mission") {
+          const mission = next.item as MissionRecord;
+          selectedMissionFloorId = mission.floors[0]?.id ?? null;
+          selectedMissionNodeId = mission.floors[0]?.nodes[0]?.id ?? null;
         }
       } else {
         workspace.selectedType = null;
@@ -1366,7 +1366,7 @@ function handleDeleteDialogClose(event: Event): void {
 }
 
 function refreshDerivedView(): void {
-  const item = currentDialogue() ?? currentQuest() ?? currentArmy() ?? currentCampaign();
+  const item = currentDialogue() ?? currentQuest() ?? currentArmy() ?? currentMission();
   if (!item) return;
   const dialogue = currentDialogue();
   if (dialogue) {
@@ -1467,17 +1467,17 @@ function exportActive(): void {
     showToast("Army JSON downloaded.");
     return;
   }
-  const campaign = currentCampaign();
-  if (campaign) {
-    download(suggestedFilename("campaign", campaign.id), activeCampaignJson(campaign));
-    showToast("Campaign JSON downloaded.");
+  const mission = currentMission();
+  if (mission) {
+    download(suggestedFilename("mission", mission.id), activeMissionJson(mission));
+    showToast("Mission JSON downloaded.");
   }
 }
 
 function exportPackage(): void {
   const filename = "meowdieval-content-" + new Date().toISOString().slice(0, 10) + ".zip";
   download(filename, workspacePackage(workspace, roster), "application/zip");
-  showToast("Campaign content package downloaded.");
+  showToast("Mission content package downloaded.");
 }
 
 function importedDefaultContinue(rawNode: Record<string, any>, index: number, nodes: Array<Record<string, any>>): Record<string, any> | undefined {
@@ -1586,15 +1586,15 @@ function mergeArmy(record: ArmyRecord): void {
   activeEditorStep = 0;
 }
 
-function mergeCampaign(record: CampaignRecord): void {
-  const index = workspace.campaigns.findIndex(item => item.id === record.id);
-  if (index >= 0) workspace.campaigns[index] = { ...record, key: workspace.campaigns[index].key };
-  else workspace.campaigns.push(record);
-  workspace.selectedType = "campaign";
-  workspace.selectedKey = index >= 0 ? workspace.campaigns[index].key : record.key;
+function mergeMission(record: MissionRecord): void {
+  const index = workspace.missions.findIndex(item => item.id === record.id);
+  if (index >= 0) workspace.missions[index] = { ...record, key: workspace.missions[index].key };
+  else workspace.missions.push(record);
+  workspace.selectedType = "mission";
+  workspace.selectedKey = index >= 0 ? workspace.missions[index].key : record.key;
   workspace.activeNodeId = null;
-  selectedCampaignFloorId = (index >= 0 ? workspace.campaigns[index] : record).floors[0]?.id ?? null;
-  selectedCampaignNodeId = (index >= 0 ? workspace.campaigns[index] : record).floors[0]?.nodes[0]?.id ?? null;
+  selectedMissionFloorId = (index >= 0 ? workspace.missions[index] : record).floors[0]?.id ?? null;
+  selectedMissionNodeId = (index >= 0 ? workspace.missions[index] : record).floors[0]?.nodes[0]?.id ?? null;
   activeEditorStep = 0;
 }
 
@@ -1617,14 +1617,14 @@ function importJsonObject(value: unknown): number {
       mergeArmy(normalizeArmy(raw));
       imported += 1;
     }
-    for (const raw of source.campaigns ?? []) {
-      mergeCampaign(normalizeCampaign(raw));
+    for (const raw of source.missions ?? []) {
+      mergeMission(normalizeMission(raw));
       imported += 1;
     }
     return imported;
   }
-  if ((source.format === "meowedit-campaign" || source.format === "meowdieval-campaign") && source.campaign) {
-    mergeCampaign(normalizeCampaign(source));
+  if ((source.format === "meowedit-mission" || source.format === "meowdieval-mission") && source.mission) {
+    mergeMission(normalizeMission(source));
     return 1;
   }
   if (source.format === "meowedit-army" && source.army) {
@@ -1658,9 +1658,9 @@ function importZip(bytes: Uint8Array): number {
     }
   }
   for (const [path, data] of files) {
-    if (/\/campaigns\/Campaigns\.json$/i.test(path)) {
+    if (/\/missions\/Missions\.json$/i.test(path)) {
       const source = parseImportedJson(decodeZipText(data)) as Record<string, any>;
-      for (const raw of source.campaigns ?? []) { mergeCampaign(normalizeCampaign(raw)); imported += 1; }
+      for (const raw of source.missions ?? []) { mergeMission(normalizeMission(raw)); imported += 1; }
     }
   }
   for (const [path, data] of files) {
@@ -1740,54 +1740,54 @@ function onAction(button: HTMLButtonElement): void {
     case "new-dialogue": addDialogue(); return;
     case "new-quest": addQuest(); return;
     case "new-army": addArmy(); return;
-    case "new-campaign": addCampaign(); return;
+    case "new-mission": addMission(); return;
     case "return-to-parent": returnToRelatedParent(); return;
-    case "create-campaign-army": {
-      const context = campaignRelatedContext("army");
+    case "create-mission-army": {
+      const context = missionRelatedContext("army");
       if (context) addArmy(context);
       return;
     }
-    case "open-campaign-army": {
+    case "open-mission-army": {
       const army = workspace.armies.find(item => item.id === button.dataset.armyId);
-      const context = campaignRelatedContext("army");
+      const context = missionRelatedContext("army");
       if (army && context) openRelatedRecord("army", army.key, context);
       return;
     }
-    case "create-campaign-event-army": {
-      const eventId = button.dataset.eventId ?? selectedCampaignEventId ?? "";
-      const context = campaignEventArmyContext(eventId);
+    case "create-mission-event-army": {
+      const eventId = button.dataset.eventId ?? selectedMissionEventId ?? "";
+      const context = missionEventArmyContext(eventId);
       if (context) addArmy(context);
       return;
     }
-    case "open-campaign-event-army": {
-      const eventId = button.dataset.eventId ?? selectedCampaignEventId ?? "";
+    case "open-mission-event-army": {
+      const eventId = button.dataset.eventId ?? selectedMissionEventId ?? "";
       const army = workspace.armies.find(item => item.id === button.dataset.armyId);
-      const context = campaignEventArmyContext(eventId);
+      const context = missionEventArmyContext(eventId);
       if (army && context) {
-        selectedCampaignEventId = eventId;
+        selectedMissionEventId = eventId;
         openRelatedRecord("army", army.key, context);
       }
       return;
     }
-    case "create-campaign-node-quest": {
-      const context = campaignRelatedContext("quest-node");
+    case "create-mission-node-quest": {
+      const context = missionRelatedContext("quest-node");
       if (context) addQuest(context);
       return;
     }
-    case "open-campaign-node-quest": {
+    case "open-mission-node-quest": {
       const quest = workspace.quests.find(item => item.definition.id === button.dataset.questId);
-      const context = campaignRelatedContext("quest-node");
+      const context = missionRelatedContext("quest-node");
       if (quest && context) openRelatedRecord("quest", quest.key, context);
       return;
     }
-    case "open-campaign-pool-quest": {
+    case "open-mission-pool-quest": {
       const quest = workspace.quests.find(item => item.definition.id === button.dataset.questId);
-      const context = campaignRelatedContext("quest-pool");
+      const context = missionRelatedContext("quest-pool");
       if (quest && context) openRelatedRecord("quest", quest.key, context);
       return;
     }
-    case "create-campaign-pool-quest": {
-      const context = campaignRelatedContext("quest-pool", true);
+    case "create-mission-pool-quest": {
+      const context = missionRelatedContext("quest-pool", true);
       if (context) addQuest(context);
       return;
     }
@@ -1828,7 +1828,7 @@ function onAction(button: HTMLButtonElement): void {
         if (typeof picker.close === "function") picker.close();
         else picker.removeAttribute("open");
       }
-      const type = button.dataset.type === "dialogue" ? "dialogue" : button.dataset.type === "army" ? "army" : button.dataset.type === "campaign" ? "campaign" : "quest";
+      const type = button.dataset.type === "dialogue" ? "dialogue" : button.dataset.type === "army" ? "army" : button.dataset.type === "mission" ? "mission" : "quest";
       const key = button.dataset.key ?? null;
       if (type !== workspace.selectedType || key !== workspace.selectedKey) activeEditorStep = 0;
       relatedReturnContexts.clear();
@@ -1837,14 +1837,14 @@ function onAction(button: HTMLButtonElement): void {
       workspace.activeNodeId = type === "dialogue"
         ? workspace.dialogues.find(item => item.key === key)?.sequence.startNodeId ?? null
         : null;
-      if (type === "campaign") {
-        const campaign = workspace.campaigns.find(item => item.key === key);
-        selectedCampaignFloorId = campaign?.floors[0]?.id ?? null;
-        selectedCampaignNodeId = campaign?.floors[0]?.nodes[0]?.id ?? null;
-        campaignInteractionMode = "select";
-        campaignAddMenuOpen = false;
-        pendingCampaignPlugFromId = null;
-        selectedCampaignRouteId = null;
+      if (type === "mission") {
+        const mission = workspace.missions.find(item => item.key === key);
+        selectedMissionFloorId = mission?.floors[0]?.id ?? null;
+        selectedMissionNodeId = mission?.floors[0]?.nodes[0]?.id ?? null;
+        missionInteractionMode = "select";
+        missionAddMenuOpen = false;
+        pendingMissionPlugFromId = null;
+        selectedMissionRouteId = null;
       }
       selectedArmyPlacementId = null;
       armyCatalogKind = "units";
@@ -1853,11 +1853,11 @@ function onAction(button: HTMLButtonElement): void {
       return;
     }
     case "delete-item": {
-      const type = button.dataset.type === "dialogue" ? "dialogue" : button.dataset.type === "army" ? "army" : button.dataset.type === "campaign" ? "campaign" : "quest";
+      const type = button.dataset.type === "dialogue" ? "dialogue" : button.dataset.type === "army" ? "army" : button.dataset.type === "mission" ? "mission" : "quest";
       const key = button.dataset.key ?? "";
       const exists = type === "dialogue"
         ? workspace.dialogues.some(item => item.key === key)
-        : type === "quest" ? workspace.quests.some(item => item.key === key) : type === "army" ? workspace.armies.some(item => item.key === key) : workspace.campaigns.some(item => item.key === key);
+        : type === "quest" ? workspace.quests.some(item => item.key === key) : type === "army" ? workspace.armies.some(item => item.key === key) : workspace.missions.some(item => item.key === key);
       if (!exists) return;
       deleteCandidate = { type, key };
       document.querySelector<HTMLDialogElement>("#confirm-dialog")?.showModal();
@@ -1869,250 +1869,250 @@ function onAction(button: HTMLButtonElement): void {
       return;
     case "select-editor-step":
       activeEditorStep = Math.max(0, Number(button.dataset.step ?? 0));
-      if (currentCampaign()) selectedCampaignEventId = null;
+      if (currentMission()) selectedMissionEventId = null;
       render();
       return;
-    case "campaign-add-floor": addCampaignFloor(); return;
-    case "campaign-add-event": addCampaignEvent(); return;
-    case "campaign-edit-events": {
-      const campaign = currentCampaign();
-      if (!campaign?.events.length) return;
-      selectedCampaignEventId = null;
+    case "mission-add-floor": addMissionFloor(); return;
+    case "mission-add-event": addMissionEvent(); return;
+    case "mission-edit-events": {
+      const mission = currentMission();
+      if (!mission?.events.length) return;
+      selectedMissionEventId = null;
       if (editorMode === "guided") activeEditorStep = Math.max(0, activeEditorStep - 1);
       render(); return;
     }
-    case "campaign-select-event": {
-      const event = currentCampaign()?.events.find(item => item.id === button.dataset.eventId);
+    case "mission-select-event": {
+      const event = currentMission()?.events.find(item => item.id === button.dataset.eventId);
       if (!event) return;
-      selectedCampaignEventId = event.id;
+      selectedMissionEventId = event.id;
       render(); return;
     }
-    case "campaign-events-back": selectedCampaignEventId = null; render(); return;
-    case "campaign-remove-event": {
-      const campaign = currentCampaign();
-      const index = campaign?.events.findIndex(item => item.id === button.dataset.eventId) ?? -1;
-      if (!campaign || index < 0) return;
-      campaign.events.splice(index, 1);
-      if (selectedCampaignEventId === button.dataset.eventId) selectedCampaignEventId = null;
+    case "mission-events-back": selectedMissionEventId = null; render(); return;
+    case "mission-remove-event": {
+      const mission = currentMission();
+      const index = mission?.events.findIndex(item => item.id === button.dataset.eventId) ?? -1;
+      if (!mission || index < 0) return;
+      mission.events.splice(index, 1);
+      if (selectedMissionEventId === button.dataset.eventId) selectedMissionEventId = null;
       saveWorkspace(); render(); return;
     }
-    case "campaign-add-event-action": {
-      const event = currentCampaign()?.events.find(item => item.id === (button.dataset.eventId ?? selectedCampaignEventId));
+    case "mission-add-event-action": {
+      const event = currentMission()?.events.find(item => item.id === (button.dataset.eventId ?? selectedMissionEventId));
       if (!event || event.actions.some(item => item.kind === "replace-player-army")) return;
       event.actions.push({ kind: "replace-player-army", armyId: "" });
       saveWorkspace(); render(); return;
     }
-    case "campaign-remove-event-action": {
-      const event = currentCampaign()?.events.find(item => item.id === (button.dataset.eventId ?? selectedCampaignEventId));
+    case "mission-remove-event-action": {
+      const event = currentMission()?.events.find(item => item.id === (button.dataset.eventId ?? selectedMissionEventId));
       const index = Number(button.dataset.index);
       if (!event || !Number.isInteger(index) || index < 0 || index >= event.actions.length || event.actions[index].kind !== "replace-player-army") return;
       event.actions.splice(index, 1);
       saveWorkspace(); render(); return;
     }
-    case "campaign-design-choice": {
-      const campaign = currentCampaign();
+    case "mission-design-choice": {
+      const mission = currentMission();
       const choice = button.dataset.mode;
-      if (!campaign || campaign.designMode !== "choose" || (choice !== "settings-only" && choice !== "custom")) return;
-      campaign.designMode = choice;
+      if (!mission || mission.designMode !== "choose" || (choice !== "settings-only" && choice !== "custom")) return;
+      mission.designMode = choice;
       if (choice === "settings-only") {
-        campaign.questIds = [];
-        campaign.settings.questNodeCountPerRandomFloor = 0;
-        campaign.settings.continueWithGeneratedFloors = true;
-        for (const floor of campaign.floors) {
+        mission.questIds = [];
+        mission.settings.questNodeCountPerRandomFloor = 0;
+        mission.settings.continueWithGeneratedFloors = true;
+        for (const floor of mission.floors) {
           floor.mode = "random";
           floor.nodes = [];
           floor.routes = [];
           floor.randomSettings.questNodeCount = 0;
-          floor.questPoolMode = "campaign";
+          floor.questPoolMode = "mission";
           floor.questPoolIds = [];
         }
-        selectedCampaignNodeId = null;
-        campaignInteractionMode = "select";
-        campaignAddMenuOpen = false;
-        pendingCampaignPlugFromId = null;
-        selectedCampaignRouteId = null;
+        selectedMissionNodeId = null;
+        missionInteractionMode = "select";
+        missionAddMenuOpen = false;
+        pendingMissionPlugFromId = null;
+        selectedMissionRouteId = null;
       }
       activeEditorStep = 0;
       saveWorkspace();
       render();
       return;
     }
-    case "campaign-remove-floor": {
-      const campaign = currentCampaign();
-      const floor = currentCampaignFloor(campaign);
-      if (!campaign || !floor || campaign.floors.length <= 1) return;
+    case "mission-remove-floor": {
+      const mission = currentMission();
+      const floor = currentMissionFloor(mission);
+      if (!mission || !floor || mission.floors.length <= 1) return;
       if (!window.confirm("Remove Floor " + floor.number + " and all its nodes and routes?")) return;
-      removeCampaignFloor(campaign, floor.id);
-      selectedCampaignFloorId = campaign.floors[0]?.id ?? null;
-      selectedCampaignNodeId = campaign.floors[0]?.nodes[0]?.id ?? null;
-      campaignInteractionMode = "select"; campaignAddMenuOpen = false; pendingCampaignPlugFromId = null; selectedCampaignRouteId = null;
+      removeMissionFloor(mission, floor.id);
+      selectedMissionFloorId = mission.floors[0]?.id ?? null;
+      selectedMissionNodeId = mission.floors[0]?.nodes[0]?.id ?? null;
+      missionInteractionMode = "select"; missionAddMenuOpen = false; pendingMissionPlugFromId = null; selectedMissionRouteId = null;
       saveWorkspace(); render(); showToast("Floor removed."); return;
     }
-    case "campaign-select-floor": {
-      const floor = currentCampaign()?.floors.find(item => item.id === button.dataset.floorId);
+    case "mission-select-floor": {
+      const floor = currentMission()?.floors.find(item => item.id === button.dataset.floorId);
       if (!floor) return;
-      selectedCampaignFloorId = floor.id;
-      selectedCampaignNodeId = floor.nodes[0]?.id ?? null;
-      campaignInteractionMode = "select"; campaignAddMenuOpen = false; pendingCampaignPlugFromId = null; selectedCampaignRouteId = null;
+      selectedMissionFloorId = floor.id;
+      selectedMissionNodeId = floor.nodes[0]?.id ?? null;
+      missionInteractionMode = "select"; missionAddMenuOpen = false; pendingMissionPlugFromId = null; selectedMissionRouteId = null;
       saveWorkspace(); render(); return;
     }
-    case "campaign-set-floor-mode": {
-      const floor = currentCampaignFloor();
-      const campaign = currentCampaign();
-      const mode = button.dataset.mode as CampaignFloorMode;
+    case "mission-set-floor-mode": {
+      const floor = currentMissionFloor();
+      const mission = currentMission();
+      const mode = button.dataset.mode as MissionFloorMode;
       if (!floor || !["authored", "random", "mixed"].includes(mode)) return;
-      if (mode !== "random" && campaign?.designMode === "settings-only") campaign.designMode = "custom";
+      if (mode !== "random" && mission?.designMode === "settings-only") mission.designMode = "custom";
       if (mode !== "random" && floor.mode === "random" && floor.nodes.length === 0) {
-        const replacement = newCampaignFloor(floor.number, mode);
+        const replacement = newMissionFloor(floor.number, mode);
         floor.nodes = replacement.nodes; floor.routes = replacement.routes;
       }
-      floor.mode = mode; campaignInteractionMode = "select"; campaignAddMenuOpen = false; pendingCampaignPlugFromId = null; selectedCampaignRouteId = null;
+      floor.mode = mode; missionInteractionMode = "select"; missionAddMenuOpen = false; pendingMissionPlugFromId = null; selectedMissionRouteId = null;
       saveWorkspace(); render(); return;
     }
-    case "campaign-toggle-floor-pool-mode": {
-      const campaign = currentCampaign();
-      const floor = currentCampaignFloor(campaign);
-      if (!campaign || !floor) return;
+    case "mission-toggle-floor-pool-mode": {
+      const mission = currentMission();
+      const floor = currentMissionFloor(mission);
+      if (!mission || !floor) return;
       if (floor.questPoolMode === "custom") {
-        floor.questPoolMode = "campaign";
+        floor.questPoolMode = "mission";
         floor.questPoolIds = [];
       } else {
         floor.questPoolMode = "custom";
-        floor.questPoolIds = [...campaign.questIds];
+        floor.questPoolIds = [...mission.questIds];
       }
       saveWorkspace(); render(); return;
     }
-    case "campaign-toggle-floor-quest": {
-      const campaign = currentCampaign();
-      const floor = currentCampaignFloor(campaign);
+    case "mission-toggle-floor-quest": {
+      const mission = currentMission();
+      const floor = currentMissionFloor(mission);
       const questId = button.dataset.questId ?? "";
-      if (!campaign || !floor || !questId || !campaign.questIds.includes(questId)) return;
+      if (!mission || !floor || !questId || !mission.questIds.includes(questId)) return;
       floor.questPoolIds = floor.questPoolIds.includes(questId)
         ? floor.questPoolIds.filter(id => id !== questId)
         : [...floor.questPoolIds, questId];
       saveWorkspace(); render(); return;
     }
-    case "campaign-toggle-shop-pool": {
-      const campaign = currentCampaign();
-      const floor = currentCampaignFloor(campaign);
-      const kind = button.dataset.kind as CampaignRecord["settings"]["shopPoolKinds"][number];
-      if (!campaign || !["Unit", "Blessing", "Research", "SpellUnlock"].includes(kind)) return;
-      const pools = button.dataset.scope === "floor" && floor ? floor.shopPoolKinds : campaign.settings.shopPoolKinds;
+    case "mission-toggle-shop-pool": {
+      const mission = currentMission();
+      const floor = currentMissionFloor(mission);
+      const kind = button.dataset.kind as MissionRecord["settings"]["shopPoolKinds"][number];
+      if (!mission || !["Unit", "Blessing", "Research", "SpellUnlock"].includes(kind)) return;
+      const pools = button.dataset.scope === "floor" && floor ? floor.shopPoolKinds : mission.settings.shopPoolKinds;
       const next = pools.includes(kind) ? pools.filter(item => item !== kind) : [...pools, kind];
       if (button.dataset.scope === "floor" && floor) floor.shopPoolKinds = next;
-      else campaign.settings.shopPoolKinds = next;
+      else mission.settings.shopPoolKinds = next;
       saveWorkspace(); render(); return;
     }
-    case "campaign-toggle-floor-shop-mode": {
-      const campaign = currentCampaign();
-      const floor = currentCampaignFloor(campaign);
-      if (!campaign || !floor) return;
+    case "mission-toggle-floor-shop-mode": {
+      const mission = currentMission();
+      const floor = currentMissionFloor(mission);
+      if (!mission || !floor) return;
       if (floor.shopPoolMode === "custom") {
-        floor.shopPoolMode = "campaign";
+        floor.shopPoolMode = "mission";
         floor.shopPoolKinds = [];
       } else {
         floor.shopPoolMode = "custom";
-        floor.shopPoolKinds = [...campaign.settings.shopPoolKinds];
+        floor.shopPoolKinds = [...mission.settings.shopPoolKinds];
       }
       saveWorkspace(); render(); return;
     }
-    case "campaign-add-shop-offer": {
-      const nodeId = button.dataset.nodeId ?? selectedCampaignNodeId;
-      const node = currentCampaignFloor()?.nodes.find(item => item.id === nodeId);
+    case "mission-add-shop-offer": {
+      const nodeId = button.dataset.nodeId ?? selectedMissionNodeId;
+      const node = currentMissionFloor()?.nodes.find(item => item.id === nodeId);
       if (!node || node.kind !== "Shop" || node.shopOffers.length >= 3) return;
       node.shopOffers.push({ kind: "Unit", contentId: "", price: 0 });
       node.shopOfferMode = "exact";
       saveWorkspace(); render(); return;
     }
-    case "campaign-remove-shop-offer": {
-      const node = currentCampaignFloor()?.nodes.find(item => item.id === selectedCampaignNodeId);
+    case "mission-remove-shop-offer": {
+      const node = currentMissionFloor()?.nodes.find(item => item.id === selectedMissionNodeId);
       const index = Number(button.dataset.index);
       if (!node || node.kind !== "Shop" || !Number.isInteger(index) || index < 0 || index >= node.shopOffers.length) return;
       node.shopOffers.splice(index, 1);
       saveWorkspace(); render(); return;
     }
-    case "campaign-node-tool": {
-      const kind = button.dataset.kind as CampaignNodeKind;
+    case "mission-node-tool": {
+      const kind = button.dataset.kind as MissionNodeKind;
       if (!["Start", "Battle", "Reward", "Boss", "Quest", "Shop"].includes(kind)) return;
-      if (campaignInteractionMode === "add" && campaignNodeKindDraft === kind) {
-        campaignInteractionMode = "select";
+      if (missionInteractionMode === "add" && missionNodeKindDraft === kind) {
+        missionInteractionMode = "select";
       } else {
-        campaignNodeKindDraft = kind;
-        campaignInteractionMode = "add";
+        missionNodeKindDraft = kind;
+        missionInteractionMode = "add";
       }
-      campaignAddMenuOpen = false;
-      pendingCampaignPlugFromId = null;
-      selectedCampaignRouteId = null;
+      missionAddMenuOpen = false;
+      pendingMissionPlugFromId = null;
+      selectedMissionRouteId = null;
       render(); return;
     }
-    case "campaign-toggle-add-menu":
-      campaignAddMenuOpen = !campaignAddMenuOpen;
-      campaignInteractionMode = "select";
+    case "mission-toggle-add-menu":
+      missionAddMenuOpen = !missionAddMenuOpen;
+      missionInteractionMode = "select";
       render(); return;
-    case "campaign-select-mode":
-      campaignInteractionMode = "select";
-      campaignAddMenuOpen = false;
-      pendingCampaignPlugFromId = null;
+    case "mission-select-mode":
+      missionInteractionMode = "select";
+      missionAddMenuOpen = false;
+      pendingMissionPlugFromId = null;
       render(); return;
-    case "campaign-toggle-route-direction": {
-      const floor = currentCampaignFloor();
+    case "mission-toggle-route-direction": {
+      const floor = currentMissionFloor();
       const route = floor?.routes.find(item => item.id === button.dataset.routeId);
       if (!route) return;
       route.oneWay = !route.oneWay;
-      selectedCampaignRouteId = route.id;
+      selectedMissionRouteId = route.id;
       saveWorkspace(); render(); return;
     }
-    case "campaign-cell": handleCampaignCell(Number(button.dataset.x), Number(button.dataset.y)); return;
-    case "campaign-node": selectCampaignNode(button.dataset.nodeId ?? ""); return;
-    case "campaign-remove-node": {
-      const floor = currentCampaignFloor();
-      if (!floor || !selectedCampaignNodeId) return;
-      removeCampaignNode(floor, selectedCampaignNodeId);
-      selectedCampaignNodeId = floor.nodes[0]?.id ?? null; campaignInteractionMode = "select";
+    case "mission-cell": handleMissionCell(Number(button.dataset.x), Number(button.dataset.y)); return;
+    case "mission-node": selectMissionNode(button.dataset.nodeId ?? ""); return;
+    case "mission-remove-node": {
+      const floor = currentMissionFloor();
+      if (!floor || !selectedMissionNodeId) return;
+      removeMissionNode(floor, selectedMissionNodeId);
+      selectedMissionNodeId = floor.nodes[0]?.id ?? null; missionInteractionMode = "select";
       if (editorMode === "guided") activeEditorStep = 1;
       saveWorkspace(); render(); return;
     }
-    case "campaign-back-to-map":
+    case "mission-back-to-map":
       activeEditorStep = 1;
-      campaignInteractionMode = "select";
-      campaignAddMenuOpen = false;
-      pendingCampaignPlugFromId = null;
+      missionInteractionMode = "select";
+      missionAddMenuOpen = false;
+      pendingMissionPlugFromId = null;
       render();
       return;
-    case "campaign-remove-route": {
-      const floor = currentCampaignFloor();
+    case "mission-remove-route": {
+      const floor = currentMissionFloor();
       if (!floor) return;
       floor.routes = floor.routes.filter(route => route.id !== button.dataset.routeId);
-      selectedCampaignRouteId = null;
+      selectedMissionRouteId = null;
       saveWorkspace(); render(); return;
     }
-    case "campaign-toggle-quest": {
-      const campaign = currentCampaign();
+    case "mission-toggle-quest": {
+      const mission = currentMission();
       const questId = button.dataset.questId ?? "";
-      if (!campaign || !questId) return;
-      if (campaign.questIds.includes(questId)) {
-        campaign.questIds = campaign.questIds.filter(id => id !== questId);
-        for (const floor of campaign.floors) {
+      if (!mission || !questId) return;
+      if (mission.questIds.includes(questId)) {
+        mission.questIds = mission.questIds.filter(id => id !== questId);
+        for (const floor of mission.floors) {
           floor.questPoolIds = floor.questPoolIds.filter(id => id !== questId);
           for (const node of floor.nodes) if (node.questId === questId) node.questId = "";
         }
-      } else campaign.questIds.push(questId);
+      } else mission.questIds.push(questId);
       saveWorkspace(); render(); return;
     }
     case "editor-back":
-      if (currentCampaign() && root!.querySelector(".campaign-event-focus")) selectedCampaignEventId = null;
+      if (currentMission() && root!.querySelector(".mission-event-focus")) selectedMissionEventId = null;
       activeEditorStep = Math.max(0, activeEditorStep - 1);
       render();
       return;
     case "editor-next":
-      if (currentCampaign() && root!.querySelector(".campaign-event-focus")) selectedCampaignEventId = null;
+      if (currentMission() && root!.querySelector(".mission-event-focus")) selectedMissionEventId = null;
       activeEditorStep = currentArmy() ? Math.min(activeEditorStep + 1, 6) : activeEditorStep + 1;
       render();
       return;
     case "open-full-editor":
       editorMode = "full";
       if (currentQuest()) activeEditorStep = activeEditorStep >= 4 ? 7 : Math.min(activeEditorStep, 3);
-      else if (currentCampaign()) activeEditorStep = Math.min(activeEditorStep, 12);
+      else if (currentMission()) activeEditorStep = Math.min(activeEditorStep, 12);
       else if (currentArmy()) activeEditorStep = Math.min(activeEditorStep, 5);
       else activeEditorStep = Math.min(activeEditorStep, 4);
       render();
@@ -2120,7 +2120,7 @@ function onAction(button: HTMLButtonElement): void {
     case "open-guided-editor":
       editorMode = "guided";
       activeEditorStep = currentQuest() ? (activeEditorStep >= 4 ? 4 : Math.min(activeEditorStep, 3)) : Math.min(activeEditorStep, 4);
-      if (currentCampaign()) activeEditorStep = Math.min(activeEditorStep, 12);
+      if (currentMission()) activeEditorStep = Math.min(activeEditorStep, 12);
       if (currentArmy()) activeEditorStep = Math.min(activeEditorStep, 5);
       render();
       return;
@@ -2412,9 +2412,9 @@ function onAction(button: HTMLButtonElement): void {
       const dialogue = currentDialogue();
       const quest = currentQuest();
       const army = currentArmy();
-      const campaign = currentCampaign();
+      const mission = currentMission();
       deleteCandidate = dialogue ? { type: "dialogue", key: dialogue.key } :
-        quest ? { type: "quest", key: quest.key } : army ? { type: "army", key: army.key } : campaign ? { type: "campaign", key: campaign.key } : null;
+        quest ? { type: "quest", key: quest.key } : army ? { type: "army", key: army.key } : mission ? { type: "mission", key: mission.key } : null;
       document.querySelector<HTMLDialogElement>("#confirm-dialog")?.showModal();
       return;
     }
@@ -2442,11 +2442,11 @@ function onAction(button: HTMLButtonElement): void {
 root.addEventListener("input", event => {
   const element = event.target;
   if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) {
-    if (element instanceof HTMLInputElement && element.dataset.campaignQuestFilter) {
+    if (element instanceof HTMLInputElement && element.dataset.missionQuestFilter) {
       const query = element.value.trim().toLocaleLowerCase();
-      const selector = element.dataset.campaignQuestFilter === "floor"
-        ? ".campaign-floor-quest-options .campaign-quest-chip"
-        : ".campaign-quest-pool-list .campaign-quest-row";
+      const selector = element.dataset.missionQuestFilter === "floor"
+        ? ".mission-floor-quest-options .mission-quest-chip"
+        : ".mission-quest-pool-list .mission-quest-row";
       root!.querySelectorAll<HTMLElement>(selector).forEach(row => {
         row.hidden = !row.textContent!.toLocaleLowerCase().includes(query);
       });
@@ -2499,7 +2499,7 @@ root.addEventListener("click", event => {
     return;
   }
   if (editorMode === "guided" && !guidedContextUnlocked && target instanceof Element) {
-    const focusArea = target.closest(".campaign-node-focus, .campaign-random-settings, .guided-step-screen, .army-focus-panel, .army-guided-position, .army-guided-units, .guided-title-content, .editor-transfer-bar");
+    const focusArea = target.closest(".mission-node-focus, .mission-random-settings, .guided-step-screen, .army-focus-panel, .army-guided-position, .army-guided-units, .guided-title-content, .editor-transfer-bar");
     if (!focusArea) {
       guidedContextUnlocked = true;
       setGuidedContextUnmuted(true);
@@ -2509,20 +2509,20 @@ root.addEventListener("click", event => {
   }
   const button = target.closest<HTMLButtonElement>("[data-action]");
   if (button) { onAction(button); return; }
-  if (target.closest("[data-campaign-port]")) return;
-  const route = target.closest<SVGElement>("[data-campaign-route-id]");
+  if (target.closest("[data-mission-port]")) return;
+  const route = target.closest<SVGElement>("[data-mission-route-id]");
   if (route) {
-    selectedCampaignRouteId = route.getAttribute("data-campaign-route-id");
+    selectedMissionRouteId = route.getAttribute("data-mission-route-id");
     render();
     return;
   }
-  const canvas = target.closest<HTMLElement>("[data-campaign-canvas]");
-  if (!canvas || campaignInteractionMode !== "add") return;
+  const canvas = target.closest<HTMLElement>("[data-mission-canvas]");
+  if (!canvas || missionInteractionMode !== "add") return;
   const rect = canvas.getBoundingClientRect();
   const snap = Number(canvas.dataset.snap ?? 146);
   const x = Math.round((event.clientX - rect.left - Number(canvas.dataset.offsetX ?? 0)) / snap);
   const y = Math.round((event.clientY - rect.top - Number(canvas.dataset.offsetY ?? 0)) / snap);
-  handleCampaignCell(x, y);
+  handleMissionCell(x, y);
 });
 
 root.addEventListener("pointerdown", event => {
@@ -2532,14 +2532,14 @@ root.addEventListener("pointerdown", event => {
   if (armyPlacement && event.button === 0 && armyPlacement.dataset.placementId) {
     armyDragDraft = { placementId: armyPlacement.dataset.placementId, startX: event.clientX, startY: event.clientY, pointerId: event.pointerId, dragging: false };
   }
-  const port = target.closest<HTMLElement>('[data-campaign-port="output"]');
-  if (!port || campaignInteractionMode === "add") return;
-  pendingCampaignPlugFromId = port.dataset.nodeId ?? null;
-  if (!pendingCampaignPlugFromId) return;
-  selectedCampaignRouteId = null;
-  port.closest<HTMLElement>("[data-campaign-node]")?.classList.add("is-route-source");
+  const port = target.closest<HTMLElement>('[data-mission-port="output"]');
+  if (!port || missionInteractionMode === "add") return;
+  pendingMissionPlugFromId = port.dataset.nodeId ?? null;
+  if (!pendingMissionPlugFromId) return;
+  selectedMissionRouteId = null;
+  port.closest<HTMLElement>("[data-mission-node]")?.classList.add("is-route-source");
   event.preventDefault();
-  updateCampaignPlugDraft(event.clientX, event.clientY);
+  updateMissionPlugDraft(event.clientX, event.clientY);
 });
 
 root.addEventListener("pointermove", event => {
@@ -2562,7 +2562,7 @@ root.addEventListener("pointermove", event => {
       }
     }
   }
-  if (pendingCampaignPlugFromId) updateCampaignPlugDraft(event.clientX, event.clientY);
+  if (pendingMissionPlugFromId) updateMissionPlugDraft(event.clientX, event.clientY);
 });
 
 document.addEventListener("pointerup", event => {
@@ -2579,34 +2579,34 @@ document.addEventListener("pointerup", event => {
       if (cell) moveArmyPlacementTo(armyDraft.placementId, cell.x, cell.y);
     }
   }
-  const fromNodeId = pendingCampaignPlugFromId;
+  const fromNodeId = pendingMissionPlugFromId;
   if (!fromNodeId) return;
   const target = event.target;
-  const port = target instanceof Element ? target.closest<HTMLElement>('[data-campaign-port="input"]') : null;
+  const port = target instanceof Element ? target.closest<HTMLElement>('[data-mission-port="input"]') : null;
   const toNodeId = port?.dataset.nodeId ?? null;
-  pendingCampaignPlugFromId = null;
-  clearCampaignPlugDraft();
+  pendingMissionPlugFromId = null;
+  clearMissionPlugDraft();
   if (!toNodeId) return;
   if (fromNodeId === toNodeId) {
     showToast("Drop the plug on a different node.", "warning");
     return;
   }
-  connectCampaignPlugs(fromNodeId, toNodeId);
+  connectMissionPlugs(fromNodeId, toNodeId);
 });
 
 root.addEventListener("keydown", event => {
   const target = event.target;
-  if (!(target instanceof Element) || !target.matches("[data-campaign-route-id]") || !["Enter", " "].includes(event.key)) return;
+  if (!(target instanceof Element) || !target.matches("[data-mission-route-id]") || !["Enter", " "].includes(event.key)) return;
   event.preventDefault();
-  selectedCampaignRouteId = target.getAttribute("data-campaign-route-id");
+  selectedMissionRouteId = target.getAttribute("data-mission-route-id");
   render();
 });
 
 root.addEventListener("dragstart", event => {
   const target = event.target;
   if (!(target instanceof Element)) return;
-  if (target.closest("[data-campaign-port]")) { event.preventDefault(); return; }
-  const node = target.closest<HTMLElement>("[data-campaign-node]");
+  if (target.closest("[data-mission-port]")) { event.preventDefault(); return; }
+  const node = target.closest<HTMLElement>("[data-mission-node]");
   if (!node || !event.dataTransfer) return;
   event.dataTransfer.setData("text/plain", node.dataset.nodeId ?? "");
   event.dataTransfer.effectAllowed = "move";
@@ -2614,7 +2614,7 @@ root.addEventListener("dragstart", event => {
 
 root.addEventListener("dragover", event => {
   const target = event.target;
-  if (!(target instanceof Element) || !target.closest("[data-campaign-canvas]")) return;
+  if (!(target instanceof Element) || !target.closest("[data-mission-canvas]")) return;
   event.preventDefault();
   if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
 });
@@ -2622,7 +2622,7 @@ root.addEventListener("dragover", event => {
 root.addEventListener("drop", event => {
   const target = event.target;
   if (!(target instanceof Element)) return;
-  const canvas = target.closest<HTMLElement>("[data-campaign-canvas]");
+  const canvas = target.closest<HTMLElement>("[data-mission-canvas]");
   const nodeId = event.dataTransfer?.getData("text/plain");
   if (!canvas || !nodeId) return;
   event.preventDefault();
@@ -2630,7 +2630,7 @@ root.addEventListener("drop", event => {
   const snap = Number(canvas.dataset.snap ?? 146);
   const x = Math.round((event.clientX - rect.left - Number(canvas.dataset.offsetX ?? 0)) / snap);
   const y = Math.round((event.clientY - rect.top - Number(canvas.dataset.offsetY ?? 0)) / snap);
-  moveCampaignNodeTo(nodeId, x, y);
+  moveMissionNodeTo(nodeId, x, y);
 });
 
 root.addEventListener("change", event => {

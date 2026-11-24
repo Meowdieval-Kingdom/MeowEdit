@@ -9,11 +9,11 @@ const capabilities = JSON.parse(readFileSync(path.resolve(process.cwd(), "public
 
 function makeValidDraft() {
   const set = emptyContentSet("published-set", "Published Set");
-  set.campaigns.push({
+  set.missions.push({
     schemaVersion: 2, id: "mission-1", name: localized("Mission"), description: localized(""),
     boardPreviewUnitId: namedRef(capabilities.ids.units[0]), questIds: [],
-    floors: [{ id: "floor-1", number: 1, mode: "authored", questPoolMode: "campaign", questPoolIds: [],
-      shopPoolMode: "campaign", shopPoolKinds: ["Unit"], shopLevel: 1,
+    floors: [{ id: "floor-1", number: 1, mode: "authored", questPoolMode: "mission", questPoolIds: [],
+      shopPoolMode: "mission", shopPoolKinds: ["Unit"], shopLevel: 1,
       randomSettings: { nodeCount: 12, questNodeCount: 2, shopNodeCount: 3 },
       nodes: [], routes: [] }],
     events: [],
@@ -25,7 +25,7 @@ function makeValidDraft() {
       blessingsEnabled: true, restoreArmyAfterLoss: true
     }
   });
-  set.set.campaignOrder = ["mission-1"];
+  set.set.missionOrder = ["mission-1"];
   return set;
 }
 
@@ -35,10 +35,10 @@ function respond(requestPath: string, init: RequestInit | undefined, draft: unkn
     { setId: "fresh-set", draftVersion: 0 }
   ] };
   if (requestPath === "/v1/editor/capabilities") body = capabilities;
-  else if (requestPath === "/v1/editor/campaign-sets" && init?.method === "POST") body = { setId: "new-set", draftVersion: 1 };
-  else if (requestPath.includes("/v1/editor/campaign-sets/") && init?.method === "POST") body = { draftVersion: version + 1 };
+  else if (requestPath === "/v1/editor/mission-sets" && init?.method === "POST") body = { setId: "new-set", draftVersion: 1 };
+  else if (requestPath.includes("/v1/editor/mission-sets/") && init?.method === "POST") body = { draftVersion: version + 1 };
   else if (requestPath.endsWith("/publish")) body = { packageId: "pkg-1", contentHash: "different" };
-  else if (requestPath.includes("/v1/editor/campaign-sets/")) body = { setId: "published-set", draftVersion: version, draft };
+  else if (requestPath.includes("/v1/editor/mission-sets/")) body = { setId: "published-set", draftVersion: version, draft };
   return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
 }
 
@@ -88,7 +88,7 @@ describe("set manager and single editor", () => {
     container.querySelector<HTMLElement>('[data-open="published-set"]')!.click();
     await vi.waitFor(() => expect(container.querySelector("[data-back-browser]")).not.toBeNull());
     expect(container.querySelector<HTMLElement>("[data-back-browser]")!.textContent).toBe("Dashboard");
-    container.querySelector<HTMLElement>("[data-edit='campaigns:0']")!.click();
+    container.querySelector<HTMLElement>("[data-edit='missions:0']")!.click();
     await vi.waitFor(() => expect(container.querySelector(".app-shell")).not.toBeNull());
     const backToSet = container.querySelector<HTMLElement>('[data-action="open-content-editor"]')!;
     expect(backToSet.textContent).toContain("Set");
@@ -103,11 +103,11 @@ describe("set manager and single editor", () => {
     await vi.waitFor(() => expect(container.querySelector("[data-back-browser]")).not.toBeNull());
     expect(container.querySelector("[data-open-editor]")).toBeNull();
     expect(container.querySelectorAll(".set-tab.is-active")).toHaveLength(1);
-    expect(container.querySelector('[data-section="campaigns"]')!.classList.contains("is-active")).toBe(true);
+    expect(container.querySelector('[data-section="missions"]')!.classList.contains("is-active")).toBe(true);
 
     container.querySelector<HTMLElement>('[data-section="quests"]')!.click();
     expect(container.querySelector('[data-section="quests"]')!.classList.contains("is-active")).toBe(true);
-    expect(container.querySelector('[data-section="campaigns"]')!.classList.contains("is-active")).toBe(false);
+    expect(container.querySelector('[data-section="missions"]')!.classList.contains("is-active")).toBe(false);
     expect(container.querySelectorAll(".set-group h3")).toHaveLength(1);
     expect(container.querySelector(".set-group h3")!.textContent).toBe("Quest");
   });
@@ -117,10 +117,10 @@ describe("set manager and single editor", () => {
     await vi.waitFor(() => expect(container.querySelector("[data-back-browser]")).not.toBeNull());
     expect(location.hash).toBe("#/set/published-set");
 
-    container.querySelector<HTMLElement>("[data-edit='campaigns:0']")!.click();
+    container.querySelector<HTMLElement>("[data-edit='missions:0']")!.click();
     const sessionKey = "meowedit.editor-session.v1.author-1.published-set";
     await vi.waitFor(() => expect(localStorage.getItem(sessionKey)).not.toBeNull());
-    expect(location.hash).toContain("#/edit/published-set/campaigns/");
+    expect(location.hash).toContain("#/edit/published-set/missions/");
 
     history.pushState(null, "", "#/set/published-set");
     window.dispatchEvent(new PopStateEvent("popstate"));
@@ -183,7 +183,7 @@ describe("set manager and single editor", () => {
     setBridgeFetch(async requestPath => {
       if (requestPath === "/v1/editor/capabilities")
         return new Response(JSON.stringify(capabilities), { status: 200, headers: { "content-type": "application/json" } });
-      if (requestPath.includes("/v1/editor/campaign-sets/")) throw new Error("network down");
+      if (requestPath.includes("/v1/editor/mission-sets/")) throw new Error("network down");
       return respond(requestPath, undefined);
     });
     container.querySelector<HTMLElement>('[data-open="published-set"]')!.click();

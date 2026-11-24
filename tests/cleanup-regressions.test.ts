@@ -23,7 +23,7 @@ describe("cleanup regressions", () => {
   it("escapes related-return labels from authored names", () => {
     const html = renderApp(workspaceFixture(), { schemaVersion: 1, rosterVersion: "test", source: "", units: [] },
       catalog, [], 0, "guided", null, undefined,
-      { parent: "Campaign", label: "<img src=x onerror=alert(1)>" });
+      { parent: "Mission", label: "<img src=x onerror=alert(1)>" });
     expect(html).not.toContain("<img src=x onerror=alert(1)>");
     expect(html).toContain("&lt;img src=x onerror=alert(1)&gt;");
   });
@@ -32,8 +32,8 @@ describe("cleanup regressions", () => {
     const draft = JSON.parse(JSON.stringify(fixture)) as ContentSetDocument;
     draft.quests = [];
     draft.dialogues = [];
-    draft.campaigns = [];
-    draft.set.campaignOrder = [];
+    draft.missions = [];
+    draft.set.missionOrder = [];
     draft.armies = [{
       schemaVersion: 2, id: "army", name: { default: "Army", locales: {} }, units: [],
       spellIds: [], blessingIds: [{ id: caps.ids.curses[0], label: { default: "Curse", locales: {} } }],
@@ -43,12 +43,12 @@ describe("cleanup regressions", () => {
     expect(issues.some(issue => issue.code === "unresolved-reference")).toBe(false);
   });
 
-  it("preserves campaign event conditions and oneShot through conversion", () => {
+  it("preserves mission event conditions and oneShot through conversion", () => {
     const draft = JSON.parse(JSON.stringify(fixture)) as ContentSetDocument;
     const workspace = draftToWorkspace(draft, caps);
     workspaceToDraft(draft, workspace, caps);
-    expect(draft.campaigns[0].events[0].conditions).toEqual(fixture.campaigns[0].events[0].conditions);
-    expect(draft.campaigns[0].events[0].oneShot).toBe(fixture.campaigns[0].events[0].oneShot);
+    expect(draft.missions[0].events[0].conditions).toEqual(fixture.missions[0].events[0].conditions);
+    expect(draft.missions[0].events[0].oneShot).toBe(fixture.missions[0].events[0].oneShot);
   });
 
   it("rejects unsafe dialogue IDs", () => {

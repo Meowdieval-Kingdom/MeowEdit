@@ -184,17 +184,17 @@ export interface ArmyRecord {
 }
 
 export type AdventureNodeKind = "Start" | "Battle" | "Reward" | "Boss" | "Quest" | "Shop";
-export type CampaignFloorMode = "authored" | "random" | "mixed";
-export type CampaignRewardKind = "Sardines" | "ExtraLife" | "Blessing" | "UnitUnlock" | "ShopLevelUnlock" | "SpellUnlock";
-export type CampaignShopOfferKind = "Unit" | "Blessing" | "Research" | "SpellUnlock";
+export type MissionFloorMode = "authored" | "random" | "mixed";
+export type MissionRewardKind = "Sardines" | "ExtraLife" | "Blessing" | "UnitUnlock" | "ShopLevelUnlock" | "SpellUnlock";
+export type MissionShopOfferKind = "Unit" | "Blessing" | "Research" | "SpellUnlock";
 
-export interface CampaignShopOffer {
-  kind: CampaignShopOfferKind;
+export interface MissionShopOffer {
+  kind: MissionShopOfferKind;
   contentId: string;
   price: number;
 }
 
-export interface CampaignNode {
+export interface MissionNode {
   id: string;
   label: string;
   kind: AdventureNodeKind;
@@ -203,53 +203,53 @@ export interface CampaignNode {
   armyId: string;
   questId: string;
   enemyFactionId: string;
-  rewardKind: CampaignRewardKind;
+  rewardKind: MissionRewardKind;
   rewardAmount: number;
   rewardContentId: string;
   shopOfferMode: "generated" | "exact";
-  shopOffers: CampaignShopOffer[];
+  shopOffers: MissionShopOffer[];
 }
 
-export interface CampaignRoute {
+export interface MissionRoute {
   id: string;
   fromNodeId: string;
   toNodeId: string;
   oneWay: boolean;
 }
 
-export interface CampaignRandomFloorSettings {
+export interface MissionRandomFloorSettings {
   nodeCount: number;
   questNodeCount: number;
   shopNodeCount: number;
 }
 
-export interface CampaignFloor {
+export interface MissionFloor {
   id: string;
   number: number;
-  mode: CampaignFloorMode;
-  questPoolMode: "campaign" | "custom";
+  mode: MissionFloorMode;
+  questPoolMode: "mission" | "custom";
   questPoolIds: string[];
-  /** Pools available to generated shops on this floor, or inherited from campaign settings. */
-  shopPoolMode: "campaign" | "custom";
-  shopPoolKinds: CampaignShopOfferKind[];
+  /** Pools available to generated shops on this floor, or inherited from mission settings. */
+  shopPoolMode: "mission" | "custom";
+  shopPoolKinds: MissionShopOfferKind[];
   /** Adventure shop tier available on this floor; capped by game progression at tier 4. */
   shopLevel: number;
-  randomSettings: CampaignRandomFloorSettings;
+  randomSettings: MissionRandomFloorSettings;
   /** Integer Adventure-map coordinates. Neighbouring nodes use the game's 8-direction grid. */
-  nodes: CampaignNode[];
-  routes: CampaignRoute[];
+  nodes: MissionNode[];
+  routes: MissionRoute[];
 }
 
-export interface CampaignSettings {
+export interface MissionSettings {
   startingLives: number;
   startingSardines: number;
   startingNodeCount: number;
   playerFactionId: string;
-  /** Whether the player chooses a faction when starting this campaign. */
+  /** Whether the player chooses a faction when starting this mission. */
   factionSelectionEnabled: boolean;
   battleShopEnabled: boolean;
   /** Offer categories used by generated Adventure map shops. */
-  shopPoolKinds: CampaignShopOfferKind[];
+  shopPoolKinds: MissionShopOfferKind[];
   questNodeCountPerRandomFloor: number;
   shopNodeCountPerRandomFloor: number;
   nodeGrowthPerFloor: number;
@@ -260,33 +260,33 @@ export interface CampaignSettings {
   sardinePayoutPerFloor: number;
 }
 
-export type CampaignEventTrigger = "campaign-start" | "before-battle" | "after-battle" | "node-cleared";
+export type MissionEventTrigger = "mission-start" | "before-battle" | "after-battle" | "node-cleared";
 
-/** Unknown action fields are retained so the campaign action list can grow without losing imported data. */
-export interface CampaignEventAction {
+/** Unknown action fields are retained so the mission action list can grow without losing imported data. */
+export interface MissionEventAction {
   kind: string;
   [field: string]: unknown;
 }
 
-export interface ReplacePlayerArmyCampaignEventAction extends CampaignEventAction {
+export interface ReplacePlayerArmyMissionEventAction extends MissionEventAction {
   kind: "replace-player-army";
   armyId: string;
 }
 
-export interface CampaignEvent {
+export interface MissionEvent {
   id: string;
-  trigger: CampaignEventTrigger;
+  trigger: MissionEventTrigger;
   /** Omit to apply a node/battle trigger to matching nodes on every floor. */
   floorNumber?: number;
   /** Omit to apply a node/battle trigger to all matching nodes on the selected floor scope. */
   nodeId?: string;
-  actions: CampaignEventAction[];
+  actions: MissionEventAction[];
   /** Preserved structured-event data; the classic editor does not expose these fields. */
   conditions?: Array<{ key: string; value?: unknown }>;
   oneShot?: string;
 }
 
-export interface CampaignRecord {
+export interface MissionRecord {
   key: string;
   id: string;
   idAuto?: boolean;
@@ -296,11 +296,11 @@ export interface CampaignRecord {
   boardPreviewUnitId?: string;
   /** Guided entry path; editor metadata and omitted from game exports. */
   designMode?: "choose" | "settings-only" | "custom";
-  /** Selected reusable quest definitions available to Quest nodes in this campaign. */
+  /** Selected reusable quest definitions available to Quest nodes in this mission. */
   questIds: string[];
-  floors: CampaignFloor[];
-  events: CampaignEvent[];
-  settings: CampaignSettings;
+  floors: MissionFloor[];
+  events: MissionEvent[];
+  settings: MissionSettings;
 }
 
 export interface ArmyCatalogLevel {
@@ -388,8 +388,8 @@ export interface Workspace {
   dialogues: DialogueRecord[];
   quests: QuestRecord[];
   armies: ArmyRecord[];
-  campaigns: CampaignRecord[];
-  selectedType: "dialogue" | "quest" | "army" | "campaign" | null;
+  missions: MissionRecord[];
+  selectedType: "dialogue" | "quest" | "army" | "mission" | null;
   selectedKey: string | null;
   activeNodeId: string | null;
 }

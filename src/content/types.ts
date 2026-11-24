@@ -21,7 +21,7 @@ export interface SetDocument {
   name: LocalizedText;
   description: LocalizedText;
   displayOrder: number;
-  campaignOrder: string[];
+  missionOrder: string[];
   minAppVersion?: string;
   requiredCapabilities?: string[];
 }
@@ -143,7 +143,7 @@ export interface ArmyDocument {
   CellBlessingPicks: CellBlessingPick[];
 }
 
-export interface CampaignSettings {
+export interface MissionSettings {
   startingLives: number;
   startingSardines: number;
   startingNodeCount: number;
@@ -171,7 +171,7 @@ export interface ShopOffer {
   price: number;
 }
 
-export interface CampaignNode {
+export interface MissionNode {
   id: string;
   label: LocalizedText;
   kind: string;
@@ -187,14 +187,14 @@ export interface CampaignNode {
   shopOffers: ShopOffer[];
 }
 
-export interface CampaignRoute {
+export interface MissionRoute {
   id: string;
   fromNodeId: string;
   toNodeId: string;
   oneWay: boolean;
 }
 
-export interface CampaignFloor {
+export interface MissionFloor {
   id: string;
   number: number;
   mode: string;
@@ -204,37 +204,37 @@ export interface CampaignFloor {
   shopPoolKinds: string[];
   shopLevel: number;
   randomSettings: { nodeCount: number; questNodeCount: number; shopNodeCount: number };
-  nodes: CampaignNode[];
-  routes: CampaignRoute[];
+  nodes: MissionNode[];
+  routes: MissionRoute[];
 }
 
-export interface CampaignEventAction {
+export interface MissionEventAction {
   kind: string;
   parameters: Parameter[];
 }
 
 export type EventOneShot = "per-run" | "per-node" | "always";
 
-export interface CampaignEvent {
+export interface MissionEvent {
   id: string;
   trigger: string;
   floorNumber?: number;
   nodeId?: string;
   conditions: Parameter[];
-  actions: CampaignEventAction[];
+  actions: MissionEventAction[];
   oneShot: EventOneShot;
 }
 
-export interface CampaignDocument {
+export interface MissionDocument {
   schemaVersion: 2;
   id: string;
   name: LocalizedText;
   description: LocalizedText;
   boardPreviewUnitId: NamedRef;
   questIds: NamedRef[];
-  floors: CampaignFloor[];
-  events: CampaignEvent[];
-  settings: CampaignSettings;
+  floors: MissionFloor[];
+  events: MissionEvent[];
+  settings: MissionSettings;
 }
 
 export interface DialogueDecision {
@@ -286,7 +286,7 @@ export interface ContentSetDocument {
   set: SetDocument;
   quests: QuestDocument[];
   armies: ArmyDocument[];
-  campaigns: CampaignDocument[];
+  missions: MissionDocument[];
   dialogues: DialogueDocument[];
 }
 

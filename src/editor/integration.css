@@ -12,16 +12,16 @@
 .guided-editor.is-writing .workflow-footer { opacity: 1; }
 .guided-context-unmuted .guided-moment-map,
 .guided-context-unmuted .army-context-muted,
-.guided-context-unmuted .campaign-context-map,
-.guided-context-unmuted .campaign-randomizer-focus > .campaign-floor-heading,
-.guided-context-unmuted .campaign-randomizer-focus > .campaign-floor-tabs,
-.guided-context-unmuted .campaign-randomizer-focus > .campaign-floor-mode-row {
+.guided-context-unmuted .mission-context-map,
+.guided-context-unmuted .mission-randomizer-focus > .mission-floor-heading,
+.guided-context-unmuted .mission-randomizer-focus > .mission-floor-tabs,
+.guided-context-unmuted .mission-randomizer-focus > .mission-floor-mode-row {
   opacity: 1; filter: none; pointer-events: auto;
 }
-.guided-context-unmuted .campaign-context-map .campaign-canvas-scroll { max-height: none; pointer-events: auto; }
-.guided-context-unmuted .campaign-context-map .campaign-map-step-heading,
-.guided-context-unmuted .campaign-context-map .campaign-board-tools,
-.guided-context-unmuted .campaign-context-map .campaign-map-status { opacity: 1; }
+.guided-context-unmuted .mission-context-map .mission-canvas-scroll { max-height: none; pointer-events: auto; }
+.guided-context-unmuted .mission-context-map .mission-map-step-heading,
+.guided-context-unmuted .mission-context-map .mission-board-tools,
+.guided-context-unmuted .mission-context-map .mission-map-status { opacity: 1; }
 
 /* Unknown catalog IDs must look broken, not like a valid unit. */
 .army-grid-placement.is-invalid { border-color: #bd6658; background: #fbefeb; }

@@ -2,10 +2,10 @@
   "schemaVersion": 2,
   "source": "MeowEdit Content Contract, sections 6 and 7 (canonical vocabularies)",
   "triggers": [
-    "campaign-start",
+    "mission-start",
     "floor-entered",
     "floor-completed",
-    "campaign-completed",
+    "mission-completed",
     "run-ended",
     "before-battle",
     "after-battle",

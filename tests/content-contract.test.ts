@@ -73,10 +73,10 @@ describe("structured contract fixtures", () => {
     expect(isInternalTrigger("node-cleared")).toBe(true);
     expect(isKnownTrigger("node-cleared")).toBe(true);
     expect(isAuthorSelectableTrigger("node-cleared")).toBe(false);
-    expect(isAuthorSelectableTrigger("campaign-start")).toBe(true);
+    expect(isAuthorSelectableTrigger("mission-start")).toBe(true);
 
     const internal = structuredClone(validSet) as ContentSetDocument;
-    internal.campaigns[0].events[0].trigger = "node-cleared";
+    internal.missions[0].events[0].trigger = "node-cleared";
     expect(validateContentSet(internal, capabilities).valid).toBe(true);
 
     for (const condition of CONDITIONS) {
@@ -114,10 +114,10 @@ describe("structured contract fixtures", () => {
     expect(issue.field).toBeTruthy();
   });
 
-  it("checks campaign graph rules with readable messages", () => {
+  it("checks mission graph rules with readable messages", () => {
     const broken = structuredClone(validSet) as ContentSetDocument;
-    broken.campaigns[0].floors[0].nodes[1].x = 4;
-    broken.campaigns[0].floors[0].nodes[1].shopOfferMode = "exact";
+    broken.missions[0].floors[0].nodes[1].x = 4;
+    broken.missions[0].floors[0].nodes[1].shopOfferMode = "exact";
     const result = validateContentSet(broken, capabilities);
     expect(result.valid).toBe(false);
     const codes = result.issues.map(issue => issue.code);
@@ -126,7 +126,7 @@ describe("structured contract fixtures", () => {
     expect(result.issues.every(issue => issue.hint && issue.message.length > 20)).toBe(true);
 
     const disconnected = structuredClone(validSet) as ContentSetDocument;
-    disconnected.campaigns[0].floors[0].routes = [];
+    disconnected.missions[0].floors[0].routes = [];
     expect(validateContentSet(disconnected, capabilities).issues.map(issue => issue.code)).toContain("unreachable-nodes");
   });
 
@@ -142,8 +142,8 @@ describe("structured contract fixtures", () => {
 
   it("accepts dialogue-only sets and only warns on a completely empty set", () => {
     const dialogueOnly = structuredClone(validSet) as ContentSetDocument;
-    dialogueOnly.campaigns = [];
-    dialogueOnly.set.campaignOrder = [];
+    dialogueOnly.missions = [];
+    dialogueOnly.set.missionOrder = [];
     dialogueOnly.quests = [];
     dialogueOnly.armies = [];
     expect(validateContentSet(dialogueOnly, capabilities).valid).toBe(true);
@@ -166,15 +166,15 @@ describe("structured contract fixtures", () => {
   });
 
   it("compares all registry whitelists with exact ordinal casing", () => {
-    expect(isKnownTrigger("CAMPAIGN-START")).toBe(false);
-    expect(isKnownTrigger("campaign-start")).toBe(true);
+    expect(isKnownTrigger("MISSION-START")).toBe(false);
+    expect(isKnownTrigger("mission-start")).toBe(true);
     expect(findAction("Dialogue")).toBeUndefined();
     expect(findAction("dialogue")).toBeDefined();
     expect(findCondition("Floor-N")).toBeUndefined();
     expect(findCondition("floor-n")).toBeDefined();
 
     const wrongCase = structuredClone(validSet) as ContentSetDocument;
-    wrongCase.campaigns[0].events[0].trigger = "Campaign-Start";
+    wrongCase.missions[0].events[0].trigger = "Mission-Start";
     expect(validateContentSet(wrongCase, capabilities).valid).toBe(false);
   });
 
@@ -190,10 +190,10 @@ describe("structured contract fixtures", () => {
     const packed = await packContentSet(validSet, capabilities);
     expect(packed.files.map(file => file.path)).toEqual([
       "armies/ArmyConfigurations.json",
-      "campaigns/Campaigns.json",
       "dialogues/elder-intro.json",
       "extensions/meowedit-v1.json",
       "manifest.json",
+      "missions/Missions.json",
       "quests/Definitions.json",
       "set.json"
     ]);

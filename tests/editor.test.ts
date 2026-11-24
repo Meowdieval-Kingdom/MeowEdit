@@ -41,8 +41,8 @@ describe("editor", () => {
       if (key.startsWith("meowedit.workspace.v1.")) localStorage.removeItem(key);
     const editorSession = {
       activeEditorStep: 6, editorMode: "full", helpVisible: false, sidebarCollapsed: false,
-      selectedArmyPlacementId: null, armyCatalogKind: "units", selectedCampaignFloorId: null,
-      selectedCampaignNodeId: null, relatedReturnContexts: []
+      selectedArmyPlacementId: null, armyCatalogKind: "units", selectedMissionFloorId: null,
+      selectedMissionNodeId: null, relatedReturnContexts: []
     };
     localStorage.setItem("meowedit.editor-session.v1.author-1", JSON.stringify(editorSession));
     localStorage.setItem("meowedit.editor-session.v1.author-1.editor-set", JSON.stringify(editorSession));
@@ -91,7 +91,7 @@ describe("editor", () => {
     expect(document.querySelector('[data-action="editor-next"]')).not.toBeNull();
   });
 
-  it("renders the dialogue, quest and campaign screens with their real layouts", async () => {
+  it("renders the dialogue, quest and mission screens with their real layouts", async () => {
     const fullSet = JSON.parse(readFileSync(path.resolve(process.cwd(), "contract/content/fixtures/valid-set.fixture.json"), "utf8")) as ContentSetDocument;
     const { mountEditor } = await import("../src/editor/main");
     const mount = (section: string, index: number) => mountEditor({
@@ -106,8 +106,8 @@ describe("editor", () => {
     mount("quests", 0);
     await vi.waitFor(() => expect(document.querySelector('[data-bind="definition.title"]')).not.toBeNull());
 
-    mount("campaigns", 0);
-    await vi.waitFor(() => expect(document.querySelector(".campaign-floor-tab")).not.toBeNull());
+    mount("missions", 0);
+    await vi.waitFor(() => expect(document.querySelector(".mission-floor-tab")).not.toBeNull());
   });
 
   it("offers JSON transfer in the full editor and not in the topbar", async () => {
@@ -117,7 +117,7 @@ describe("editor", () => {
       setId: "transfer-set", draft: fullSet, capabilities,
       selected: { section, index }, forceMode: "full", onSave: vi.fn(async () => "saved"), onDraftChange: vi.fn(), onBack: vi.fn()
     });
-    for (const section of ["dialogues", "quests", "armies", "campaigns"]) {
+    for (const section of ["dialogues", "quests", "armies", "missions"]) {
       mount(section, 0);
       await vi.waitFor(() => expect(document.querySelector(".editor-transfer-bar")).not.toBeNull());
       expect(document.querySelectorAll('.editor-transfer-bar [data-action="open-transfer"]')).toHaveLength(1);
@@ -127,8 +127,8 @@ describe("editor", () => {
 
   it("round-trips a structured draft through the editor workspace without losing structured-only fields", () => {
     const draft = draftWithArmy();
-    draft.campaigns.push({
-      schemaVersion: 2, id: "campaign-1", name: localized("Campaign"), description: localized(""),
+    draft.missions.push({
+      schemaVersion: 2, id: "mission-1", name: localized("Mission"), description: localized(""),
       boardPreviewUnitId: namedRef(capabilities.ids.units[0]), questIds: [],
       floors: [], events: [],
       settings: {
@@ -145,7 +145,7 @@ describe("editor", () => {
     workspace.armies[0].name = "Renamed Army";
     workspaceToDraft(draft, workspace, capabilities);
     expect(draft.armies[0].name.default).toBe("Renamed Army");
-    expect(draft.campaigns[0].settings.blessingsEnabled).toBe(true);
+    expect(draft.missions[0].settings.blessingsEnabled).toBe(true);
     expect(draft.dialogues[0].nodes[0].actions[0].meowEdit.defaultContinue).toBe(true);
   });
 
@@ -163,7 +163,7 @@ describe("editor", () => {
     expect(workspace.armies[0].units[0].unitId).toBe("Peasants/Fighter/1");
   });
 
-  it("round-trips auto-accept and per-campaign sardine payout settings", () => {
+  it("round-trips auto-accept and per-mission sardine payout settings", () => {
     const draft = draftWithArmy();
     const structured = JSON.parse(JSON.stringify(draft)) as ContentSetDocument;
     structured.quests.push({
@@ -180,7 +180,7 @@ describe("editor", () => {
         killCount: { targetKind: "unit", targetId: namedRef("unit"), count: 1 }, minimumNodeDistances: []
       }
     });
-    structured.campaigns.push({
+    structured.missions.push({
       schemaVersion: 2, id: "mission", name: localized("Mission"), description: localized(""),
       boardPreviewUnitId: namedRef(""), questIds: [], floors: [], events: [],
       settings: {
@@ -194,19 +194,19 @@ describe("editor", () => {
     });
     const workspace = draftToWorkspace(structured, capabilities);
     expect(workspace.quests[0].definition.autoAccept).toBe(true);
-    expect(workspace.campaigns[0].settings.sardinePayoutEnabled).toBe(false);
-    expect(workspace.campaigns[0].settings.sardinePayoutBase).toBe(7);
+    expect(workspace.missions[0].settings.sardinePayoutEnabled).toBe(false);
+    expect(workspace.missions[0].settings.sardinePayoutBase).toBe(7);
     workspaceToDraft(structured, workspace, capabilities);
     expect(structured.quests[0].autoAccept).toBe(true);
-    expect(structured.campaigns[0].settings.sardinePayoutEnabled).toBe(false);
-    expect(structured.campaigns[0].settings.sardinePayoutPerFloor).toBe(3);
+    expect(structured.missions[0].settings.sardinePayoutEnabled).toBe(false);
+    expect(structured.missions[0].settings.sardinePayoutPerFloor).toBe(3);
   });
 
   it("maps event armyId to the structured registry parameter key", () => {
     const draft = draftWithArmy();
     const workspace = draftToWorkspace(draft, capabilities);
-    workspace.campaigns.push({
-      key: "campaign-1", id: "campaign-1", name: "Campaign", description: "", questIds: [],
+    workspace.missions.push({
+      key: "mission-1", id: "mission-1", name: "Mission", description: "", questIds: [],
       designMode: "custom", boardPreviewUnitId: "",
       floors: [], settings: {
         startingLives: 3, startingSardines: 10, startingNodeCount: 12, playerFactionId: capabilities.ids.factions[0],
@@ -215,16 +215,16 @@ describe("editor", () => {
         nodeGrowthPerFloor: 2, continueWithGeneratedFloors: false,
         sardinePayoutEnabled: true, sardinePayoutBase: 10, sardinePayoutPerFloor: 1
       },
-      events: [{ id: "event-1", trigger: "campaign-start", actions: [
+      events: [{ id: "event-1", trigger: "mission-start", actions: [
         { kind: "replace-player-army", armyId: "test-army" }
       ] }]
     });
     workspaceToDraft(draft, workspace, capabilities);
-    expect(draft.campaigns[0].events[0].actions[0].parameters).toEqual([
+    expect(draft.missions[0].events[0].actions[0].parameters).toEqual([
       { key: "army", value: { id: "test-army", label: { default: "test-army", locales: {} } } }
     ]);
     const reopened = draftToWorkspace(draft, capabilities);
-    expect(reopened.campaigns[0].events[0].actions[0].armyId).toBe("test-army");
+    expect(reopened.missions[0].events[0].actions[0].armyId).toBe("test-army");
   });
 
   it("keeps Drawflow positions and editor labels in the native, per-set workspace", () => {
@@ -233,7 +233,7 @@ describe("editor", () => {
     workspace.dialogues[0].sequence.nodes[0].editorPosition = { x: 320, y: 180, reverse: true };
     workspace.dialogues[0].sequence.nodes[0].editorLabel = "Opening beat";
     workspace.armies[0].units[0].id = "placement-custom";
-    workspace.campaigns = [];
+    workspace.missions = [];
     saveWorkspace("set-a", workspace);
 
     const reloaded = loadWorkspace("set-a", draft, capabilities);
@@ -270,12 +270,12 @@ describe("editor", () => {
     const fullSet = JSON.parse(readFileSync(path.resolve(process.cwd(), "contract/content/fixtures/valid-set.fixture.json"), "utf8")) as ContentSetDocument;
     const { mountEditor } = await import("../src/editor/main");
     mountEditor({
-      setId: "focus-set", draft: fullSet, capabilities, selected: { section: "campaigns", index: 0 }, forceMode: "guided",
+      setId: "focus-set", draft: fullSet, capabilities, selected: { section: "missions", index: 0 }, forceMode: "guided",
       onSave: vi.fn(async () => "saved"), onDraftChange: vi.fn(), onBack: vi.fn()
     });
-    await vi.waitFor(() => expect(document.querySelector(".campaign-guided-progress")).not.toBeNull());
+    await vi.waitFor(() => expect(document.querySelector(".mission-guided-progress")).not.toBeNull());
     expect(document.querySelector(".guided-context-unmuted")).toBeNull();
-    document.querySelector<HTMLElement>(".campaign-guided-step-heading")!.click();
+    document.querySelector<HTMLElement>(".mission-guided-step-heading")!.click();
     expect(document.querySelector(".guided-context-unmuted")).not.toBeNull();
   });
 

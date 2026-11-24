@@ -5,13 +5,13 @@
   "description": "MeowEdit Content Contract authoring record. Sections 2.1, 4 and 5. Generated-from-design source of truth; additionalProperties is false everywhere.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "set", "quests", "armies", "campaigns", "dialogues"],
+  "required": ["schemaVersion", "set", "quests", "armies", "missions", "dialogues"],
   "properties": {
     "schemaVersion": { "const": 2 },
     "set": { "$ref": "#/$defs/setDocument" },
     "quests": { "type": "array", "items": { "$ref": "#/$defs/questDocument" } },
     "armies": { "type": "array", "items": { "$ref": "#/$defs/armyDocument" } },
-    "campaigns": { "type": "array", "items": { "$ref": "#/$defs/campaignDocument" } },
+    "missions": { "type": "array", "items": { "$ref": "#/$defs/missionDocument" } },
     "dialogues": { "type": "array", "items": { "$ref": "#/$defs/dialogueDocument" } }
   },
   "$defs": {
@@ -22,7 +22,7 @@
       "floorMode": { "type": "string", "enum": ["authored", "random", "mixed"] },
       "rewardKind": { "type": "string", "enum": ["Sardines", "ExtraLife", "Blessing", "UnitUnlock", "ShopLevelUnlock", "SpellUnlock"] },
       "shopOfferKind": { "type": "string", "enum": ["Unit", "Blessing", "Research", "SpellUnlock"] },
-      "trigger": { "type": "string", "enum": ["campaign-start", "floor-entered", "floor-completed", "campaign-completed", "run-ended", "before-battle", "after-battle", "battle-won", "battle-lost", "battle-draw", "boss-defeated", "lives-lost", "battle-restarted", "node-revealed", "node-entered", "reward-claimed", "shop-entered", "shop-visited", "item-purchased", "shop-rerolled", "quest-accepted", "quest-completed", "quest-failed", "quest-item-collected", "quest-item-delivered", "escort-completed", "dialogue-choice-selected", "floor-exit-warning", "blessing-offered", "blessing-chosen", "curse-ticked", "node-cleared"] },
+      "trigger": { "type": "string", "enum": ["mission-start", "floor-entered", "floor-completed", "mission-completed", "run-ended", "before-battle", "after-battle", "battle-won", "battle-lost", "battle-draw", "boss-defeated", "lives-lost", "battle-restarted", "node-revealed", "node-entered", "reward-claimed", "shop-entered", "shop-visited", "item-purchased", "shop-rerolled", "quest-accepted", "quest-completed", "quest-failed", "quest-item-collected", "quest-item-delivered", "escort-completed", "dialogue-choice-selected", "floor-exit-warning", "blessing-offered", "blessing-chosen", "curse-ticked", "node-cleared"] },
       "condition": { "type": "string", "enum": ["battle-won", "battle-lost", "battle-draw", "boss", "floor-n", "node-kind", "has-blessing", "quest-id", "lives-below", "choice-outcome"] },
       "action": { "type": "string", "enum": ["replace-player-army", "grant-blessings", "dialogue", "restart-battle", "unlock-path", "unlock-shop-item", "grant-sardines", "grant-life", "set-flag"] }
     },
@@ -65,14 +65,14 @@
     "setDocument": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["schemaVersion", "setId", "name", "description", "displayOrder", "campaignOrder"],
+      "required": ["schemaVersion", "setId", "name", "description", "displayOrder", "missionOrder"],
       "properties": {
         "schemaVersion": { "const": 2 },
         "setId": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$" },
         "name": { "$ref": "#/$defs/localizedText" },
         "description": { "$ref": "#/$defs/localizedText" },
         "displayOrder": { "type": "integer" },
-        "campaignOrder": { "type": "array", "items": { "type": "string" } },
+        "missionOrder": { "type": "array", "items": { "type": "string" } },
         "minAppVersion": { "type": "string" },
         "requiredCapabilities": { "type": "array", "items": { "type": "string" } }
       }
@@ -254,7 +254,7 @@
         "CellBlessingPicks": { "type": "array", "items": { "$ref": "#/$defs/cellBlessingPick" } }
       }
     },
-    "campaignSettings": {
+    "missionSettings": {
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -292,7 +292,7 @@
         "price": { "type": "integer", "minimum": 0 }
       }
     },
-    "campaignNode": {
+    "missionNode": {
       "type": "object",
       "additionalProperties": false,
       "required": ["id", "label", "kind", "x", "y", "armyId", "questId", "enemyFactionId", "rewardKind", "rewardAmount", "rewardContentId", "shopOfferMode", "shopOffers"],
@@ -312,7 +312,7 @@
         "shopOffers": { "type": "array", "items": { "$ref": "#/$defs/shopOffer" } }
       }
     },
-    "campaignRoute": {
+    "missionRoute": {
       "type": "object",
       "additionalProperties": false,
       "required": ["id", "fromNodeId", "toNodeId", "oneWay"],
@@ -323,7 +323,7 @@
         "oneWay": { "type": "boolean" }
       }
     },
-    "campaignFloor": {
+    "missionFloor": {
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -349,11 +349,11 @@
             "shopNodeCount": { "type": "integer", "minimum": 0 }
           }
         },
-        "nodes": { "type": "array", "items": { "$ref": "#/$defs/campaignNode" } },
-        "routes": { "type": "array", "items": { "$ref": "#/$defs/campaignRoute" } }
+        "nodes": { "type": "array", "items": { "$ref": "#/$defs/missionNode" } },
+        "routes": { "type": "array", "items": { "$ref": "#/$defs/missionRoute" } }
       }
     },
-    "campaignEventAction": {
+    "missionEventAction": {
       "type": "object",
       "additionalProperties": false,
       "required": ["kind", "parameters"],
@@ -362,7 +362,7 @@
         "parameters": { "type": "array", "items": { "$ref": "#/$defs/parameter" } }
       }
     },
-    "campaignEvent": {
+    "missionEvent": {
       "type": "object",
       "additionalProperties": false,
       "required": ["id", "trigger", "conditions", "actions", "oneShot"],
@@ -372,11 +372,11 @@
         "floorNumber": { "type": "integer" },
         "nodeId": { "type": "string" },
         "conditions": { "type": "array", "items": { "$ref": "#/$defs/conditionParameter" } },
-        "actions": { "type": "array", "items": { "$ref": "#/$defs/campaignEventAction" } },
+        "actions": { "type": "array", "items": { "$ref": "#/$defs/missionEventAction" } },
         "oneShot": { "type": "string", "enum": ["per-run", "per-node", "always"] }
       }
     },
-    "campaignDocument": {
+    "missionDocument": {
       "type": "object",
       "additionalProperties": false,
       "required": ["schemaVersion", "id", "name", "description", "boardPreviewUnitId", "questIds", "floors", "events", "settings"],
@@ -387,9 +387,9 @@
         "description": { "$ref": "#/$defs/localizedText" },
         "boardPreviewUnitId": { "$ref": "#/$defs/namedRef" },
         "questIds": { "type": "array", "items": { "$ref": "#/$defs/namedRef" } },
-        "floors": { "type": "array", "items": { "$ref": "#/$defs/campaignFloor" }, "minItems": 1 },
-        "events": { "type": "array", "items": { "$ref": "#/$defs/campaignEvent" } },
-        "settings": { "$ref": "#/$defs/campaignSettings" }
+        "floors": { "type": "array", "items": { "$ref": "#/$defs/missionFloor" }, "minItems": 1 },
+        "events": { "type": "array", "items": { "$ref": "#/$defs/missionEvent" } },
+        "settings": { "$ref": "#/$defs/missionSettings" }
       }
     },
     "dialogueSpeaker": {

@@ -42,14 +42,14 @@ function humanize(key: string): string {
 function entryName(set: ContentSetDocument, section: string, index: number): string {
   if (section === "quests") return set.quests[index]?.title.default || set.quests[index]?.id || String(index);
   if (section === "armies") return set.armies[index]?.name.default || set.armies[index]?.id || String(index);
-  if (section === "campaigns") return set.campaigns[index]?.name.default || set.campaigns[index]?.id || String(index);
+  if (section === "missions") return set.missions[index]?.name.default || set.missions[index]?.id || String(index);
   if (section === "dialogues") return set.dialogues[index]?.sequenceId || String(index);
   return String(index);
 }
 
 function describePath(set: ContentSetDocument, path: string): { label: string; section?: string; entryIndex?: number; field?: string } {
   const segments = path.replace(/\[(\d+)\]/g, ".$1").split(".");
-  const section = ["campaigns", "quests", "armies", "dialogues"].includes(segments[0]) ? segments[0] : undefined;
+  const section = ["missions", "quests", "armies", "dialogues"].includes(segments[0]) ? segments[0] : undefined;
   const entryIndex = section && /^\d+$/.test(segments[1] ?? "") ? Number(segments[1]) : undefined;
   const rest = segments.slice(entryIndex === undefined ? 1 : 2).filter(part => !/^\d+$/.test(part));
   const field = humanize(rest.at(-1) === "id" ? rest.at(-2) ?? "id" : rest.at(-1) ?? segments.at(-1) ?? "value");
@@ -127,7 +127,7 @@ function localIds(set: ContentSetDocument): Set<string> {
       .forEach(ref => ids.add(ref.id));
   });
   set.armies.forEach(army => ids.add(army.id));
-  set.campaigns.forEach(campaign => ids.add(campaign.id));
+  set.missions.forEach(mission => ids.add(mission.id));
   set.dialogues.forEach(dialogue => {
     ids.add(dialogue.sequenceId);
     dialogue.nodes.forEach(node => {
@@ -139,7 +139,7 @@ function localIds(set: ContentSetDocument): Set<string> {
       });
     });
   });
-  set.campaigns.forEach(campaign => campaign.floors.forEach(floor => {
+  set.missions.forEach(mission => mission.floors.forEach(floor => {
     floor.nodes.forEach(node => ids.add(node.id));
     floor.routes.forEach(route => ids.add(route.id));
   }));
@@ -181,7 +181,7 @@ export function validateContentSet(value: unknown, capabilities: GameCapabilitie
   const parsed = contentSetSchema.safeParse(value);
   if (!parsed.success) {
     for (const issue of parsed.error.issues) {
-      const description = describePath({ ...(value as ContentSetDocument), quests: [], armies: [], campaigns: [], dialogues: [] }, issue.path.join("."));
+      const description = describePath({ ...(value as ContentSetDocument), quests: [], armies: [], missions: [], dialogues: [] }, issue.path.join("."));
       issues.push({
         path: issue.path.join("."),
         code: "schema",
@@ -199,13 +199,13 @@ export function validateContentSet(value: unknown, capabilities: GameCapabilitie
     pushEnum(issues, quest.rewardKind, capabilities.enums.rewardKind, "quests[" + questIndex + "].rewardKind", "Reward kind");
   });
 
-  // Dialogue-only sets are valid (tutorial dialogue collections do not need a campaign).
-  if (set.campaigns.length === 0 && set.dialogues.length === 0
+  // Dialogue-only sets are valid (tutorial dialogue collections do not need a mission).
+  if (set.missions.length === 0 && set.dialogues.length === 0
     && set.quests.length === 0 && set.armies.length === 0)
     issues.push({
-      path: "campaigns", code: "empty-set", severity: "warning",
+      path: "missions", code: "empty-set", severity: "warning",
       message: "This set is empty.",
-      hint: "Add a campaign, quest, army or dialogue to this set."
+      hint: "Add a mission, quest, army or dialogue to this set."
     });
 
   const local = localIds(set);
@@ -216,7 +216,7 @@ export function validateContentSet(value: unknown, capabilities: GameCapabilitie
   for (const [kind, ids, path] of [
     ["quest", set.quests.map(quest => quest.id), "quests"],
     ["army", set.armies.map(army => army.id), "armies"],
-    ["campaign", set.campaigns.map(campaign => campaign.id), "campaigns"],
+    ["mission", set.missions.map(mission => mission.id), "missions"],
     ["dialogue", set.dialogues.map(dialogue => dialogue.sequenceId), "dialogues"]
   ] as const) {
     const seen = new Set<string>();
@@ -238,15 +238,15 @@ export function validateContentSet(value: unknown, capabilities: GameCapabilitie
     issues.push(referenceIssue(set, allowed, path + ".id", node.id));
   });
 
-  for (const campaignId of set.set.campaignOrder)
-    if (!set.campaigns.some(campaign => campaign.id === campaignId))
-      issues.push(referenceIssue(set, allowed, "set.campaignOrder", campaignId));
+  for (const missionId of set.set.missionOrder)
+    if (!set.missions.some(mission => mission.id === missionId))
+      issues.push(referenceIssue(set, allowed, "set.missionOrder", missionId));
 
-  set.campaigns.forEach((campaign, campaignIndex) => {
-    const campaignPath = "campaigns[" + campaignIndex + "]";
-    pushEnumList(issues, campaign.settings.shopPoolKinds, capabilities.enums.shopPoolKind, campaignPath + ".settings.shopPoolKinds", "Shop pool");
-    campaign.floors.forEach((floor, floorIndex) => {
-      const floorPath = campaignPath + ".floors[" + floorIndex + "]";
+  set.missions.forEach((mission, missionIndex) => {
+    const missionPath = "missions[" + missionIndex + "]";
+    pushEnumList(issues, mission.settings.shopPoolKinds, capabilities.enums.shopPoolKind, missionPath + ".settings.shopPoolKinds", "Shop pool");
+    mission.floors.forEach((floor, floorIndex) => {
+      const floorPath = missionPath + ".floors[" + floorIndex + "]";
       pushEnum(issues, floor.mode, capabilities.enums.floorMode, floorPath + ".mode", "Floor mode");
       pushEnumList(issues, floor.shopPoolKinds, capabilities.enums.shopPoolKind, floorPath + ".shopPoolKinds", "Shop pool");
       floor.nodes.forEach((node, nodeIndex) => {
@@ -258,10 +258,10 @@ export function validateContentSet(value: unknown, capabilities: GameCapabilitie
       if (floor.nodes.length > capabilities.limits.maxAuthoredNodesPerFloor)
         issues.push({
           path: floorPath + ".nodes", code: "node-limit",
-          message: 'Campaign "' + campaign.name.default + '" floor ' + floor.number + ' has ' + floor.nodes.length +
+          message: 'Mission "' + mission.name.default + '" floor ' + floor.number + ' has ' + floor.nodes.length +
             ' nodes, but the game supports ' + capabilities.limits.maxAuthoredNodesPerFloor + '.',
           hint: "Remove nodes from this floor or move some to another floor.",
-          section: "campaigns", entryIndex: campaignIndex
+          section: "missions", entryIndex: missionIndex
         });
       for (const questRef of floor.questPoolIds)
         if (!set.quests.some(quest => quest.id === questRef.id))
@@ -273,9 +273,9 @@ export function validateContentSet(value: unknown, capabilities: GameCapabilitie
         if (coordinates.has(key))
           issues.push({
             path: floorPath + ".nodes", code: "duplicate-coordinate",
-            message: 'Campaign "' + campaign.name.default + '" floor ' + floor.number + ' has two nodes at (' + key + ').',
+            message: 'Mission "' + mission.name.default + '" floor ' + floor.number + ' has two nodes at (' + key + ').',
             hint: "Move one of them to another map cell.",
-            section: "campaigns", entryIndex: campaignIndex
+            section: "missions", entryIndex: missionIndex
           });
         coordinates.set(key, node.id);
       }
@@ -284,23 +284,23 @@ export function validateContentSet(value: unknown, capabilities: GameCapabilitie
       if (starts.length !== 1)
         issues.push({
           path: floorPath + ".nodes", code: "start-count",
-          message: 'Campaign "' + campaign.name.default + '" floor ' + floor.number + ' has ' + starts.length + ' Start nodes.',
+          message: 'Mission "' + mission.name.default + '" floor ' + floor.number + ' has ' + starts.length + ' Start nodes.',
           hint: "Every authored floor needs exactly one Start node.",
-          section: "campaigns", entryIndex: campaignIndex
+          section: "missions", entryIndex: missionIndex
         });
       else if ((starts[0].x !== 0 || starts[0].y !== 0))
         issues.push({
           path: floorPath + ".nodes", code: "start-position",
           message: 'Start node on floor ' + floor.number + ' must be at (0,0).',
           hint: "Move the Start node to the board origin.",
-          section: "campaigns", entryIndex: campaignIndex
+          section: "missions", entryIndex: missionIndex
         });
       if (bosses.length > 1)
         issues.push({
           path: floorPath + ".nodes", code: "boss-count",
           message: 'Floor ' + floor.number + ' has ' + bosses.length + ' Boss nodes.',
           hint: "A floor supports at most one Boss node.",
-          section: "campaigns", entryIndex: campaignIndex
+          section: "missions", entryIndex: missionIndex
         });
       const routeKeys = new Set<string>();
       for (const route of floor.routes) {
@@ -309,7 +309,7 @@ export function validateContentSet(value: unknown, capabilities: GameCapabilitie
           issues.push({
             path: floorPath + ".routes", code: "duplicate-route",
             message: 'Floor ' + floor.number + ' repeats a route between the same two nodes.',
-            hint: "Remove one of the duplicate connections.", section: "campaigns", entryIndex: campaignIndex
+            hint: "Remove one of the duplicate connections.", section: "missions", entryIndex: missionIndex
           });
         routeKeys.add(key);
       }
@@ -318,7 +318,7 @@ export function validateContentSet(value: unknown, capabilities: GameCapabilitie
           path: floorPath + ".nodes", code: "boss-without-battle",
           message: 'Floor ' + floor.number + ' has a Boss but no Battle node.',
           hint: "Add a Battle before the Boss so the encounter has a warm-up fight.",
-          section: "campaigns", entryIndex: campaignIndex
+          section: "missions", entryIndex: missionIndex
         });
       for (const route of floor.routes) {
         const from = floor.nodes.find(node => node.id === route.fromNodeId);
@@ -328,7 +328,7 @@ export function validateContentSet(value: unknown, capabilities: GameCapabilitie
             path: floorPath + ".routes", code: "route-not-adjacent",
             message: 'Route "' + route.id + '" connects distant nodes on floor ' + floor.number + '.',
             hint: "Routes may only connect neighboring cells; diagonals are allowed.",
-            section: "campaigns", entryIndex: campaignIndex
+            section: "missions", entryIndex: missionIndex
           });
       }
       if (starts.length === 1 && floor.nodes.length > 1) {
@@ -353,7 +353,7 @@ export function validateContentSet(value: unknown, capabilities: GameCapabilitie
             path: floorPath + ".routes", code: "unreachable-nodes",
             message: floor.nodes.length - unreachable.length + " of " + floor.nodes.length + " nodes on floor " + floor.number + " are reachable from Start.",
             hint: "Connect these nodes with routes: " + unreachable.map(node => node.label.default || node.id).join(", ") + ".",
-            section: "campaigns", entryIndex: campaignIndex
+            section: "missions", entryIndex: missionIndex
           });
       }
       for (const node of floor.nodes) {
@@ -362,7 +362,7 @@ export function validateContentSet(value: unknown, capabilities: GameCapabilitie
             path: floorPath + ".nodes", code: "exact-shop-offers",
             message: 'Shop node "' + node.label.default + '" expects exactly three offers but has ' + node.shopOffers.length + '.',
             hint: "Adventure shops show three items. Add or remove offers until there are three.",
-            section: "campaigns", entryIndex: campaignIndex
+            section: "missions", entryIndex: missionIndex
           });
       }
       const randomSettings = floor.randomSettings;
@@ -371,7 +371,7 @@ export function validateContentSet(value: unknown, capabilities: GameCapabilitie
           path: floorPath + ".randomSettings.nodeCount", code: "random-node-count",
           message: "Floor " + floor.number + " uses " + randomSettings.nodeCount + " random nodes.",
           hint: "Use an even number between 12 and 30.",
-          section: "campaigns", entryIndex: campaignIndex
+          section: "missions", entryIndex: missionIndex
         });
       for (const route of floor.routes) {
         if (!nodeIds.has(route.fromNodeId))
@@ -379,25 +379,25 @@ export function validateContentSet(value: unknown, capabilities: GameCapabilitie
             path: floorPath + ".routes", code: "broken-route",
             message: 'Route "' + route.id + '" starts at "' + route.fromNodeId + '", which is not a node on floor ' + floor.number + '.',
             hint: "Choose an existing node on this floor as the route start.",
-            section: "campaigns", entryIndex: campaignIndex
+            section: "missions", entryIndex: missionIndex
           });
         if (!nodeIds.has(route.toNodeId))
           issues.push({
             path: floorPath + ".routes", code: "broken-route",
             message: 'Route "' + route.id + '" ends at "' + route.toNodeId + '", which is not a node on floor ' + floor.number + '.',
             hint: "Choose an existing node on this floor as the route target.",
-            section: "campaigns", entryIndex: campaignIndex
+            section: "missions", entryIndex: missionIndex
           });
       }
     });
-    campaign.events.forEach((event, eventIndex) => {
-      const eventPath = campaignPath + ".events[" + eventIndex + "]";
+    mission.events.forEach((event, eventIndex) => {
+      const eventPath = missionPath + ".events[" + eventIndex + "]";
       if (!isKnownTrigger(event.trigger))
         issues.push({
           path: eventPath + ".trigger", code: "unknown-trigger",
           message: 'Event "' + event.id + '" uses trigger "' + event.trigger + '", which is not supported.',
           hint: "Choose a trigger from the list in the advanced view.",
-          section: "campaigns", entryIndex: campaignIndex
+          section: "missions", entryIndex: missionIndex
         });
       for (const condition of event.conditions) {
         const entry = findCondition(condition.key);
@@ -406,7 +406,7 @@ export function validateContentSet(value: unknown, capabilities: GameCapabilitie
             path: eventPath + ".conditions", code: "unknown-condition",
             message: 'Event "' + event.id + '" uses unknown condition "' + condition.key + '".',
             hint: "Choose a condition from the list in the advanced view.",
-            section: "campaigns", entryIndex: campaignIndex
+            section: "missions", entryIndex: missionIndex
           });
           continue;
         }
@@ -416,7 +416,7 @@ export function validateContentSet(value: unknown, capabilities: GameCapabilitie
               path: eventPath + ".conditions", code: "condition-value",
               message: 'Condition "' + condition.key + '" takes no value.',
               hint: "Set its value to null in the advanced view.",
-              section: "campaigns", entryIndex: campaignIndex
+              section: "missions", entryIndex: missionIndex
             });
           continue;
         }
@@ -427,7 +427,7 @@ export function validateContentSet(value: unknown, capabilities: GameCapabilitie
             path: eventPath + ".conditions", code: "condition-parameter",
             message: 'Condition "' + condition.key + '": ' + error + '.',
             hint: "Check the condition value in the advanced view.",
-            section: "campaigns", entryIndex: campaignIndex
+            section: "missions", entryIndex: missionIndex
           });
         if (descriptor.refKind === "blessing" && isNamedRef(conditionValue)
             && !capabilities.ids.blessings.includes(conditionValue.id))
@@ -446,7 +446,7 @@ export function validateContentSet(value: unknown, capabilities: GameCapabilitie
             path: eventPath + ".actions", code: "unknown-action",
             message: 'Event "' + event.id + '" uses unknown action "' + action.kind + '".',
             hint: "Choose an action from the list in the advanced view.",
-            section: "campaigns", entryIndex: campaignIndex
+            section: "missions", entryIndex: missionIndex
           });
           continue;
         }
@@ -455,7 +455,7 @@ export function validateContentSet(value: unknown, capabilities: GameCapabilitie
             path: eventPath + ".actions", code: "action-parameter",
             message: 'Action "' + action.kind + '": ' + error + '.',
             hint: "Check the action parameters in the advanced view.",
-            section: "campaigns", entryIndex: campaignIndex
+            section: "missions", entryIndex: missionIndex
           });
       }
     });

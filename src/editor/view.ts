@@ -9,10 +9,10 @@ import type {
   ArmyCatalogUnit,
   ArmyRecord,
   ArmyUnitPlacement,
-  CampaignFloor,
-  CampaignRecord,
-  CampaignFloorMode,
-  CampaignShopOfferKind,
+  MissionFloor,
+  MissionRecord,
+  MissionFloorMode,
+  MissionShopOfferKind,
   AdventureNodeKind,
   QuestRecord,
   UnitRoster,
@@ -22,7 +22,7 @@ import { dialogueActionsForNode, dialogueMomentName } from "./model";
 import { armyFootprint, armyGridSize, resolveArmyLevel, type ArmyCatalogKind } from "./army-catalog";
 import { canPublish, getBridgeUserId } from "../bridge-context";
 import type { ValidationIssue } from "./validation";
-import { validateCampaign, validateDialogue, validateQuest } from "./validation";
+import { validateMission, validateDialogue, validateQuest } from "./validation";
 
 export type EditorMode = "guided" | "full";
 export type ArmyAbilityFilters = Record<"spells" | "blessings" | "curses", "all" | "field">;
@@ -32,11 +32,11 @@ const defaultArmyAbilityFilters: ArmyAbilityFilters = { spells: "all", blessings
 const defaultArmyAbilitySelections: ArmyAbilitySelections = { spells: "", blessings: "", curses: "" };
 
 export interface RelatedEditorReturnState {
-  parent: "Campaign" | "Quest";
+  parent: "Mission" | "Quest";
   label: string;
 }
 
-export interface CampaignViewState {
+export interface MissionViewState {
   selectedFloorId: string | null;
   selectedNodeId: string | null;
   interactionMode: "select" | "add";
@@ -174,12 +174,12 @@ function speakerNameField(
     '<span class="field-hint help-copy">Filled from the selected character.</span></label>';
 }
 
-function selectedItem(workspace: Workspace): DialogueRecord | QuestRecord | ArmyRecord | CampaignRecord | null {
+function selectedItem(workspace: Workspace): DialogueRecord | QuestRecord | ArmyRecord | MissionRecord | null {
   if (!workspace.selectedType || !workspace.selectedKey) return null;
   if (workspace.selectedType === "dialogue") return workspace.dialogues.find(item => item.key === workspace.selectedKey) ?? null;
   if (workspace.selectedType === "quest") return workspace.quests.find(item => item.key === workspace.selectedKey) ?? null;
   if (workspace.selectedType === "army") return workspace.armies.find(item => item.key === workspace.selectedKey) ?? null;
-  return workspace.campaigns.find(item => item.key === workspace.selectedKey) ?? null;
+  return workspace.missions.find(item => item.key === workspace.selectedKey) ?? null;
 }
 
 function renderDocList(workspace: Workspace, type: "dialogue" | "quest"): string {
@@ -220,7 +220,7 @@ function renderSidebar(): string {
     '<div class="sidebar-section-title"><span>Armies</span><button type="button" aria-label="New army" data-action="new-army">+</button></div>' +
     '</div>' +
     '<div class="sidebar-section">' +
-    '<div class="sidebar-section-title"><span>Campaigns</span><button type="button" aria-label="New campaign" data-action="new-campaign">+</button></div>' +
+    '<div class="sidebar-section-title"><span>Missions</span><button type="button" aria-label="New mission" data-action="new-mission">+</button></div>' +
     '</div>' +
     '<div class="sidebar-footer"><span class="status-dot"></span><span>Saved in this browser</span></div>' +
     '</aside>';
@@ -231,19 +231,19 @@ function renderContentPicker(workspace: Workspace): string {
     '<div class="content-picker-groups"><section><h3>Dialogues</h3>' + renderDocList(workspace, "dialogue") + '</section>' +
     '<section><h3>Quests</h3>' + renderDocList(workspace, "quest") + '</section>' +
     '<section><h3>Armies</h3>' + renderArmyDocList(workspace) + '</section>' +
-    '<section><h3>Campaigns</h3>' + renderCampaignDocList(workspace) + '</section></div></dialog>';
+    '<section><h3>Missions</h3>' + renderMissionDocList(workspace) + '</section></div></dialog>';
 }
 
-function renderCampaignDocList(workspace: Workspace): string {
-  if (workspace.campaigns.length === 0) return '<p class="sidebar-empty">No campaigns yet.</p>';
-  return workspace.campaigns.map(campaign => {
-    const active = workspace.selectedType === "campaign" && workspace.selectedKey === campaign.key;
-    const nodeCount = campaign.floors.reduce((total, floor) => total + floor.nodes.length, 0);
+function renderMissionDocList(workspace: Workspace): string {
+  if (workspace.missions.length === 0) return '<p class="sidebar-empty">No missions yet.</p>';
+  return workspace.missions.map(mission => {
+    const active = workspace.selectedType === "mission" && workspace.selectedKey === mission.key;
+    const nodeCount = mission.floors.reduce((total, floor) => total + floor.nodes.length, 0);
     return '<div class="doc-item-row">' +
-      '<button type="button" class="doc-item' + (active ? " is-active" : "") + '" data-action="select-item" data-type="campaign" data-key="' + escapeHtml(campaign.key) + '">' +
-      '<span class="doc-item-text"><strong>' + escapeHtml(campaign.name || campaign.id || "Untitled campaign") + '</strong><small>' + campaign.floors.length + ' floors · ' + nodeCount + ' placed nodes</small></span>' +
+      '<button type="button" class="doc-item' + (active ? " is-active" : "") + '" data-action="select-item" data-type="mission" data-key="' + escapeHtml(mission.key) + '">' +
+      '<span class="doc-item-text"><strong>' + escapeHtml(mission.name || mission.id || "Untitled mission") + '</strong><small>' + mission.floors.length + ' floors · ' + nodeCount + ' placed nodes</small></span>' +
       '</button>' +
-      '<button type="button" class="doc-item-remove" data-action="delete-item" data-type="campaign" data-key="' + escapeHtml(campaign.key) + '" aria-label="Remove campaign: ' + escapeHtml(campaign.name || campaign.id || "Untitled") + '" title="Remove campaign">' + trashIcon() + '</button>' +
+      '<button type="button" class="doc-item-remove" data-action="delete-item" data-type="mission" data-key="' + escapeHtml(mission.key) + '" aria-label="Remove mission: ' + escapeHtml(mission.name || mission.id || "Untitled") + '" title="Remove mission">' + trashIcon() + '</button>' +
       '</div>';
   }).join("");
 }
@@ -1194,24 +1194,24 @@ function renderArmyEditor(record: ArmyRecord, catalog: ArmyCatalog, roster: Unit
     '<section class="army-data-note help-copy"><strong>Game loading pending</strong><p>Authored Armies are included in exports; the game does not load them yet.</p></section></main>' + cellFocusOverlay;
 }
 
-const CAMPAIGN_SHOP_KIND_LABELS: Array<[CampaignShopOfferKind, string]> = [
+const MISSION_SHOP_KIND_LABELS: Array<[MissionShopOfferKind, string]> = [
   ["Unit", "Units"], ["Blessing", "Blessings"], ["Research", "Research"], ["SpellUnlock", "Spell unlocks"]
 ];
 
-function campaignShopItemOptions(catalog: ArmyCatalog, kind: CampaignShopOfferKind): Array<[string, string]> {
+function missionShopItemOptions(catalog: ArmyCatalog, kind: MissionShopOfferKind): Array<[string, string]> {
   if (kind === "Blessing") return catalog.blessings.map(item => [item.id, item.name]);
   if (kind === "SpellUnlock") return catalog.spells.map(item => [item.id, item.name]);
   return catalog.units.flatMap(unit => unit.levels.map(level => [level.id, unit.name + " · " + level.name] as [string, string]));
 }
 
-function campaignShopPoolChips(kinds: CampaignShopOfferKind[], scope: "campaign" | "floor"): string {
-  return '<div class="campaign-shop-pools" role="group" aria-label="Available shop pools">' + CAMPAIGN_SHOP_KIND_LABELS.map(([kind, label]) => {
+function missionShopPoolChips(kinds: MissionShopOfferKind[], scope: "mission" | "floor"): string {
+  return '<div class="mission-shop-pools" role="group" aria-label="Available shop pools">' + MISSION_SHOP_KIND_LABELS.map(([kind, label]) => {
     const active = kinds.includes(kind);
-    return '<button type="button" class="campaign-shop-pool-chip' + (active ? " is-active" : "") + '" data-action="campaign-toggle-shop-pool" data-scope="' + scope + '" data-kind="' + kind + '" aria-pressed="' + String(active) + '"><span>' + (active ? "✓" : "+") + '</span>' + label + '</button>';
+    return '<button type="button" class="mission-shop-pool-chip' + (active ? " is-active" : "") + '" data-action="mission-toggle-shop-pool" data-scope="' + scope + '" data-kind="' + kind + '" aria-pressed="' + String(active) + '"><span>' + (active ? "✓" : "+") + '</span>' + label + '</button>';
   }).join("") + '</div>';
 }
 
-function renderCampaignFloorReview(floor: CampaignFloor, workspace: Workspace, campaign: CampaignRecord): string {
+function renderMissionFloorReview(floor: MissionFloor, workspace: Workspace, mission: MissionRecord): string {
   const nodes = floor.mode === "random" ? [] : floor.nodes.map(node => {
       const quest = node.questId ? workspace.quests.find(item => item.definition.id === node.questId) : undefined;
       const army = node.armyId ? workspace.armies.find(item => item.id === node.armyId) : undefined;
@@ -1227,144 +1227,144 @@ function renderCampaignFloorReview(floor: CampaignFloor, workspace: Workspace, c
     return from && to ? (from.label || from.id) + (route.oneWay ? " → " : " ↔ ") + (to.label || to.id) : "Unresolved route";
   });
   const generation = floor.mode === "authored" ? "" : floor.randomSettings.nodeCount + " generated nodes · " + floor.randomSettings.questNodeCount + " Quest " + (floor.randomSettings.questNodeCount === 1 ? "node" : "nodes") + " · " + floor.randomSettings.shopNodeCount + " " + (floor.randomSettings.shopNodeCount === 1 ? "Shop" : "Shops");
-  const pool = floor.mode === "authored" ? "" : floor.questPoolMode === "campaign" ? "Quest pool: campaign pool" : "Quest pool: " + (floor.questPoolIds.map(id => workspace.quests.find(quest => quest.definition.id === id)?.definition.title || id).join(", ") || "empty");
-  const shopKinds = floor.shopPoolMode === "custom" ? floor.shopPoolKinds : campaign.settings.shopPoolKinds;
-  const shop = "Shop tier " + floor.shopLevel + " · " + (shopKinds.length ? shopKinds.map(kind => CAMPAIGN_SHOP_KIND_LABELS.find(([value]) => value === kind)?.[1] ?? kind).join(", ") : "no generated stock pools");
+  const pool = floor.mode === "authored" ? "" : floor.questPoolMode === "mission" ? "Quest pool: mission pool" : "Quest pool: " + (floor.questPoolIds.map(id => workspace.quests.find(quest => quest.definition.id === id)?.definition.title || id).join(", ") || "empty");
+  const shopKinds = floor.shopPoolMode === "custom" ? floor.shopPoolKinds : mission.settings.shopPoolKinds;
+  const shop = "Shop tier " + floor.shopLevel + " · " + (shopKinds.length ? shopKinds.map(kind => MISSION_SHOP_KIND_LABELS.find(([value]) => value === kind)?.[1] ?? kind).join(", ") : "no generated stock pools");
   const detail = [floor.mode === "random" ? "All nodes generated" : floor.mode === "mixed" ? "Mixed" : "Hand placed", ...(floor.mode === "random" ? [] : [floor.nodes.length + " placed nodes", floor.routes.length + " routes"]), generation, pool, shop].filter(Boolean).join(" · ");
-  return '<section class="campaign-floor-review"><h3>Floor ' + floor.number + ' · ' + (floor.mode === "random" ? "Random" : floor.mode === "mixed" ? "Mixed" : "Hand placed") + '</h3><p>' + escapeHtml(detail) + '</p>' +
+  return '<section class="mission-floor-review"><h3>Floor ' + floor.number + ' · ' + (floor.mode === "random" ? "Random" : floor.mode === "mixed" ? "Mixed" : "Hand placed") + '</h3><p>' + escapeHtml(detail) + '</p>' +
     (nodes.length ? reviewList("Nodes", nodes) : "") + (routes.length ? reviewList("Routes", routes) : "") + '</section>';
 }
 
-const CAMPAIGN_EVENT_TRIGGER_LABELS: Array<[string, string]> = [
-  ["campaign-start", "Campaign starts"],
+const MISSION_EVENT_TRIGGER_LABELS: Array<[string, string]> = [
+  ["mission-start", "Mission starts"],
   ["before-battle", "Before a battle"],
   ["after-battle", "After a battle"],
   ["node-cleared", "After a node is cleared"]
 ];
 
-function campaignEventSummary(event: CampaignRecord["events"][number], campaign: CampaignRecord, workspace: Workspace): string {
-  const trigger = CAMPAIGN_EVENT_TRIGGER_LABELS.find(([value]) => value === event.trigger)?.[1] ?? event.trigger;
-  const floor = campaign.floors.find(item => item.number === event.floorNumber);
+function missionEventSummary(event: MissionRecord["events"][number], mission: MissionRecord, workspace: Workspace): string {
+  const trigger = MISSION_EVENT_TRIGGER_LABELS.find(([value]) => value === event.trigger)?.[1] ?? event.trigger;
+  const floor = mission.floors.find(item => item.number === event.floorNumber);
   const node = floor?.nodes.find(item => item.id === event.nodeId);
-  const target = event.trigger === "campaign-start" ? "Campaign start" :
+  const target = event.trigger === "mission-start" ? "Mission start" :
     (floor ? "Floor " + floor.number : "All floors") + (node ? " · " + (node.label || node.kind) : " · All matching nodes");
   const action = event.actions.find(item => item.kind === "replace-player-army");
   const army = typeof action?.armyId === "string" ? workspace.armies.find(item => item.id === action.armyId) : undefined;
   return trigger + " · " + target + (action ? " · Player army: " + (army?.name ?? (action.armyId || "choose an army")) : " · No supported action");
 }
 
-function renderCampaignEventEditor(event: CampaignRecord["events"][number], eventIndex: number, campaign: CampaignRecord, workspace: Workspace, mode: EditorMode, focused: boolean): string {
+function renderMissionEventEditor(event: MissionRecord["events"][number], eventIndex: number, mission: MissionRecord, workspace: Workspace, mode: EditorMode, focused: boolean): string {
   const path = (field: string) => "events." + eventIndex + "." + field;
   const eventIdAttribute = ' data-event-id="' + escapeHtml(event.id) + '"';
-  const floorOptions: Array<[string, string]> = [["", "Every floor"], ...campaign.floors.map(item => [String(item.number), "Floor " + item.number] as [string, string])];
-  const floor = campaign.floors.find(item => item.number === event.floorNumber);
+  const floorOptions: Array<[string, string]> = [["", "Every floor"], ...mission.floors.map(item => [String(item.number), "Floor " + item.number] as [string, string])];
+  const floor = mission.floors.find(item => item.number === event.floorNumber);
   const eligibleNodes = floor ? floor.nodes.filter(node => event.trigger === "node-cleared"
     ? node.kind !== "Start"
     : (event.trigger === "before-battle" || event.trigger === "after-battle") && (node.kind === "Battle" || node.kind === "Boss")) : [];
-  const targetFields = event.trigger === "campaign-start" ? "" : '<div class="campaign-event-target-fields">' +
+  const targetFields = event.trigger === "mission-start" ? "" : '<div class="mission-event-target-fields">' +
     selectField("Floor", path("floorNumber"), event.floorNumber ?? "", floorOptions, "", true, true) +
     (floor ? selectField("Specific node", path("nodeId"), event.nodeId ?? "", [["", "All matching nodes"], ...eligibleNodes.map(node => [node.id, node.label + " · " + node.kind] as [string, string])], "", true) : "") +
     '</div>';
   const actionRows = event.actions.map((action, actionIndex) => {
-    if (action.kind !== "replace-player-army") return '<div class="campaign-event-unknown-action"><span>Unsupported action</span><code>' + escapeHtml(action.kind || "(missing kind)") + '</code></div>';
+    if (action.kind !== "replace-player-army") return '<div class="mission-event-unknown-action"><span>Unsupported action</span><code>' + escapeHtml(action.kind || "(missing kind)") + '</code></div>';
     const armyId = typeof action.armyId === "string" ? action.armyId : "";
     const army = workspace.armies.find(item => item.id === armyId);
-    return '<div class="campaign-event-action-row"><div class="campaign-event-action-heading"><strong>Replace player army</strong>' +
-      (event.actions.filter(item => item.kind === "replace-player-army").length > 1 ? actionButton("campaign-remove-event-action", "Remove", "text-button danger-text", ' data-index="' + actionIndex + '"' + eventIdAttribute) : "") + '</div>' +
+    return '<div class="mission-event-action-row"><div class="mission-event-action-heading"><strong>Replace player army</strong>' +
+      (event.actions.filter(item => item.kind === "replace-player-army").length > 1 ? actionButton("mission-remove-event-action", "Remove", "text-button danger-text", ' data-index="' + actionIndex + '"' + eventIdAttribute) : "") + '</div>' +
       selectField("Player army", path("actions." + actionIndex + ".armyId"), armyId, [["", "Choose an Army Editor army"], ...workspace.armies.map(item => [item.id, item.name + " · " + item.id] as [string, string])]) +
-      '<div class="related-editor-actions">' + actionButton("create-campaign-event-army", "＋ Create army", "text-button related-create", eventIdAttribute) +
-      (army ? actionButton("open-campaign-event-army", "Edit linked army", "text-button related-open", ' data-army-id="' + escapeHtml(army.id) + '"' + eventIdAttribute) : "") + '</div></div>';
+      '<div class="related-editor-actions">' + actionButton("create-mission-event-army", "＋ Create army", "text-button related-create", eventIdAttribute) +
+      (army ? actionButton("open-mission-event-army", "Edit linked army", "text-button related-open", ' data-army-id="' + escapeHtml(army.id) + '"' + eventIdAttribute) : "") + '</div></div>';
   }).join("");
   const hasReplaceAction = event.actions.some(action => action.kind === "replace-player-army");
   const idField = mode === "full" ? inputField("Event ID", path("id"), event.id, { placeholder: "intro-army" }) :
     '<details class="advanced-rule-disclosure"><summary>Advanced · stable event ID</summary>' + inputField("Event ID", path("id"), event.id, { placeholder: "intro-army" }) + '</details>';
-  return '<section class="campaign-event-editor' + (focused ? " campaign-event-focus" : "") + '" data-campaign-event="' + escapeHtml(event.id) + '">' +
-    '<div class="campaign-event-editor-heading"><div><span class="eyebrow">EVENT ' + (eventIndex + 1) + '</span><h3>' + escapeHtml(CAMPAIGN_EVENT_TRIGGER_LABELS.find(([value]) => value === event.trigger)?.[1] ?? "Campaign event") + '</h3></div>' +
-    (focused ? actionButton("campaign-events-back", "← Events", "button button-outline") : actionButton("campaign-remove-event", "Remove", "icon-button danger-icon", eventIdAttribute + ' aria-label="Remove campaign event" title="Remove campaign event"')) + '</div>' +
-    selectField("When", path("trigger"), event.trigger, CAMPAIGN_EVENT_TRIGGER_LABELS, "", true) + targetFields +
-    '<section class="campaign-event-actions"><div class="campaign-event-section-heading"><h4>Actions</h4>' + (!hasReplaceAction ? actionButton("campaign-add-event-action", "＋ Add action", "text-button related-create", eventIdAttribute) : "") + '</div>' +
-    (actionRows || '<p class="campaign-event-empty-action">Add an action to this event.</p>') + '</section>' + idField + '</section>';
+  return '<section class="mission-event-editor' + (focused ? " mission-event-focus" : "") + '" data-mission-event="' + escapeHtml(event.id) + '">' +
+    '<div class="mission-event-editor-heading"><div><span class="eyebrow">EVENT ' + (eventIndex + 1) + '</span><h3>' + escapeHtml(MISSION_EVENT_TRIGGER_LABELS.find(([value]) => value === event.trigger)?.[1] ?? "Mission event") + '</h3></div>' +
+    (focused ? actionButton("mission-events-back", "← Events", "button button-outline") : actionButton("mission-remove-event", "Remove", "icon-button danger-icon", eventIdAttribute + ' aria-label="Remove mission event" title="Remove mission event"')) + '</div>' +
+    selectField("When", path("trigger"), event.trigger, MISSION_EVENT_TRIGGER_LABELS, "", true) + targetFields +
+    '<section class="mission-event-actions"><div class="mission-event-section-heading"><h4>Actions</h4>' + (!hasReplaceAction ? actionButton("mission-add-event-action", "＋ Add action", "text-button related-create", eventIdAttribute) : "") + '</div>' +
+    (actionRows || '<p class="mission-event-empty-action">Add an action to this event.</p>') + '</section>' + idField + '</section>';
 }
 
-function renderCampaignEventsList(campaign: CampaignRecord, workspace: Workspace): string {
-  const rows = campaign.events.map(event => '<div class="campaign-event-list-row"><button type="button" class="campaign-event-list-main" data-action="campaign-select-event" data-event-id="' + escapeHtml(event.id) + '"><strong>' + escapeHtml(CAMPAIGN_EVENT_TRIGGER_LABELS.find(([value]) => value === event.trigger)?.[1] ?? "Campaign event") + '</strong><span>' + escapeHtml(campaignEventSummary(event, campaign, workspace)) + '</span></button>' +
-    actionButton("campaign-remove-event", "Remove", "icon-button danger-icon", ' data-event-id="' + escapeHtml(event.id) + '" aria-label="Remove campaign event" title="Remove campaign event"') + '</div>').join("");
-  return '<section class="campaign-event-list"><div class="campaign-event-list-heading">' + actionButton("campaign-add-event", "＋ Add event", "button button-outline") + '</div>' +
-    (rows || '<p class="campaign-event-empty">No campaign events yet.</p>') + '</section>';
+function renderMissionEventsList(mission: MissionRecord, workspace: Workspace): string {
+  const rows = mission.events.map(event => '<div class="mission-event-list-row"><button type="button" class="mission-event-list-main" data-action="mission-select-event" data-event-id="' + escapeHtml(event.id) + '"><strong>' + escapeHtml(MISSION_EVENT_TRIGGER_LABELS.find(([value]) => value === event.trigger)?.[1] ?? "Mission event") + '</strong><span>' + escapeHtml(missionEventSummary(event, mission, workspace)) + '</span></button>' +
+    actionButton("mission-remove-event", "Remove", "icon-button danger-icon", ' data-event-id="' + escapeHtml(event.id) + '" aria-label="Remove mission event" title="Remove mission event"') + '</div>').join("");
+  return '<section class="mission-event-list"><div class="mission-event-list-heading">' + actionButton("mission-add-event", "＋ Add event", "button button-outline") + '</div>' +
+    (rows || '<p class="mission-event-empty">No mission events yet.</p>') + '</section>';
 }
 
-function renderCampaignEditor(
-  campaign: CampaignRecord,
+function renderMissionEditor(
+  mission: MissionRecord,
   workspace: Workspace,
   catalog: ArmyCatalog,
   mode: EditorMode,
-  viewState: CampaignViewState,
+  viewState: MissionViewState,
   activeStep: number,
   helpVisible: boolean,
   returnState?: RelatedEditorReturnState,
-  selectedCampaignEventId: string | null = null
+  selectedMissionEventId: string | null = null
 ): string {
-  const floor = campaign.floors.find(item => item.id === viewState.selectedFloorId) ?? campaign.floors[0];
-  const floorIndex = floor ? campaign.floors.findIndex(item => item.id === floor.id) : -1;
+  const floor = mission.floors.find(item => item.id === viewState.selectedFloorId) ?? mission.floors[0];
+  const floorIndex = floor ? mission.floors.findIndex(item => item.id === floor.id) : -1;
   const selectedNode = floor?.nodes.find(node => node.id === viewState.selectedNodeId);
   const nodeIndex = selectedNode && floor ? floor.nodes.indexOf(selectedNode) : -1;
   const path = (field: string) => "floors." + floorIndex + ".nodes." + nodeIndex + "." + field;
-  const allIssues = validateCampaign(campaign, workspace, catalog);
+  const allIssues = validateMission(mission, workspace, catalog);
   const errorCount = allIssues.filter(issue => issue.level === "error").length;
   const kindNames: AdventureNodeKind[] = ["Start", "Battle", "Reward", "Boss", "Quest", "Shop"];
-  const floorTabs = campaign.floors.map(item =>
-    '<button type="button" class="campaign-floor-tab' + (floor?.id === item.id ? " is-active" : "") + '" data-action="campaign-select-floor" data-floor-id="' + escapeHtml(item.id) + '"><strong>Floor ' + item.number + '</strong><small>' + (item.mode === "authored" ? "Hand placed" : item.mode === "random" ? "Random" : "Mixed") + '</small></button>'
+  const floorTabs = mission.floors.map(item =>
+    '<button type="button" class="mission-floor-tab' + (floor?.id === item.id ? " is-active" : "") + '" data-action="mission-select-floor" data-floor-id="' + escapeHtml(item.id) + '"><strong>Floor ' + item.number + '</strong><small>' + (item.mode === "authored" ? "Hand placed" : item.mode === "random" ? "Random" : "Mixed") + '</small></button>'
   ).join("");
-  const startingSettings = '<section class="campaign-settings-panel" id="campaign-starting-run"><div class="campaign-section-heading"><div><h2>Starting run</h2></div></div>' +
+  const startingSettings = '<section class="mission-settings-panel" id="mission-starting-run"><div class="mission-section-heading"><div><h2>Starting run</h2></div></div>' +
     '<div class="form-grid two">' +
-    selectField("Board preview unit", "boardPreviewUnitId", campaign.boardPreviewUnitId ?? "", [
+    selectField("Board preview unit", "boardPreviewUnitId", mission.boardPreviewUnitId ?? "", [
       ["", "Use selected faction hero"],
       ...catalog.units.flatMap(unit => unit.levels.map(level => [
         level.id,
         unit.name + " · Level " + level.level + " (" + unit.faction + ")"
       ] as [string, string]))
     ], "Shown as the player's character on the Adventure board. This does not change the starting Army.") +
-    inputField("Starting lives", "settings.startingLives", campaign.settings.startingLives, { type: "number", min: 1, max: 99 }) +
-    inputField("Starting Sardines", "settings.startingSardines", campaign.settings.startingSardines, { type: "number", min: 10, max: 50 }) +
+    inputField("Starting lives", "settings.startingLives", mission.settings.startingLives, { type: "number", min: 1, max: 99 }) +
+    inputField("Starting Sardines", "settings.startingSardines", mission.settings.startingSardines, { type: "number", min: 10, max: 50 }) +
     selectField(
-      campaign.settings.factionSelectionEnabled ? "Default player faction" : "Player faction used by this campaign",
+      mission.settings.factionSelectionEnabled ? "Default player faction" : "Player faction used by this mission",
       "settings.playerFactionId",
-      campaign.settings.playerFactionId,
-      [["", campaign.settings.factionSelectionEnabled ? "Use game default" : "Choose a player faction"], ...catalog.factions.map(item => [item.id, item.name] as [string, string])]
+      mission.settings.playerFactionId,
+      [["", mission.settings.factionSelectionEnabled ? "Use game default" : "Choose a player faction"], ...catalog.factions.map(item => [item.id, item.name] as [string, string])]
     ) +
-    '</div><label class="campaign-check"><input type="checkbox" data-bind="settings.factionSelectionEnabled"' + (campaign.settings.factionSelectionEnabled ? " checked" : "") + '><span>Allow faction selection</span></label>' +
-    '<p class="help-copy">When disabled, the campaign always uses its selected Player faction.</p>' +
-    '<label class="campaign-check"><input type="checkbox" data-bind="settings.battleShopEnabled"' + (campaign.settings.battleShopEnabled ? " checked" : "") + '><span>Keep battle shop enabled</span></label>' +
-    '<label class="campaign-check"><input type="checkbox" data-bind="settings.sardinePayoutEnabled"' + (campaign.settings.sardinePayoutEnabled ? " checked" : "") + '><span>Enable default Sardine payouts on generated rewards</span></label>' +
-    (campaign.settings.sardinePayoutEnabled ? '<div class="form-grid two">' +
-      inputField("Sardine payout base", "settings.sardinePayoutBase", campaign.settings.sardinePayoutBase, { type: "number", min: 0 }) +
-      inputField("Extra Sardines per floor", "settings.sardinePayoutPerFloor", campaign.settings.sardinePayoutPerFloor, { type: "number", min: 0 }) +
+    '</div><label class="mission-check"><input type="checkbox" data-bind="settings.factionSelectionEnabled"' + (mission.settings.factionSelectionEnabled ? " checked" : "") + '><span>Allow faction selection</span></label>' +
+    '<p class="help-copy">When disabled, the mission always uses its selected Player faction.</p>' +
+    '<label class="mission-check"><input type="checkbox" data-bind="settings.battleShopEnabled"' + (mission.settings.battleShopEnabled ? " checked" : "") + '><span>Keep battle shop enabled</span></label>' +
+    '<label class="mission-check"><input type="checkbox" data-bind="settings.sardinePayoutEnabled"' + (mission.settings.sardinePayoutEnabled ? " checked" : "") + '><span>Enable default Sardine payouts on generated rewards</span></label>' +
+    (mission.settings.sardinePayoutEnabled ? '<div class="form-grid two">' +
+      inputField("Sardine payout base", "settings.sardinePayoutBase", mission.settings.sardinePayoutBase, { type: "number", min: 0 }) +
+      inputField("Extra Sardines per floor", "settings.sardinePayoutPerFloor", mission.settings.sardinePayoutPerFloor, { type: "number", min: 0 }) +
       '</div>' : '') + '</section>';
-  const generatedFloorSettings = '<section class="campaign-settings-panel" id="campaign-progression"><div class="campaign-section-heading"><div><h2>' + (campaign.designMode === "settings-only" ? "Later generated floors" : "After these boards") + '</h2></div></div>' +
-    '<label class="campaign-check"><input type="checkbox" data-bind="settings.continueWithGeneratedFloors"' + (campaign.settings.continueWithGeneratedFloors ? " checked" : "") + '><span>Continue with generated floors</span></label>' +
-    (campaign.settings.continueWithGeneratedFloors ? '<div class="form-grid two">' +
-      inputField("Initial random node count", "settings.startingNodeCount", campaign.settings.startingNodeCount, { type: "number", min: 12, max: 30, step: 2 }) +
-      (campaign.questIds.length || campaign.settings.questNodeCountPerRandomFloor ? inputField("Generated quest nodes", "settings.questNodeCountPerRandomFloor", campaign.settings.questNodeCountPerRandomFloor, { type: "number", min: 0, max: 4 }) : "") +
-      inputField("Generated shop nodes", "settings.shopNodeCountPerRandomFloor", campaign.settings.shopNodeCountPerRandomFloor, { type: "number", min: 0, max: 7 }) +
-      inputField("Node growth per floor", "settings.nodeGrowthPerFloor", campaign.settings.nodeGrowthPerFloor, { type: "number", min: 1, max: 10 }) +
-      '</div>' : '<p class="campaign-progression-note help-copy">Generated floor rules are available when the campaign continues beyond these boards.</p>') + '</section>';
+  const generatedFloorSettings = '<section class="mission-settings-panel" id="mission-progression"><div class="mission-section-heading"><div><h2>' + (mission.designMode === "settings-only" ? "Later generated floors" : "After these boards") + '</h2></div></div>' +
+    '<label class="mission-check"><input type="checkbox" data-bind="settings.continueWithGeneratedFloors"' + (mission.settings.continueWithGeneratedFloors ? " checked" : "") + '><span>Continue with generated floors</span></label>' +
+    (mission.settings.continueWithGeneratedFloors ? '<div class="form-grid two">' +
+      inputField("Initial random node count", "settings.startingNodeCount", mission.settings.startingNodeCount, { type: "number", min: 12, max: 30, step: 2 }) +
+      (mission.questIds.length || mission.settings.questNodeCountPerRandomFloor ? inputField("Generated quest nodes", "settings.questNodeCountPerRandomFloor", mission.settings.questNodeCountPerRandomFloor, { type: "number", min: 0, max: 4 }) : "") +
+      inputField("Generated shop nodes", "settings.shopNodeCountPerRandomFloor", mission.settings.shopNodeCountPerRandomFloor, { type: "number", min: 0, max: 7 }) +
+      inputField("Node growth per floor", "settings.nodeGrowthPerFloor", mission.settings.nodeGrowthPerFloor, { type: "number", min: 1, max: 10 }) +
+      '</div>' : '<p class="mission-progression-note help-copy">Generated floor rules are available when the mission continues beyond these boards.</p>') + '</section>';
   const settings = startingSettings + generatedFloorSettings;
-  const campaignShopSettings = '<section class="campaign-shop-pools-settings"><h2>Generated shop pools</h2><p>Choose the offers generated shops may draw.</p>' + campaignShopPoolChips(campaign.settings.shopPoolKinds, "campaign") + '</section>';
-  const floorShopSettings = floor ? '<section class="campaign-shop-unlocks"><div class="campaign-floor-tabs campaign-shop-floor-tabs">' + floorTabs + '</div><div class="campaign-shop-floor-fields">' +
+  const missionShopSettings = '<section class="mission-shop-pools-settings"><h2>Generated shop pools</h2><p>Choose the offers generated shops may draw.</p>' + missionShopPoolChips(mission.settings.shopPoolKinds, "mission") + '</section>';
+  const floorShopSettings = floor ? '<section class="mission-shop-unlocks"><div class="mission-floor-tabs mission-shop-floor-tabs">' + floorTabs + '</div><div class="mission-shop-floor-fields">' +
     selectField("Floor " + floor.number + " shop tier", "floors." + floorIndex + ".shopLevel", floor.shopLevel, [["1", "Tier 1"], ["2", "Tier 2"], ["3", "Tier 3"], ["4", "Tier 4"]], "", true) +
-    '<div class="campaign-shop-floor-pool-mode"><span>Offer pools</span>' + actionButton("campaign-toggle-floor-shop-mode", floor.shopPoolMode === "custom" ? "Use campaign pools" : "Choose floor pools", "button button-small button-outline") + '</div>' +
-    (floor.shopPoolMode === "custom" ? campaignShopPoolChips(floor.shopPoolKinds, "floor") : '<p class="campaign-shop-inherited">Uses: ' + escapeHtml((campaign.settings.shopPoolKinds.length ? campaign.settings.shopPoolKinds.map(kind => CAMPAIGN_SHOP_KIND_LABELS.find(([value]) => value === kind)?.[1] ?? kind).join(", ") : "no offer pools")) + '</p>') +
-    '</div></section>' : '<div class="campaign-empty-state">Add a floor to configure shop unlocks.</div>';
-  const campaignShopAdvanced = '<details id="campaign-shops" class="campaign-shop-advanced"><summary>Shop pools and floor unlocks</summary><div class="campaign-shop-advanced-content">' + campaignShopSettings + floorShopSettings + '</div></details>';
+    '<div class="mission-shop-floor-pool-mode"><span>Offer pools</span>' + actionButton("mission-toggle-floor-shop-mode", floor.shopPoolMode === "custom" ? "Use mission pools" : "Choose floor pools", "button button-small button-outline") + '</div>' +
+    (floor.shopPoolMode === "custom" ? missionShopPoolChips(floor.shopPoolKinds, "floor") : '<p class="mission-shop-inherited">Uses: ' + escapeHtml((mission.settings.shopPoolKinds.length ? mission.settings.shopPoolKinds.map(kind => MISSION_SHOP_KIND_LABELS.find(([value]) => value === kind)?.[1] ?? kind).join(", ") : "no offer pools")) + '</p>') +
+    '</div></section>' : '<div class="mission-empty-state">Add a floor to configure shop unlocks.</div>';
+  const missionShopAdvanced = '<details id="mission-shops" class="mission-shop-advanced"><summary>Shop pools and floor unlocks</summary><div class="mission-shop-advanced-content">' + missionShopSettings + floorShopSettings + '</div></details>';
 
   let board = "";
   let randomControls = "";
-  let selectedRoutes: CampaignFloor["routes"] = [];
+  let selectedRoutes: MissionFloor["routes"] = [];
   let routes = "";
   let nodeProperties = "";
   if (floor) {
-    const showQuestNodeCount = campaign.questIds.length > 0 || floor.randomSettings.questNodeCount > 0;
-    randomControls = floor.mode === "authored" ? "" : '<section class="campaign-random-settings"><div><span class="eyebrow">' + (floor.mode === "random" ? "GENERATED BOARD" : "GENERATED ADDITIONS") + '</span><strong>' + (floor.mode === "random" ? "Set the floor shape" : "Fill the spaces around your hand-placed nodes") + '</strong><small class="help-copy">' + (floor.mode === "random" ? "Node count includes the Start and Boss nodes." : "Generated count is added to your authored nodes; Start and Boss remain hand placed.") + '</small></div><div class="form-grid three">' +
+    const showQuestNodeCount = mission.questIds.length > 0 || floor.randomSettings.questNodeCount > 0;
+    randomControls = floor.mode === "authored" ? "" : '<section class="mission-random-settings"><div><span class="eyebrow">' + (floor.mode === "random" ? "GENERATED BOARD" : "GENERATED ADDITIONS") + '</span><strong>' + (floor.mode === "random" ? "Set the floor shape" : "Fill the spaces around your hand-placed nodes") + '</strong><small class="help-copy">' + (floor.mode === "random" ? "Node count includes the Start and Boss nodes." : "Generated count is added to your authored nodes; Start and Boss remain hand placed.") + '</small></div><div class="form-grid three">' +
       inputField(floor.mode === "random" ? "Total nodes" : "Add generated nodes", "floors." + floorIndex + ".randomSettings.nodeCount", floor.randomSettings.nodeCount, { type: "number", min: floor.mode === "random" ? 12 : 0, max: floor.mode === "mixed" ? Math.max(0, 30 - floor.nodes.length) : 30, step: floor.mode === "random" ? 2 : 1, rerender: true }) +
       (showQuestNodeCount ? inputField("Quest nodes", "floors." + floorIndex + ".randomSettings.questNodeCount", floor.randomSettings.questNodeCount, { type: "number", min: 0, max: 4, rerender: true }) : "") +
       inputField("Shop nodes", "floors." + floorIndex + ".randomSettings.shopNodeCount", floor.randomSettings.shopNodeCount, { type: "number", min: 0, max: 7, rerender: true }) +
@@ -1397,7 +1397,7 @@ function renderCampaignEditor(
       const distanceText = String(mapSteps);
       const labelX = (x1 + 3 * control1X + 3 * control2X + x2) / 8;
       const labelY = (y1 + 3 * y1 + 3 * y2 + y2) / 8 - 5;
-      return '<g class="campaign-route-group"><path class="campaign-route-line' + (route.oneWay ? " is-one-way" : "") + (viewState.selectedRouteId === route.id ? " is-selected" : "") + '" data-campaign-route-id="' + escapeHtml(route.id) + '" role="button" tabindex="0" aria-label="Connection: ' + escapeHtml(fromName + (route.oneWay ? " to " : " with ") + toName + "; map distance " + distanceText + (mapSteps === 1 ? " step" : " steps")) + '" d="M ' + x1 + ' ' + y1 + ' C ' + control1X + ' ' + y1 + ', ' + control2X + ' ' + y2 + ', ' + x2 + ' ' + y2 + '"' + (route.oneWay ? ' marker-end="url(#campaign-arrow)"' : "") + '/><text class="campaign-route-distance" x="' + labelX + '" y="' + labelY + '" aria-hidden="true">' + distanceText + '</text></g>';
+      return '<g class="mission-route-group"><path class="mission-route-line' + (route.oneWay ? " is-one-way" : "") + (viewState.selectedRouteId === route.id ? " is-selected" : "") + '" data-mission-route-id="' + escapeHtml(route.id) + '" role="button" tabindex="0" aria-label="Connection: ' + escapeHtml(fromName + (route.oneWay ? " to " : " with ") + toName + "; map distance " + distanceText + (mapSteps === 1 ? " step" : " steps")) + '" d="M ' + x1 + ' ' + y1 + ' C ' + control1X + ' ' + y1 + ', ' + control2X + ' ' + y2 + ', ' + x2 + ' ' + y2 + '"' + (route.oneWay ? ' marker-end="url(#mission-arrow)"' : "") + '/><text class="mission-route-distance" x="' + labelX + '" y="' + labelY + '" aria-hidden="true">' + distanceText + '</text></g>';
     }).join("");
     const selectedRoute = floor.routes.find(route => route.id === viewState.selectedRouteId);
     const selectedRouteFrom = selectedRoute && floor.nodes.find(node => node.id === selectedRoute.fromNodeId);
@@ -1405,229 +1405,229 @@ function renderCampaignEditor(
     const selectedRouteX = selectedRouteFrom && selectedRouteTo ? offsetX + ((selectedRouteFrom.x + selectedRouteTo.x) / 2) * snap : 0;
     const selectedRouteY = selectedRouteFrom && selectedRouteTo ? offsetY + ((selectedRouteFrom.y + selectedRouteTo.y) / 2) * snap : 0;
     const selectedRouteRemove = selectedRoute && selectedRouteFrom && selectedRouteTo
-      ? '<button type="button" class="campaign-route-remove-float" style="left:' + selectedRouteX + 'px;top:' + selectedRouteY + 'px" data-action="campaign-remove-route" data-route-id="' + escapeHtml(selectedRoute.id) + '" aria-label="Disconnect ' + escapeHtml(selectedRouteFrom.label + " and " + selectedRouteTo.label) + '" title="Disconnect">×</button>'
+      ? '<button type="button" class="mission-route-remove-float" style="left:' + selectedRouteX + 'px;top:' + selectedRouteY + 'px" data-action="mission-remove-route" data-route-id="' + escapeHtml(selectedRoute.id) + '" aria-label="Disconnect ' + escapeHtml(selectedRouteFrom.label + " and " + selectedRouteTo.label) + '" title="Disconnect">×</button>'
       : "";
     const pendingNode = floor.nodes.find(node => node.id === viewState.pendingPlugFromId);
     const pendingX = pendingNode ? offsetX + pendingNode.x * snap + 62 : 0;
     const pendingY = pendingNode ? offsetY + pendingNode.y * snap : 0;
-    const pendingLine = '<line class="campaign-route-draft" x1="' + pendingX + '" y1="' + pendingY + '" x2="' + pendingX + '" y2="' + pendingY + '"' + (pendingNode ? "" : " hidden") + '/>';
-    const nodes = floor.nodes.map(node => '<div draggable="true" class="campaign-node campaign-node-' + node.kind.toLowerCase() + (selectedNode?.id === node.id ? " is-selected" : "") + (viewState.pendingPlugFromId === node.id ? " is-route-source" : "") + '" data-campaign-node data-node-id="' + escapeHtml(node.id) + '" style="left:' + (offsetX + node.x * snap) + 'px;top:' + (offsetY + node.y * snap) + 'px">' +
-      '<button type="button" class="campaign-node-port campaign-node-input" data-campaign-port="input" data-node-id="' + escapeHtml(node.id) + '" aria-label="Connect into ' + escapeHtml(node.label) + '" title="Drop a connection here"></button>' +
-      '<button type="button" class="campaign-node-select" data-action="campaign-node" data-node-id="' + escapeHtml(node.id) + '" aria-label="Edit ' + escapeHtml(node.kind + ": " + node.label + ", grid cell " + node.x + ", " + node.y) + '" title="Grid cell ' + node.x + ', ' + node.y + '"><span class="campaign-node-symbol">' + ({ Start: "S", Battle: "⚔", Reward: "★", Boss: "B", Quest: "?", Shop: "$" } as Record<string, string>)[node.kind] + '</span><strong>' + escapeHtml(node.label) + '</strong><small>' + escapeHtml(node.kind) + ' · ' + node.x + ', ' + node.y + '</small></button>' +
-      '<button type="button" class="campaign-node-port campaign-node-output" data-campaign-port="output" data-node-id="' + escapeHtml(node.id) + '" aria-label="Drag from ' + escapeHtml(node.label) + ' to connect" title="Drag to another node’s input plug"></button></div>').join("");
-    const addMenu = '<div class="campaign-node-menu"' + (viewState.addMenuOpen ? '' : ' hidden') + ' aria-label="Choose node type">' + kindNames.map(kind => {
+    const pendingLine = '<line class="mission-route-draft" x1="' + pendingX + '" y1="' + pendingY + '" x2="' + pendingX + '" y2="' + pendingY + '"' + (pendingNode ? "" : " hidden") + '/>';
+    const nodes = floor.nodes.map(node => '<div draggable="true" class="mission-node mission-node-' + node.kind.toLowerCase() + (selectedNode?.id === node.id ? " is-selected" : "") + (viewState.pendingPlugFromId === node.id ? " is-route-source" : "") + '" data-mission-node data-node-id="' + escapeHtml(node.id) + '" style="left:' + (offsetX + node.x * snap) + 'px;top:' + (offsetY + node.y * snap) + 'px">' +
+      '<button type="button" class="mission-node-port mission-node-input" data-mission-port="input" data-node-id="' + escapeHtml(node.id) + '" aria-label="Connect into ' + escapeHtml(node.label) + '" title="Drop a connection here"></button>' +
+      '<button type="button" class="mission-node-select" data-action="mission-node" data-node-id="' + escapeHtml(node.id) + '" aria-label="Edit ' + escapeHtml(node.kind + ": " + node.label + ", grid cell " + node.x + ", " + node.y) + '" title="Grid cell ' + node.x + ', ' + node.y + '"><span class="mission-node-symbol">' + ({ Start: "S", Battle: "⚔", Reward: "★", Boss: "B", Quest: "?", Shop: "$" } as Record<string, string>)[node.kind] + '</span><strong>' + escapeHtml(node.label) + '</strong><small>' + escapeHtml(node.kind) + ' · ' + node.x + ', ' + node.y + '</small></button>' +
+      '<button type="button" class="mission-node-port mission-node-output" data-mission-port="output" data-node-id="' + escapeHtml(node.id) + '" aria-label="Drag from ' + escapeHtml(node.label) + ' to connect" title="Drag to another node’s input plug"></button></div>').join("");
+    const addMenu = '<div class="mission-node-menu"' + (viewState.addMenuOpen ? '' : ' hidden') + ' aria-label="Choose node type">' + kindNames.map(kind => {
         const uniqueTaken = kind === "Start" || kind === "Boss" ? floor.nodes.some(node => node.kind === kind) : false;
-        return '<button type="button" class="campaign-add-kind' + (viewState.interactionMode === "add" && viewState.nodeKind === kind ? " is-active" : "") + '" data-action="campaign-node-tool" data-kind="' + kind + '" title="Add ' + kind + ' node" aria-pressed="' + String(viewState.interactionMode === "add" && viewState.nodeKind === kind) + '"' + (uniqueTaken ? " disabled" : "") + '><b>' + ({ Start: "S", Battle: "⚔", Reward: "★", Boss: "B", Quest: "?", Shop: "$" } as Record<string, string>)[kind] + '</b>' + kind + '</button>';
+        return '<button type="button" class="mission-add-kind' + (viewState.interactionMode === "add" && viewState.nodeKind === kind ? " is-active" : "") + '" data-action="mission-node-tool" data-kind="' + kind + '" title="Add ' + kind + ' node" aria-pressed="' + String(viewState.interactionMode === "add" && viewState.nodeKind === kind) + '"' + (uniqueTaken ? " disabled" : "") + '><b>' + ({ Start: "S", Battle: "⚔", Reward: "★", Boss: "B", Quest: "?", Shop: "$" } as Record<string, string>)[kind] + '</b>' + kind + '</button>';
       }).join("") + '</div>';
-    const tools = floor.mode === "random" ? "" : '<div class="campaign-board-tools"><button type="button" class="button button-outline campaign-add-node-button" data-action="campaign-toggle-add-menu" aria-expanded="' + String(viewState.addMenuOpen) + '">＋ Add node</button>' + addMenu + '</div>';
+    const tools = floor.mode === "random" ? "" : '<div class="mission-board-tools"><button type="button" class="button button-outline mission-add-node-button" data-action="mission-toggle-add-menu" aria-expanded="' + String(viewState.addMenuOpen) + '">＋ Add node</button>' + addMenu + '</div>';
     const interactionHint = viewState.interactionMode === "add"
       ? "Click an empty map spot to place a " + viewState.nodeKind + " node."
       : "Drag plugs to connect. Click a node to edit, drag it to move, or click a line to disconnect.";
-    const interactionStatus = '<div class="campaign-map-status" data-mode="' + viewState.interactionMode + '" role="status" aria-live="polite"><span class="help-copy">' + escapeHtml(interactionHint) + '</span>' +
-      (viewState.interactionMode === "add" ? actionButton("campaign-select-mode", "Cancel placement", "text-button campaign-cancel-action") : "") + '</div>';
-    nodeProperties = selectedNode ? '<div class="campaign-node-inspector"><div class="campaign-inspector-heading"><div><h3>' + escapeHtml(selectedNode.kind) + '</h3></div>' + actionButton("campaign-remove-node", "Remove node", "text-button danger-text") + '</div>' +
+    const interactionStatus = '<div class="mission-map-status" data-mode="' + viewState.interactionMode + '" role="status" aria-live="polite"><span class="help-copy">' + escapeHtml(interactionHint) + '</span>' +
+      (viewState.interactionMode === "add" ? actionButton("mission-select-mode", "Cancel placement", "text-button mission-cancel-action") : "") + '</div>';
+    nodeProperties = selectedNode ? '<div class="mission-node-inspector"><div class="mission-inspector-heading"><div><h3>' + escapeHtml(selectedNode.kind) + '</h3></div>' + actionButton("mission-remove-node", "Remove node", "text-button danger-text") + '</div>' +
       inputField("Node name", path("label"), selectedNode.label, { placeholder: selectedNode.kind + " node" }) +
       ((selectedNode.kind === "Battle" || selectedNode.kind === "Boss") ? '<div class="form-grid two">' +
         selectField("Enemy army", path("armyId"), selectedNode.armyId, [["", "Use generated army"], ...workspace.armies.map(army => [army.id, army.name + " · " + army.units.length + " units"] as [string, string])], "Create detailed formations in Armies.") +
         selectField("Enemy faction", path("enemyFactionId"), selectedNode.enemyFactionId, [["", "Use army or game default"], ...catalog.factions.map(item => [item.id, item.name] as [string, string])]) +
-        '</div><div class="related-editor-actions">' + actionButton("create-campaign-army", "＋ Create army", "text-button related-create") +
-        (selectedNode.armyId ? actionButton("open-campaign-army", "Edit linked army", "text-button related-open", ' data-army-id="' + escapeHtml(selectedNode.armyId) + '"') : "") + '</div>' : "") +
-      (selectedNode.kind === "Quest" ? selectField("Quest on this node", path("questId"), selectedNode.questId, [["", "Choose from campaign quest pool"], ...campaign.questIds.flatMap(id => {
+        '</div><div class="related-editor-actions">' + actionButton("create-mission-army", "＋ Create army", "text-button related-create") +
+        (selectedNode.armyId ? actionButton("open-mission-army", "Edit linked army", "text-button related-open", ' data-army-id="' + escapeHtml(selectedNode.armyId) + '"') : "") + '</div>' : "") +
+      (selectedNode.kind === "Quest" ? selectField("Quest on this node", path("questId"), selectedNode.questId, [["", "Choose from mission quest pool"], ...mission.questIds.flatMap(id => {
         const quest = workspace.quests.find(item => item.definition.id === id);
         return quest ? [[id, quest.definition.title || id] as [string, string]] : [];
-      })], campaign.questIds.length ? "This assignment is fixed for the floor." : "Add quests to the campaign pool below.") +
-        '<div class="related-editor-actions">' + actionButton("create-campaign-node-quest", "＋ Create quest", "text-button related-create") +
-        (selectedNode.questId ? actionButton("open-campaign-node-quest", "Edit linked quest", "text-button related-open", ' data-quest-id="' + escapeHtml(selectedNode.questId) + '"') : "") + '</div>' : "") +
+      })], mission.questIds.length ? "This assignment is fixed for the floor." : "Add quests to the mission pool below.") +
+        '<div class="related-editor-actions">' + actionButton("create-mission-node-quest", "＋ Create quest", "text-button related-create") +
+        (selectedNode.questId ? actionButton("open-mission-node-quest", "Edit linked quest", "text-button related-open", ' data-quest-id="' + escapeHtml(selectedNode.questId) + '"') : "") + '</div>' : "") +
       (selectedNode.kind === "Reward" ? '<div class="form-grid two">' +
         selectField("Reward", path("rewardKind"), selectedNode.rewardKind, [["Sardines", "Sardines"], ["ExtraLife", "Extra life"], ["Blessing", "Blessing"], ["UnitUnlock", "Unit unlock"], ["ShopLevelUnlock", "Shop level unlock"], ["SpellUnlock", "Spell unlock"]]) +
         inputField("Amount", path("rewardAmount"), selectedNode.rewardAmount, { type: "number", min: 0, max: 9999 }) +
         (selectedNode.rewardKind === "Blessing" || selectedNode.rewardKind === "UnitUnlock" || selectedNode.rewardKind === "SpellUnlock" ? inputField("Content ID", path("rewardContentId"), selectedNode.rewardContentId, { placeholder: "Catalog ID" }) : "") +
         '</div>' : "") +
-      (selectedNode.kind === "Shop" ? '<details class="campaign-shop-node-settings"' + (mode === "guided" ? " open" : "") + '><summary>Shop stock · ' + (selectedNode.shopOfferMode === "exact" ? selectedNode.shopOffers.length + " exact offers" : "uses floor pools") + '</summary><div class="campaign-shop-node-content">' +
+      (selectedNode.kind === "Shop" ? '<details class="mission-shop-node-settings"' + (mode === "guided" ? " open" : "") + '><summary>Shop stock · ' + (selectedNode.shopOfferMode === "exact" ? selectedNode.shopOffers.length + " exact offers" : "uses floor pools") + '</summary><div class="mission-shop-node-content">' +
         selectField("Stock", path("shopOfferMode"), selectedNode.shopOfferMode, [["generated", "Use pools unlocked on this floor"], ["exact", "Set exact items and prices"]], "", true) +
-        (selectedNode.shopOfferMode === "exact" ? '<p class="campaign-shop-note">Adventure map shops show three offers. Exact stock replaces the generated offers for this node.</p>' +
-          '<div class="campaign-shop-offer-list">' + selectedNode.shopOffers.map((offer, offerIndex) => {
+        (selectedNode.shopOfferMode === "exact" ? '<p class="mission-shop-note">Adventure map shops show three offers. Exact stock replaces the generated offers for this node.</p>' +
+          '<div class="mission-shop-offer-list">' + selectedNode.shopOffers.map((offer, offerIndex) => {
             const offerPath = "shopOffers." + offerIndex;
-            const itemOptions = campaignShopItemOptions(catalog, offer.kind);
-            return '<div class="campaign-shop-offer-row"><div class="campaign-shop-offer-fields">' +
-              selectField("Pool", path(offerPath + ".kind"), offer.kind, CAMPAIGN_SHOP_KIND_LABELS, "", true) +
+            const itemOptions = missionShopItemOptions(catalog, offer.kind);
+            return '<div class="mission-shop-offer-row"><div class="mission-shop-offer-fields">' +
+              selectField("Pool", path(offerPath + ".kind"), offer.kind, MISSION_SHOP_KIND_LABELS, "", true) +
               selectField("Item", path(offerPath + ".contentId"), offer.contentId, [["", "Choose item"], ...itemOptions], "", true) +
               inputField("Price · Sardines", path(offerPath + ".price"), offer.price, { type: "number", min: 0, max: 9999 }) +
-              '</div>' + actionButton("campaign-remove-shop-offer", "×", "icon-button campaign-remove-shop-offer", ' data-index="' + offerIndex + '" aria-label="Remove shop offer ' + (offerIndex + 1) + '" title="Remove offer"') + '</div>';
+              '</div>' + actionButton("mission-remove-shop-offer", "×", "icon-button mission-remove-shop-offer", ' data-index="' + offerIndex + '" aria-label="Remove shop offer ' + (offerIndex + 1) + '" title="Remove offer"') + '</div>';
           }).join("") + '</div>' +
-          actionButton("campaign-add-shop-offer", "＋ Add offer", "button button-small button-outline", ' data-node-id="' + escapeHtml(selectedNode.id) + '"' + (selectedNode.shopOffers.length >= 3 ? " disabled" : "")) : "") +
+          actionButton("mission-add-shop-offer", "＋ Add offer", "button button-small button-outline", ' data-node-id="' + escapeHtml(selectedNode.id) + '"' + (selectedNode.shopOffers.length >= 3 ? " disabled" : "")) : "") +
         '</div></details>' : "") +
-      (mode === "full" ? '<details class="campaign-advanced-node" open><summary>Stable node ID</summary>' + inputField("Node ID", path("id"), selectedNode.id) + '</details>' : "") +
-      '</div>' : '<div class="campaign-node-inspector campaign-inspector-empty"><p class="help-copy">Select a node on the board to edit it.</p></div>';
+      (mode === "full" ? '<details class="mission-advanced-node" open><summary>Stable node ID</summary>' + inputField("Node ID", path("id"), selectedNode.id) + '</details>' : "") +
+      '</div>' : '<div class="mission-node-inspector mission-inspector-empty"><p class="help-copy">Select a node on the board to edit it.</p></div>';
     selectedRoutes = selectedNode ? floor.routes.filter(route => route.fromNodeId === selectedNode.id || route.toNodeId === selectedNode.id) : [];
     routes = selectedRoutes.map(route => {
       const from = floor.nodes.find(node => node.id === route.fromNodeId);
       const to = floor.nodes.find(node => node.id === route.toNodeId);
       const routeDescription = (from?.label ?? "?") + (route.oneWay ? " to " : " linked with ") + (to?.label ?? "?");
-      return '<li class="campaign-route-row"><span>' + escapeHtml(from?.label ?? "?") + (route.oneWay ? " → " : " ↔ ") + escapeHtml(to?.label ?? "?") + '</span><div class="campaign-route-actions">' +
-        actionButton("campaign-toggle-route-direction", route.oneWay ? "Make two-way" : "Make one-way", "text-button route-direction", ' data-route-id="' + escapeHtml(route.id) + '" aria-label="' + (route.oneWay ? "Make " + escapeHtml(routeDescription) + " two-way" : "Make " + escapeHtml(routeDescription) + " one-way") + '"') +
-        actionButton("campaign-remove-route", "Disconnect", "text-button route-disconnect", ' data-route-id="' + escapeHtml(route.id) + '" aria-label="Disconnect ' + escapeHtml(routeDescription) + '"') + '</div></li>';
+      return '<li class="mission-route-row"><span>' + escapeHtml(from?.label ?? "?") + (route.oneWay ? " → " : " ↔ ") + escapeHtml(to?.label ?? "?") + '</span><div class="mission-route-actions">' +
+        actionButton("mission-toggle-route-direction", route.oneWay ? "Make two-way" : "Make one-way", "text-button route-direction", ' data-route-id="' + escapeHtml(route.id) + '" aria-label="' + (route.oneWay ? "Make " + escapeHtml(routeDescription) + " two-way" : "Make " + escapeHtml(routeDescription) + " one-way") + '"') +
+        actionButton("mission-remove-route", "Disconnect", "text-button route-disconnect", ' data-route-id="' + escapeHtml(route.id) + '" aria-label="Disconnect ' + escapeHtml(routeDescription) + '"') + '</div></li>';
     }).join("");
     const routeList = selectedNode
-      ? '<section class="campaign-route-list" aria-label="Selected node connections"><div class="campaign-route-list-heading"><strong>Connections</strong><span>' + selectedRoutes.length + '</span></div>' + (routes ? '<ul>' + routes + '</ul>' : '<small>No routes connected to this node yet.</small>') + '</section>'
+      ? '<section class="mission-route-list" aria-label="Selected node connections"><div class="mission-route-list-heading"><strong>Connections</strong><span>' + selectedRoutes.length + '</span></div>' + (routes ? '<ul>' + routes + '</ul>' : '<small>No routes connected to this node yet.</small>') + '</section>'
       : "";
-    board = '<div class="campaign-board-workspace" id="campaign-map">' + (floor.mode === "random" ? '<div class="campaign-random-preview"><div class="campaign-random-mark">✧</div><div><strong>Floor ' + floor.number + ' is generated in game</strong><p class="help-copy">Its node totals and generated Quest/Shop counts are set in Floors.</p></div></div>' :
-      '<div class="campaign-board-layout"><section class="campaign-board-column"><div class="campaign-board-instructions"><div><h2>Place nodes and connect routes</h2></div><span class="campaign-node-count">' + floor.nodes.length + (floor.mode === "mixed" ? ' + ' + floor.randomSettings.nodeCount + ' generated' : '') + ' / 30</span></div>' + tools +
-      interactionStatus + '<div class="campaign-canvas-scroll"><div class="campaign-canvas' + (viewState.interactionMode === "add" ? " is-adding" : "") + '" data-campaign-canvas data-offset-x="' + offsetX + '" data-offset-y="' + offsetY + '" data-snap="' + snap + '" style="width:' + canvasWidth + 'px;height:' + canvasHeight + 'px;--snap-bg-x:' + (offsetX % snap) + 'px;--snap-bg-y:' + (offsetY % snap) + 'px" role="group" aria-label="Adventure node graph canvas"><svg class="campaign-route-layer" viewBox="0 0 ' + canvasWidth + ' ' + canvasHeight + '" aria-hidden="true"><defs><marker id="campaign-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z"/></marker></defs>' + routeLines + pendingLine + '</svg>' + nodes + selectedRouteRemove + '</div></div>' + (mode === "full" ? routeList : "") + '</section>' + (mode === "full" ? nodeProperties : "") + '</div>') + '</div>';
+    board = '<div class="mission-board-workspace" id="mission-map">' + (floor.mode === "random" ? '<div class="mission-random-preview"><div class="mission-random-mark">✧</div><div><strong>Floor ' + floor.number + ' is generated in game</strong><p class="help-copy">Its node totals and generated Quest/Shop counts are set in Floors.</p></div></div>' :
+      '<div class="mission-board-layout"><section class="mission-board-column"><div class="mission-board-instructions"><div><h2>Place nodes and connect routes</h2></div><span class="mission-node-count">' + floor.nodes.length + (floor.mode === "mixed" ? ' + ' + floor.randomSettings.nodeCount + ' generated' : '') + ' / 30</span></div>' + tools +
+      interactionStatus + '<div class="mission-canvas-scroll"><div class="mission-canvas' + (viewState.interactionMode === "add" ? " is-adding" : "") + '" data-mission-canvas data-offset-x="' + offsetX + '" data-offset-y="' + offsetY + '" data-snap="' + snap + '" style="width:' + canvasWidth + 'px;height:' + canvasHeight + 'px;--snap-bg-x:' + (offsetX % snap) + 'px;--snap-bg-y:' + (offsetY % snap) + 'px" role="group" aria-label="Adventure node graph canvas"><svg class="mission-route-layer" viewBox="0 0 ' + canvasWidth + ' ' + canvasHeight + '" aria-hidden="true"><defs><marker id="mission-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z"/></marker></defs>' + routeLines + pendingLine + '</svg>' + nodes + selectedRouteRemove + '</div></div>' + (mode === "full" ? routeList : "") + '</section>' + (mode === "full" ? nodeProperties : "") + '</div>') + '</div>';
   }
 
-  const floorModes = '<div class="campaign-mode-switch" role="group" aria-label="Floor board mode">' +
-    (["authored", "mixed", "random"] as CampaignFloorMode[]).map(modeName => '<button type="button" data-action="campaign-set-floor-mode" data-mode="' + modeName + '" class="' + (floor?.mode === modeName ? "is-active" : "") + '">' + (modeName === "authored" ? "Hand placed" : modeName === "random" ? "Random" : "Mixed") + '</button>').join("") + '</div>';
-  const floorPoolDisclosure = floor ? '<details class="campaign-floor-pool"><summary>Random quest pool · ' + (floor.questPoolMode === "custom" ? "custom for this floor" : "using campaign pool") + '</summary><div class="campaign-floor-pool-content"><div><strong>Quest nodes on this floor</strong><p class="help-copy">' + (floor.questPoolMode === "custom" ? "Random Quest nodes will be chosen from this smaller list." : "Random Quest nodes can use any quest selected for the campaign.") + '</p></div>' +
-    actionButton("campaign-toggle-floor-pool-mode", floor.questPoolMode === "custom" ? "Use campaign pool" : "Choose a floor pool", "button button-small button-outline") +
-    (floor.questPoolMode === "custom" ? (campaign.questIds.length ? '<label class="campaign-quest-filter"><span>Find a campaign quest</span><input type="search" data-campaign-quest-filter="floor" placeholder="Search by name"></label><div class="campaign-floor-quest-options">' + campaign.questIds.map(id => {
+  const floorModes = '<div class="mission-mode-switch" role="group" aria-label="Floor board mode">' +
+    (["authored", "mixed", "random"] as MissionFloorMode[]).map(modeName => '<button type="button" data-action="mission-set-floor-mode" data-mode="' + modeName + '" class="' + (floor?.mode === modeName ? "is-active" : "") + '">' + (modeName === "authored" ? "Hand placed" : modeName === "random" ? "Random" : "Mixed") + '</button>').join("") + '</div>';
+  const floorPoolDisclosure = floor ? '<details class="mission-floor-pool"><summary>Random quest pool · ' + (floor.questPoolMode === "custom" ? "custom for this floor" : "using mission pool") + '</summary><div class="mission-floor-pool-content"><div><strong>Quest nodes on this floor</strong><p class="help-copy">' + (floor.questPoolMode === "custom" ? "Random Quest nodes will be chosen from this smaller list." : "Random Quest nodes can use any quest selected for the mission.") + '</p></div>' +
+    actionButton("mission-toggle-floor-pool-mode", floor.questPoolMode === "custom" ? "Use mission pool" : "Choose a floor pool", "button button-small button-outline") +
+    (floor.questPoolMode === "custom" ? (mission.questIds.length ? '<label class="mission-quest-filter"><span>Find a mission quest</span><input type="search" data-mission-quest-filter="floor" placeholder="Search by name"></label><div class="mission-floor-quest-options">' + mission.questIds.map(id => {
       const quest = workspace.quests.find(item => item.definition.id === id);
       const active = floor.questPoolIds.includes(id);
-      return '<button type="button" class="campaign-quest-chip' + (active ? " is-active" : "") + '" data-action="campaign-toggle-floor-quest" data-quest-id="' + escapeHtml(id) + '"><i>' + (active ? "✓" : "+") + '</i><span><strong>' + escapeHtml(quest?.definition.title ?? id) + '</strong><small>' + escapeHtml(quest?.definition.objectiveKind ?? "Missing quest") + '</small></span></button>';
-    }).join("") + '</div>' : '<small class="section-note">Add quests to the campaign pool first.</small>') : "") +
+      return '<button type="button" class="mission-quest-chip' + (active ? " is-active" : "") + '" data-action="mission-toggle-floor-quest" data-quest-id="' + escapeHtml(id) + '"><i>' + (active ? "✓" : "+") + '</i><span><strong>' + escapeHtml(quest?.definition.title ?? id) + '</strong><small>' + escapeHtml(quest?.definition.objectiveKind ?? "Missing quest") + '</small></span></button>';
+    }).join("") + '</div>' : '<small class="section-note">Add quests to the mission pool first.</small>') : "") +
     '</div></details>' : "";
   const poolRows = workspace.quests.map(quest => {
     const id = quest.definition.id;
-    const active = campaign.questIds.includes(id);
-    return '<div class="campaign-quest-row"><button type="button" class="campaign-quest-chip' + (active ? " is-active" : "") + '" data-action="campaign-toggle-quest" data-quest-id="' + escapeHtml(id) + '"><i>' + (active ? "✓" : "+") + '</i><span><strong>' + escapeHtml(quest.definition.title || id) + '</strong><small>' + escapeHtml(quest.definition.objectiveKind) + '</small></span></button>' +
-      actionButton("open-campaign-pool-quest", "Edit", "text-button related-open", ' data-quest-id="' + escapeHtml(id) + '"') + '</div>';
+    const active = mission.questIds.includes(id);
+    return '<div class="mission-quest-row"><button type="button" class="mission-quest-chip' + (active ? " is-active" : "") + '" data-action="mission-toggle-quest" data-quest-id="' + escapeHtml(id) + '"><i>' + (active ? "✓" : "+") + '</i><span><strong>' + escapeHtml(quest.definition.title || id) + '</strong><small>' + escapeHtml(quest.definition.objectiveKind) + '</small></span></button>' +
+      actionButton("open-mission-pool-quest", "Edit", "text-button related-open", ' data-quest-id="' + escapeHtml(id) + '"') + '</div>';
   }).join("");
-  const poolDisclosure = '<details class="campaign-pool-panel" open><summary>Quest pool <span>' + campaign.questIds.length + ' selected · ' + workspace.quests.length + ' available</span></summary>' +
-    '<div class="campaign-pool-actions">' + actionButton("create-campaign-pool-quest", "＋ Create quest", "text-button related-create") + '</div>' +
-    (workspace.quests.length ? '<div class="campaign-quest-pool-list">' + poolRows + '</div>' : '<p class="section-note help-copy">Create a quest to add it to this campaign.</p>') + '</details>';
-  const identity = '<section class="campaign-identity" id="campaign-basics">' + inputField("Campaign name", "name", campaign.name, { placeholder: "The Willow Road" }) +
-    textAreaField("Short description", "description", campaign.description, "Shown in the game campaign picker once that screen is connected.", 2) +
-    (mode === "full" ? inputField("Campaign ID (system managed)", "id", campaign.id, { readOnly: true }) : '<details class="advanced-rule-disclosure"><summary>Advanced · stable ID</summary>' + inputField("Campaign ID (system managed)", "id", campaign.id, { readOnly: true, hint: "Generated automatically; referenced by game saves." }) + '</details>') +
+  const poolDisclosure = '<details class="mission-pool-panel" open><summary>Quest pool <span>' + mission.questIds.length + ' selected · ' + workspace.quests.length + ' available</span></summary>' +
+    '<div class="mission-pool-actions">' + actionButton("create-mission-pool-quest", "＋ Create quest", "text-button related-create") + '</div>' +
+    (workspace.quests.length ? '<div class="mission-quest-pool-list">' + poolRows + '</div>' : '<p class="section-note help-copy">Create a quest to add it to this mission.</p>') + '</details>';
+  const identity = '<section class="mission-identity" id="mission-basics">' + inputField("Mission name", "name", mission.name, { placeholder: "The Willow Road" }) +
+    textAreaField("Short description", "description", mission.description, "Shown in the game mission picker once that screen is connected.", 2) +
+    (mode === "full" ? inputField("Mission ID (system managed)", "id", mission.id, { readOnly: true }) : '<details class="advanced-rule-disclosure"><summary>Advanced · stable ID</summary>' + inputField("Mission ID (system managed)", "id", mission.id, { readOnly: true, hint: "Generated automatically; referenced by game saves." }) + '</details>') +
     '</section>';
-  const guidedNameField = inputField("Campaign name", "name", campaign.name, { placeholder: "The Willow Road" })
+  const guidedNameField = inputField("Mission name", "name", mission.name, { placeholder: "The Willow Road" })
     .replace('data-bind="name"', 'data-bind="name" data-guided-autofocus');
-  const guidedIdentity = '<section class="campaign-guided-name">' +
+  const guidedIdentity = '<section class="mission-guided-name">' +
     guidedNameField +
-    '<details class="campaign-optional-description"><summary>Add a short description (optional)</summary>' +
-    textAreaField("Campaign description", "description", campaign.description, "Shown in the game campaign picker once that screen is connected.", 2) + '</details>' +
+    '<details class="mission-optional-description"><summary>Add a short description (optional)</summary>' +
+    textAreaField("Mission description", "description", mission.description, "Shown in the game mission picker once that screen is connected.", 2) + '</details>' +
     '</section>';
-  const campaignIssues = errorCount ? '<span class="campaign-validation-badge has-errors">' + errorCount + ' to fix</span>' : '<span class="campaign-validation-badge">Draft checks pass</span>';
+  const missionIssues = errorCount ? '<span class="mission-validation-badge has-errors">' + errorCount + ' to fix</span>' : '<span class="mission-validation-badge">Draft checks pass</span>';
   const heading = mode === "guided"
-    ? renderGuidedEditorHeader("Campaign", campaign.name || "Untitled campaign", returnState, helpVisible)
-    : '<div class="workspace-heading"><div><h1>' + escapeHtml(campaign.name || "Untitled campaign") + '</h1><p class="help-copy">Edit the complete campaign here, or switch to Guided flow for focused floor-by-floor authoring.</p></div><div class="campaign-heading-actions">' + campaignIssues + actionButton("open-guided-editor", "✦ Guided flow", "button button-mode-guided") + '</div></div>';
-  const profile = '<div class="campaign-profile">' + identity + (mode === "full" ? settings : '<details class="campaign-advanced-settings"><summary>Advanced · start and generation settings</summary>' + settings + '</details>') + '</div>';
-  const isSettingsOnly = campaign.designMode === "settings-only" && campaign.floors.length > 0 && campaign.floors.every(item => item.mode === "random" && item.nodes.length === 0 && item.routes.length === 0);
-  const hasGeneratedQuestNodes = campaign.floors.some(item => (item.mode === "random" || item.mode === "mixed") && item.randomSettings.questNodeCount > 0) || (campaign.settings.continueWithGeneratedFloors && campaign.settings.questNodeCountPerRandomFloor > 0);
-  const hasQuestContent = campaign.questIds.length > 0 || hasGeneratedQuestNodes || campaign.floors.some(item => item.nodes.some(node => node.kind === "Quest"));
-  const hasFloorPoolChoices = campaign.questIds.length > 0 && campaign.floors.some(item => (item.mode === "random" || item.mode === "mixed") && item.randomSettings.questNodeCount > 0);
-  const hasShopContent = campaign.settings.shopNodeCountPerRandomFloor > 0 || campaign.floors.some(item => item.nodes.some(node => node.kind === "Shop") || (item.mode !== "authored" && item.randomSettings.shopNodeCount > 0));
-  const hasAuthoredBoards = campaign.floors.some(item => item.mode !== "random");
-  const floorSetup = '<section class="campaign-floor-section campaign-floor-setup' + "" + '"><div class="campaign-floor-heading"><div><h2>' + (isSettingsOnly ? "Set generated floor rules" : "Choose the boards") + '</h2><p class="help-copy">' + (isSettingsOnly ? "Every floor is generated from these settings. Switch a floor to Hand placed to author its map." : "Each floor can be hand placed, generated, or mixed.") + '</p></div><div class="campaign-floor-actions">' +
-    actionButton("campaign-remove-floor", "Remove floor", "text-button danger-text", campaign.floors.length > 1 ? "" : " disabled") +
-    actionButton("campaign-add-floor", "＋ Add floor", "button button-outline") + '</div></div>' +
-    '<div class="campaign-floor-tabs">' + (floorTabs || "") + '</div>' +
-    (floor ? '<div class="campaign-floor-mode-row"><span>Floor ' + floor.number + ' layout</span>' + floorModes + '</div>' + randomControls : '<div class="campaign-empty-state"><strong>No floor boards yet</strong><p class="help-copy">Add a floor to start laying out the campaign.</p></div>') +
+    ? renderGuidedEditorHeader("Mission", mission.name || "Untitled mission", returnState, helpVisible)
+    : '<div class="workspace-heading"><div><h1>' + escapeHtml(mission.name || "Untitled mission") + '</h1><p class="help-copy">Edit the complete mission here, or switch to Guided flow for focused floor-by-floor authoring.</p></div><div class="mission-heading-actions">' + missionIssues + actionButton("open-guided-editor", "✦ Guided flow", "button button-mode-guided") + '</div></div>';
+  const profile = '<div class="mission-profile">' + identity + (mode === "full" ? settings : '<details class="mission-advanced-settings"><summary>Advanced · start and generation settings</summary>' + settings + '</details>') + '</div>';
+  const isSettingsOnly = mission.designMode === "settings-only" && mission.floors.length > 0 && mission.floors.every(item => item.mode === "random" && item.nodes.length === 0 && item.routes.length === 0);
+  const hasGeneratedQuestNodes = mission.floors.some(item => (item.mode === "random" || item.mode === "mixed") && item.randomSettings.questNodeCount > 0) || (mission.settings.continueWithGeneratedFloors && mission.settings.questNodeCountPerRandomFloor > 0);
+  const hasQuestContent = mission.questIds.length > 0 || hasGeneratedQuestNodes || mission.floors.some(item => item.nodes.some(node => node.kind === "Quest"));
+  const hasFloorPoolChoices = mission.questIds.length > 0 && mission.floors.some(item => (item.mode === "random" || item.mode === "mixed") && item.randomSettings.questNodeCount > 0);
+  const hasShopContent = mission.settings.shopNodeCountPerRandomFloor > 0 || mission.floors.some(item => item.nodes.some(node => node.kind === "Shop") || (item.mode !== "authored" && item.randomSettings.shopNodeCount > 0));
+  const hasAuthoredBoards = mission.floors.some(item => item.mode !== "random");
+  const floorSetup = '<section class="mission-floor-section mission-floor-setup' + "" + '"><div class="mission-floor-heading"><div><h2>' + (isSettingsOnly ? "Set generated floor rules" : "Choose the boards") + '</h2><p class="help-copy">' + (isSettingsOnly ? "Every floor is generated from these settings. Switch a floor to Hand placed to author its map." : "Each floor can be hand placed, generated, or mixed.") + '</p></div><div class="mission-floor-actions">' +
+    actionButton("mission-remove-floor", "Remove floor", "text-button danger-text", mission.floors.length > 1 ? "" : " disabled") +
+    actionButton("mission-add-floor", "＋ Add floor", "button button-outline") + '</div></div>' +
+    '<div class="mission-floor-tabs">' + (floorTabs || "") + '</div>' +
+    (floor ? '<div class="mission-floor-mode-row"><span>Floor ' + floor.number + ' layout</span>' + floorModes + '</div>' + randomControls : '<div class="mission-empty-state"><strong>No floor boards yet</strong><p class="help-copy">Add a floor to start laying out the mission.</p></div>') +
     '</section>';
-  const mapBoard = '<section class="campaign-map-step"><div class="campaign-map-step-heading"><div><h2>Arrange the path</h2></div><p class="help-copy">Nodes snap to the grid and show coordinates. Route labels use the game’s 8-direction map steps.</p></div>' +
-    (floor?.mode === "random" ? '<div class="campaign-random-preview"><div class="campaign-random-mark">✧</div><div><strong>This floor is generated in game</strong><p class="help-copy">Its layout settings are on the Floors step.</p></div></div>' : board) + '</section>';
-  const boards = '<section class="campaign-boards-full" id="campaign-floors">' + floorSetup + (mode === "full" ? floorPoolDisclosure.replace('<details class="campaign-floor-pool">', '<details class="campaign-floor-pool" open>') + board : "") + '</section>';
-  const quests = '<section class="campaign-quest-section" id="campaign-quests"><div><h2>Available quests</h2><p class="help-copy">Quest nodes on these floors can reference these quests.</p></div>' + poolDisclosure + '</section>';
-  const campaignEventsSection = '<section class="campaign-events-section" id="campaign-events"><div class="campaign-event-list-heading"><div><h2>Campaign events</h2></div>' + actionButton("campaign-add-event", "＋ Add event", "button button-outline") + '</div>' +
-    (campaign.events.length ? campaign.events.map((event, index) => renderCampaignEventEditor(event, index, campaign, workspace, "full", false)).join("") : '<p class="campaign-event-empty">No campaign events yet.</p>') + '</section>';
+  const mapBoard = '<section class="mission-map-step"><div class="mission-map-step-heading"><div><h2>Arrange the path</h2></div><p class="help-copy">Nodes snap to the grid and show coordinates. Route labels use the game’s 8-direction map steps.</p></div>' +
+    (floor?.mode === "random" ? '<div class="mission-random-preview"><div class="mission-random-mark">✧</div><div><strong>This floor is generated in game</strong><p class="help-copy">Its layout settings are on the Floors step.</p></div></div>' : board) + '</section>';
+  const boards = '<section class="mission-boards-full" id="mission-floors">' + floorSetup + (mode === "full" ? floorPoolDisclosure.replace('<details class="mission-floor-pool">', '<details class="mission-floor-pool" open>') + board : "") + '</section>';
+  const quests = '<section class="mission-quest-section" id="mission-quests"><div><h2>Available quests</h2><p class="help-copy">Quest nodes on these floors can reference these quests.</p></div>' + poolDisclosure + '</section>';
+  const missionEventsSection = '<section class="mission-events-section" id="mission-events"><div class="mission-event-list-heading"><div><h2>Mission events</h2></div>' + actionButton("mission-add-event", "＋ Add event", "button button-outline") + '</div>' +
+    (mission.events.length ? mission.events.map((event, index) => renderMissionEventEditor(event, index, mission, workspace, "full", false)).join("") : '<p class="mission-event-empty">No mission events yet.</p>') + '</section>';
   if (mode === "full") {
     const sections = [
-      { id: "campaign-basics", label: "Basics" }, { id: "campaign-floors", label: "Floors" },
-      { id: "campaign-map", label: "Map" }, { id: "campaign-quests", label: "Quests" },
-      { id: "campaign-events", label: "Events" },
-      { id: "campaign-shops", label: "Shops" },
-      { id: "campaign-starting-run", label: "Starting run" }, { id: "campaign-progression", label: "Progression" }
+      { id: "mission-basics", label: "Basics" }, { id: "mission-floors", label: "Floors" },
+      { id: "mission-map", label: "Map" }, { id: "mission-quests", label: "Quests" },
+      { id: "mission-events", label: "Events" },
+      { id: "mission-shops", label: "Shops" },
+      { id: "mission-starting-run", label: "Starting run" }, { id: "mission-progression", label: "Progression" }
     ];
-    return '<main class="workspace-main campaign-editor">' + heading + renderAdvancedSectionNav(sections) + profile + boards + quests + campaignEventsSection + campaignShopAdvanced +
+    return '<main class="workspace-main mission-editor">' + heading + renderAdvancedSectionNav(sections) + profile + boards + quests + missionEventsSection + missionShopAdvanced +
       '<div class="guided-end-actions">' + '</div>' +
       '</main>';
   }
 
-  const steps = campaign.designMode === "choose" ? ["Approach"] : isSettingsOnly
-    ? ["Name", "Randomizer settings", ...(hasQuestContent ? ["Quests"] : []), ...(hasFloorPoolChoices ? ["Floor pools"] : []), ...(hasShopContent ? ["Shop pools", "Shop unlocks"] : []), "Starting run", "Progression", ...(campaign.events.length ? ["Events"] : []), "Review"]
-    : ["Name", "Floors", ...(hasAuthoredBoards ? ["Node"] : []), "Quests", ...(hasFloorPoolChoices ? ["Floor pools"] : []), ...(hasShopContent ? ["Shop pools", "Shop unlocks"] : []), "Starting run", "Generated floors", ...(campaign.events.length ? ["Events"] : []), "Review"];
+  const steps = mission.designMode === "choose" ? ["Approach"] : isSettingsOnly
+    ? ["Name", "Randomizer settings", ...(hasQuestContent ? ["Quests"] : []), ...(hasFloorPoolChoices ? ["Floor pools"] : []), ...(hasShopContent ? ["Shop pools", "Shop unlocks"] : []), "Starting run", "Progression", ...(mission.events.length ? ["Events"] : []), "Review"]
+    : ["Name", "Floors", ...(hasAuthoredBoards ? ["Node"] : []), "Quests", ...(hasFloorPoolChoices ? ["Floor pools"] : []), ...(hasShopContent ? ["Shop pools", "Shop unlocks"] : []), "Starting run", "Generated floors", ...(mission.events.length ? ["Events"] : []), "Review"];
   const step = Math.max(0, Math.min(steps.length - 1, activeStep));
   const stepName = steps[step];
   guidedFinalStepActive = step === steps.length - 1;
   const focusedNodeStep = stepName === "Node";
-  const progress = '<div class="campaign-guided-progress" role="progressbar" aria-label="Campaign setup" aria-valuemin="1" aria-valuemax="' + steps.length + '" aria-valuenow="' + (step + 1) + '"><span style="width:' + ((step + 1) / steps.length * 100) + '%"></span></div>';
-  const campaignQuestNames = campaign.questIds.map(id => {
+  const progress = '<div class="mission-guided-progress" role="progressbar" aria-label="Mission setup" aria-valuemin="1" aria-valuemax="' + steps.length + '" aria-valuenow="' + (step + 1) + '"><span style="width:' + ((step + 1) / steps.length * 100) + '%"></span></div>';
+  const missionQuestNames = mission.questIds.map(id => {
     const quest = workspace.quests.find(item => item.definition.id === id);
     return (quest?.definition.title || id) + (quest && quest.definition.title !== id ? " (" + id + ")" : "");
   });
-  const floorReviews = campaign.floors.map(item => renderCampaignFloorReview(item, workspace, campaign)).join("");
-  const previewUnit = campaign.boardPreviewUnitId
+  const floorReviews = mission.floors.map(item => renderMissionFloorReview(item, workspace, mission)).join("");
+  const previewUnit = mission.boardPreviewUnitId
     ? catalog.units.flatMap(unit => unit.levels.map(level => ({ unit, level })))
-      .find(item => item.level.id === campaign.boardPreviewUnitId)
+      .find(item => item.level.id === mission.boardPreviewUnitId)
     : null;
-  const boardPreviewSummary = !campaign.boardPreviewUnitId
+  const boardPreviewSummary = !mission.boardPreviewUnitId
     ? "Selected faction hero"
-    : previewUnit ? previewUnit.unit.name + " · Level " + previewUnit.level.level : campaign.boardPreviewUnitId;
-  const startingRunSummary = campaign.settings.startingLives + " lives · " + campaign.settings.startingSardines + " Sardines · " + (campaign.settings.playerFactionId || "game default faction") + " · faction choice " + (campaign.settings.factionSelectionEnabled ? "on" : "off") + " · battle shop " + (campaign.settings.battleShopEnabled ? "on" : "off");
-  const progressionSummary = (campaign.settings.continueWithGeneratedFloors ? "continues with generated floors" : "ends after listed floors") + " · " + campaign.settings.startingNodeCount + " initial nodes · " + campaign.settings.questNodeCountPerRandomFloor + " Quest nodes · " + campaign.settings.shopNodeCountPerRandomFloor + " Shops · +" + campaign.settings.nodeGrowthPerFloor + " nodes per floor";
-  const campaignShopPoolSummary = campaign.settings.shopPoolKinds.length ? campaign.settings.shopPoolKinds.map(kind => CAMPAIGN_SHOP_KIND_LABELS.find(([value]) => value === kind)?.[1] ?? kind).join(", ") : "none";
+    : previewUnit ? previewUnit.unit.name + " · Level " + previewUnit.level.level : mission.boardPreviewUnitId;
+  const startingRunSummary = mission.settings.startingLives + " lives · " + mission.settings.startingSardines + " Sardines · " + (mission.settings.playerFactionId || "game default faction") + " · faction choice " + (mission.settings.factionSelectionEnabled ? "on" : "off") + " · battle shop " + (mission.settings.battleShopEnabled ? "on" : "off");
+  const progressionSummary = (mission.settings.continueWithGeneratedFloors ? "continues with generated floors" : "ends after listed floors") + " · " + mission.settings.startingNodeCount + " initial nodes · " + mission.settings.questNodeCountPerRandomFloor + " Quest nodes · " + mission.settings.shopNodeCountPerRandomFloor + " Shops · +" + mission.settings.nodeGrowthPerFloor + " nodes per floor";
+  const missionShopPoolSummary = mission.settings.shopPoolKinds.length ? mission.settings.shopPoolKinds.map(kind => MISSION_SHOP_KIND_LABELS.find(([value]) => value === kind)?.[1] ?? kind).join(", ") : "none";
   const reviewRows = [
-    reviewField("Campaign", campaign.name || "Untitled campaign"),
-    reviewField("Setup", isSettingsOnly ? "Randomizer only" : "Authored campaign"),
-    reviewField("Floors", String(campaign.floors.length)),
+    reviewField("Mission", mission.name || "Untitled mission"),
+    reviewField("Setup", isSettingsOnly ? "Randomizer only" : "Authored mission"),
+    reviewField("Floors", String(mission.floors.length)),
     reviewField("Board preview", boardPreviewSummary),
     reviewField("Starting run", startingRunSummary),
-    reviewField("Generated shop pools", campaignShopPoolSummary),
-    reviewField("Campaign events", String(campaign.events.length)),
+    reviewField("Generated shop pools", missionShopPoolSummary),
+    reviewField("Mission events", String(mission.events.length)),
     reviewField("Generated progression", progressionSummary)
   ].join("");
-  const eventReview = '<section class="campaign-event-review"><div class="campaign-event-list-heading"><div><h2>Campaign events</h2></div>' +
-    (campaign.events.length ? actionButton("campaign-edit-events", "Edit events", "button button-outline") : actionButton("campaign-add-event", "＋ Add event", "button button-outline")) + '</div>' +
-    (campaign.events.length ? reviewList("Configured events", campaign.events.map(event => campaignEventSummary(event, campaign, workspace))) : '<p class="campaign-event-empty">Optional · change run data at campaign milestones.</p>') + '</section>';
-  const review = '<section class="campaign-review"><div class="campaign-review-heading"><h1>Review your campaign</h1><p class="help-copy">' + (isSettingsOnly ? "Check the randomizer and run settings before exporting." : "Check the board and quest references before exporting.") + '</p></div>' +
-    '<dl class="campaign-review-summary">' + reviewRows + '</dl>' + (campaign.description ? '<p class="campaign-review-description">' + escapeHtml(campaign.description) + '</p>' : '') +
-    '<div class="campaign-floor-reviews">' + floorReviews + '</div>' +
-    (hasQuestContent ? reviewList("Campaign quest pool", campaignQuestNames) : "") +
+  const eventReview = '<section class="mission-event-review"><div class="mission-event-list-heading"><div><h2>Mission events</h2></div>' +
+    (mission.events.length ? actionButton("mission-edit-events", "Edit events", "button button-outline") : actionButton("mission-add-event", "＋ Add event", "button button-outline")) + '</div>' +
+    (mission.events.length ? reviewList("Configured events", mission.events.map(event => missionEventSummary(event, mission, workspace))) : '<p class="mission-event-empty">Optional · change run data at mission milestones.</p>') + '</section>';
+  const review = '<section class="mission-review"><div class="mission-review-heading"><h1>Review your mission</h1><p class="help-copy">' + (isSettingsOnly ? "Check the randomizer and run settings before exporting." : "Check the board and quest references before exporting.") + '</p></div>' +
+    '<dl class="mission-review-summary">' + reviewRows + '</dl>' + (mission.description ? '<p class="mission-review-description">' + escapeHtml(mission.description) + '</p>' : '') +
+    '<div class="mission-floor-reviews">' + floorReviews + '</div>' +
+    (hasQuestContent ? reviewList("Mission quest pool", missionQuestNames) : "") +
     eventReview +
-    '<div class="campaign-review-validation">' + renderIssues(allIssues) + '</div>' +
+    '<div class="mission-review-validation">' + renderIssues(allIssues) + '</div>' +
     '<div class="guided-end-actions">' + '</div></section>';
   let screen = "";
   if (stepName === "Approach") {
-    screen = '<section class="campaign-approach"><p class="campaign-step-prompt help-copy">Choose what you want to design. You can switch editors later.</p>' +
-      '<div class="campaign-approach-options"><button type="button" class="campaign-approach-option" data-action="campaign-design-choice" data-mode="settings-only"><strong>Randomizer settings only</strong><span class="help-copy">Generated floors, starting rules, and progression. No authored map or campaign quests.</span></button>' +
-      '<button type="button" class="campaign-approach-option" data-action="campaign-design-choice" data-mode="custom"><strong>Custom campaign</strong><span class="help-copy">Author maps, nodes, quests, and the rules that connect them.</span></button></div></section>';
+    screen = '<section class="mission-approach"><p class="mission-step-prompt help-copy">Choose what you want to design. You can switch editors later.</p>' +
+      '<div class="mission-approach-options"><button type="button" class="mission-approach-option" data-action="mission-design-choice" data-mode="settings-only"><strong>Randomizer settings only</strong><span class="help-copy">Generated floors, starting rules, and progression. No authored map or mission quests.</span></button>' +
+      '<button type="button" class="mission-approach-option" data-action="mission-design-choice" data-mode="custom"><strong>Custom mission</strong><span class="help-copy">Author maps, nodes, quests, and the rules that connect them.</span></button></div></section>';
   } else if (stepName === "Name") {
-    screen = '<section class="campaign-setup-step"><p class="campaign-step-prompt help-copy">Name the campaign so your team can find it.</p>' + guidedIdentity + '</section>';
+    screen = '<section class="mission-setup-step"><p class="mission-step-prompt help-copy">Name the mission so your team can find it.</p>' + guidedIdentity + '</section>';
   } else if (stepName === "Floors" || stepName === "Randomizer settings") {
     // One step for adding a floor: generation settings and/or the hand-placed map.
     screen = floorSetup + (floor?.mode !== "random" ? board : "");
-    if (isSettingsOnly && campaign.questIds.length === 0) {
-      screen += '<details class="campaign-optional-quest-content"><summary>Add optional authored quests</summary><p class="help-copy">Only needed if generated floors should include campaign quests.</p>' + actionButton("create-campaign-pool-quest", "＋ Create a quest", "text-button related-create") + '</details>';
+    if (isSettingsOnly && mission.questIds.length === 0) {
+      screen += '<details class="mission-optional-quest-content"><summary>Add optional authored quests</summary><p class="help-copy">Only needed if generated floors should include mission quests.</p>' + actionButton("create-mission-pool-quest", "＋ Create a quest", "text-button related-create") + '</details>';
     }
   } else if (stepName === "Node") {
     screen = selectedNode && floor
-      ? (floor.mode === "random" ? "" : mapBoard.replace('class="campaign-map-step"', 'class="campaign-map-step campaign-context-map"')) +
-      '<section class="campaign-node-focus"><div class="campaign-node-focus-heading"><div><h2>Floor ' + floor.number + ' · ' + escapeHtml(selectedNode.label) + '</h2></div>' + actionButton("campaign-back-to-map", "← Back to map", "button button-outline") + '</div>' +
-        nodeProperties + '<details class="campaign-focused-connections"><summary>Connections · ' + selectedRoutes.length + '</summary>' + (routes ? '<ul>' + routes + '</ul>' : '<p class="help-copy">No routes connect to this node yet. Draw them from the map.</p>') + '</details></section>'
-      : '<section class="campaign-node-focus-empty"><p class="help-copy">Choose a node on the map to edit its contents.</p>' + actionButton("campaign-back-to-map", "← Back to map", "button button-outline") + '</section>';
+      ? (floor.mode === "random" ? "" : mapBoard.replace('class="mission-map-step"', 'class="mission-map-step mission-context-map"')) +
+      '<section class="mission-node-focus"><div class="mission-node-focus-heading"><div><h2>Floor ' + floor.number + ' · ' + escapeHtml(selectedNode.label) + '</h2></div>' + actionButton("mission-back-to-map", "← Back to map", "button button-outline") + '</div>' +
+        nodeProperties + '<details class="mission-focused-connections"><summary>Connections · ' + selectedRoutes.length + '</summary>' + (routes ? '<ul>' + routes + '</ul>' : '<p class="help-copy">No routes connect to this node yet. Draw them from the map.</p>') + '</details></section>'
+      : '<section class="mission-node-focus-empty"><p class="help-copy">Choose a node on the map to edit its contents.</p>' + actionButton("mission-back-to-map", "← Back to map", "button button-outline") + '</section>';
   } else if (stepName === "Quests") {
-    screen = '<div class="campaign-quest-step"><p class="campaign-step-prompt help-copy">Choose the quests that can appear in this campaign.</p><label class="campaign-quest-filter"><span>Find a quest</span><input type="search" data-campaign-quest-filter="campaign" placeholder="Search by name"></label>' + poolDisclosure + '</div>';
+    screen = '<div class="mission-quest-step"><p class="mission-step-prompt help-copy">Choose the quests that can appear in this mission.</p><label class="mission-quest-filter"><span>Find a quest</span><input type="search" data-mission-quest-filter="mission" placeholder="Search by name"></label>' + poolDisclosure + '</div>';
   } else if (stepName === "Floor pools") {
-    screen = '<div class="campaign-floor-pool-step"><p class="campaign-step-prompt help-copy">Choose whether ' + (floor ? 'Floor ' + floor.number : 'this floor') + ' uses every campaign quest or a smaller pool.</p>' +
-      (floorPoolDisclosure ? floorPoolDisclosure.replace('<details class="campaign-floor-pool">', '<details class="campaign-floor-pool" open>') : "") + '</div>';
+    screen = '<div class="mission-floor-pool-step"><p class="mission-step-prompt help-copy">Choose whether ' + (floor ? 'Floor ' + floor.number : 'this floor') + ' uses every mission quest or a smaller pool.</p>' +
+      (floorPoolDisclosure ? floorPoolDisclosure.replace('<details class="mission-floor-pool">', '<details class="mission-floor-pool" open>') : "") + '</div>';
   } else if (stepName === "Shop pools") {
-    screen = '<section class="campaign-settings-step campaign-shop-pools-step"><p class="campaign-step-prompt help-copy">Choose what generated map shops can offer.</p>' + campaignShopSettings + '</section>';
+    screen = '<section class="mission-settings-step mission-shop-pools-step"><p class="mission-step-prompt help-copy">Choose what generated map shops can offer.</p>' + missionShopSettings + '</section>';
   } else if (stepName === "Shop unlocks") {
-    screen = '<section class="campaign-settings-step campaign-shop-unlocks-step"><p class="campaign-step-prompt help-copy">Set the shop tier and offer pools available on each floor.</p>' + floorShopSettings + '</section>';
+    screen = '<section class="mission-settings-step mission-shop-unlocks-step"><p class="mission-step-prompt help-copy">Set the shop tier and offer pools available on each floor.</p>' + floorShopSettings + '</section>';
   } else if (stepName === "Starting run") {
-    screen = '<section class="campaign-settings-step"><p class="campaign-step-prompt help-copy">Choose the board character, starting resources, and faction.</p>' + startingSettings + '</section>';
+    screen = '<section class="mission-settings-step"><p class="mission-step-prompt help-copy">Choose the board character, starting resources, and faction.</p>' + startingSettings + '</section>';
   } else if (stepName === "Progression" || stepName === "Generated floors") {
-    screen = '<section class="campaign-settings-step"><p class="campaign-step-prompt help-copy">' + (isSettingsOnly ? "Choose whether the generated run continues and how later floors grow." : "Choose whether to continue beyond these boards and how later floors grow.") + '</p>' + generatedFloorSettings + '</section>';
+    screen = '<section class="mission-settings-step"><p class="mission-step-prompt help-copy">' + (isSettingsOnly ? "Choose whether the generated run continues and how later floors grow." : "Choose whether to continue beyond these boards and how later floors grow.") + '</p>' + generatedFloorSettings + '</section>';
   } else if (stepName === "Events") {
-    const selectedEventIndex = campaign.events.findIndex(event => event.id === selectedCampaignEventId);
+    const selectedEventIndex = mission.events.findIndex(event => event.id === selectedMissionEventId);
     screen = selectedEventIndex >= 0
-      ? renderCampaignEventEditor(campaign.events[selectedEventIndex], selectedEventIndex, campaign, workspace, mode, true)
-      : renderCampaignEventsList(campaign, workspace);
+      ? renderMissionEventEditor(mission.events[selectedEventIndex], selectedEventIndex, mission, workspace, mode, true)
+      : renderMissionEventsList(mission, workspace);
   } else {
     screen = review;
   }
-  return '<main class="workspace-main campaign-editor guided-editor' + (guidedContextUnmuted ? ' guided-context-unmuted' : '') + (focusedNodeStep ? ' campaign-node-focus-mode' : '') + ((stepName === "Shop pools" || stepName === "Shop unlocks") ? ' campaign-shop-focus-mode' : '') + '">' + heading + (focusedNodeStep ? '' : progress) +
-    '<section class="campaign-guided-screen" aria-labelledby="campaign-step-title"><div class="campaign-guided-step-heading"><span>' + (stepName === "Approach" ? "Campaign setup" : "Step " + (step + 1) + " of " + steps.length + " · Campaign") + '</span><h1 id="campaign-step-title">' + stepName + '</h1></div>' +
-    screen + '</section>' + (stepName === "Approach" ? "" : focusedNodeStep ? '<footer class="campaign-focus-footer"><span>Changes save as you type</span>' + actionButton("editor-next", steps[step + 1] ? "Next · " + steps[step + 1] + " →" : "Next", "button button-primary") + '</footer>' : renderWorkflowFooter(steps, step, "Campaign ready · export when you are ready")) +
+  return '<main class="workspace-main mission-editor guided-editor' + (guidedContextUnmuted ? ' guided-context-unmuted' : '') + (focusedNodeStep ? ' mission-node-focus-mode' : '') + ((stepName === "Shop pools" || stepName === "Shop unlocks") ? ' mission-shop-focus-mode' : '') + '">' + heading + (focusedNodeStep ? '' : progress) +
+    '<section class="mission-guided-screen" aria-labelledby="mission-step-title"><div class="mission-guided-step-heading"><span>' + (stepName === "Approach" ? "Mission setup" : "Step " + (step + 1) + " of " + steps.length + " · Mission") + '</span><h1 id="mission-step-title">' + stepName + '</h1></div>' +
+    screen + '</section>' + (stepName === "Approach" ? "" : focusedNodeStep ? '<footer class="mission-focus-footer"><span>Changes save as you type</span>' + actionButton("editor-next", steps[step + 1] ? "Next · " + steps[step + 1] + " →" : "Next", "button button-primary") + '</footer>' : renderWorkflowFooter(steps, step, "Mission ready · export when you are ready")) +
     '</main>';
 }
 
@@ -1786,7 +1786,7 @@ function renderQuestEditor(
       inputField("Speaker name", "definition.speakerName", quest.speakerName, { placeholder: "Village Elder" }) +
       textAreaField("Offer text", "definition.offerText", quest.offerText, "Shown when this quest is offered.", 3) +
       textAreaField("Active text", "definition.activeText", quest.activeText, "Shown while the quest is underway.", 3) +
-      '<label class="campaign-check"><input type="checkbox" data-bind="definition.autoAccept"' + (quest.autoAccept ? " checked" : "") + '><span>Auto-accept after the offer dialogue (no accept/decline choice)</span></label>' +
+      '<label class="mission-check"><input type="checkbox" data-bind="definition.autoAccept"' + (quest.autoAccept ? " checked" : "") + '><span>Auto-accept after the offer dialogue (no accept/decline choice)</span></label>' +
       (!quest.autoAccept ? inputField("Accept label", "definition.acceptLabel", quest.acceptLabel) +
         inputField("Decline label", "definition.declineLabel", quest.declineLabel) : "") +
       '</div></div>';
@@ -1827,7 +1827,7 @@ function renderQuestEditor(
       const effects = timerMode ? extension.timer.completionEffects : extension.completionEffects;
       const path = timerMode ? "extension.timer.completionEffects" : "extension.completionEffects";
       const scope = timerMode ? "timer" : "standard";
-      screen = '<div class="form-block"><div class="section-heading"><div><h2>What changes when it is done?</h2><p class="help-copy">Use a route ID or shop item ID from this campaign. Event IDs are recorded on the run for game systems to consume.</p></div>' +
+      screen = '<div class="form-block"><div class="section-heading"><div><h2>What changes when it is done?</h2><p class="help-copy">Use a route ID or shop item ID from this mission. Event IDs are recorded on the run for game systems to consume.</p></div>' +
       actionButton("add-effect", "＋ Add effect", "button button-small", ' data-scope="' + scope + '"') + '</div>' +
       (effects.length ? renderEffects(effects, path, scope) : '<div class="soft-empty">No additional effects. The normal quest reward still applies.</div>') +
       '</div>';
@@ -1886,7 +1886,7 @@ export function renderApp(
   activeEditorStep = 0,
   editorMode: EditorMode = "guided",
   selectedArmyPlacementId: string | null = null,
-  campaignViewState: CampaignViewState = { selectedFloorId: null, selectedNodeId: null, interactionMode: "select", nodeKind: "Battle", addMenuOpen: false, pendingPlugFromId: null, selectedRouteId: null },
+  missionViewState: MissionViewState = { selectedFloorId: null, selectedNodeId: null, interactionMode: "select", nodeKind: "Battle", addMenuOpen: false, pendingPlugFromId: null, selectedRouteId: null },
   relatedReturnState?: RelatedEditorReturnState,
   armyCatalogKind: ArmyCatalogKind = "units",
   helpVisible = false,
@@ -1894,7 +1894,7 @@ export function renderApp(
   abilityFilters: ArmyAbilityFilters = defaultArmyAbilityFilters,
   abilityCategory: ArmyAbilityKind = "spells",
   abilitySelections: ArmyAbilitySelections = defaultArmyAbilitySelections,
-  selectedCampaignEventId: string | null = null,
+  selectedMissionEventId: string | null = null,
   publishAllowed = true
 ): string {
   guidedFinalStepActive = editorMode === "full";
@@ -1918,7 +1918,7 @@ export function renderApp(
       '<button type="button" class="create-action" data-action="new-dialogue"><span class="create-action-mark">D</span><span><strong>Dialogue</strong></span><b aria-hidden="true">→</b></button>' +
       '<button type="button" class="create-action" data-action="new-quest"><span class="create-action-mark">Q</span><span><strong>Quest</strong></span><b aria-hidden="true">→</b></button>' +
       '<button type="button" class="create-action" data-action="new-army"><span class="create-action-mark">A</span><span><strong>Army</strong></span><b aria-hidden="true">→</b></button>' +
-      '<button type="button" class="create-action" data-action="new-campaign"><span class="create-action-mark">C</span><span><strong>Campaign</strong></span><b aria-hidden="true">→</b></button>' +
+      '<button type="button" class="create-action" data-action="new-mission"><span class="create-action-mark">C</span><span><strong>Mission</strong></span><b aria-hidden="true">→</b></button>' +
       '</div>' +
       '</main>';
   } else if ("sequence" in item) {
@@ -1926,7 +1926,7 @@ export function renderApp(
   } else if ("definition" in item) {
     content = renderQuestEditor(item, workspace, roster, catalog, activeEditorStep, editorMode, helpVisible, relatedReturnState);
   } else if ("floors" in item) {
-    content = renderCampaignEditor(item, workspace, catalog, editorMode, campaignViewState, activeEditorStep, helpVisible, relatedReturnState, selectedCampaignEventId);
+    content = renderMissionEditor(item, workspace, catalog, editorMode, missionViewState, activeEditorStep, helpVisible, relatedReturnState, selectedMissionEventId);
   } else {
     content = renderArmyEditor(item, catalog, roster, editorMode, selectedArmyPlacementId, activeEditorStep, armyCatalogKind, helpVisible, relatedReturnState, cellFocus, abilityFilters, abilityCategory, abilitySelections);
   }
@@ -1935,7 +1935,7 @@ export function renderApp(
     '<header class="topbar">' +
     '<button type="button" class="sidebar-collapse-button" data-action="toggle-sidebar" aria-expanded="true" aria-label="Collapse sidebar" title="Collapse sidebar">‹</button>' +
     '<button type="button" class="mobile-brand" data-action="toggle-sidebar" aria-expanded="false" aria-label="Open navigation menu" title="Open navigation menu"><span class="brand-mark">M</span><strong>MEOWEDIT</strong><span class="mobile-menu-chevron" aria-hidden="true">›</span></button>' +
-    '<div class="topbar-context"><span>' + (item && "sequence" in item ? "Dialogue" : item && "definition" in item ? "Quest" : item && "floors" in item ? "Campaign" : item ? "Army" : "Start") + '</span>' +
+    '<div class="topbar-context"><span>' + (item && "sequence" in item ? "Dialogue" : item && "definition" in item ? "Quest" : item && "floors" in item ? "Mission" : item ? "Army" : "Start") + '</span>' +
     '<span class="save-indicator"><i></i><span id="save-status">All changes saved</span></span></div>' +
     toolbar +
     '</header>' +

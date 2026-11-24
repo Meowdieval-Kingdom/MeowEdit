@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { activeArmyJson, activeCampaignJson, activeDialogueJson, activeQuestJson, createPackageEntries, decodeZipText, parseImportedJson, suggestedFilename, toZipFileBytes, workspaceJson, workspacePackage } from "../src/editor/export";
+import { activeArmyJson, activeMissionJson, activeDialogueJson, activeQuestJson, createPackageEntries, decodeZipText, parseImportedJson, suggestedFilename, toZipFileBytes, workspaceJson, workspacePackage } from "../src/editor/export";
 import { createStoredZip, readStoredZip } from "../src/editor/zip";
-import { armyFixture, campaignFixture, dialogueFixture, questFixture, rosterFixture, workspaceFixture } from "./fixtures";
+import { armyFixture, missionFixture, dialogueFixture, questFixture, rosterFixture, workspaceFixture } from "./fixtures";
 
 describe("content export and ZIP packages", () => {
   it("exports unit spell assignments in the standalone army document", () => {
@@ -14,24 +14,24 @@ describe("content export and ZIP packages", () => {
     expect(parsed.army.CellBlessingPicks).toEqual([{ RootId: "lane-root", Lane: 2, Cells: [], Locked: true, BaneCells: [] }]);
   });
 
-  it("preserves workspace-only army fields and emits campaign files", () => {
+  it("preserves workspace-only army fields and emits mission files", () => {
     const workspace = workspaceFixture();
     workspace.armies[0].units[0].spellIds = ["shield"];
-    workspace.campaigns[0].boardPreviewUnitId = "Peasants/Fighter/1";
-    workspace.campaigns[0].settings.factionSelectionEnabled = false;
+    workspace.missions[0].boardPreviewUnitId = "Peasants/Fighter/1";
+    workspace.missions[0].settings.factionSelectionEnabled = false;
     const parsed = JSON.parse(workspaceJson(workspace));
     expect(parsed.armies[0]._meowEditWorkspace.units[0].spellIds).toEqual(["shield"]);
     expect(parsed.armies[0].units[0].spellIds).toEqual(["shield"]);
     const entries = createPackageEntries(workspace, rosterFixture);
-    expect(entries.map(entry => entry.path)).toContain("meowdieval-content/campaigns/Campaigns.json");
+    expect(entries.map(entry => entry.path)).toContain("meowdieval-content/missions/Missions.json");
     const armyEntry = entries.find(entry => entry.path.endsWith("ArmyConfigurations.json"));
     expect(JSON.parse(String(armyEntry?.content)).armies[0].units[0].spellIds).toEqual(["shield"]);
     const manifest = JSON.parse(String(entries.find(entry => entry.path.endsWith("manifest.json"))?.content));
-    expect(manifest.campaignRuntimeSupported).toBe(true);
-    const campaignEntry = entries.find(entry => entry.path.endsWith("campaigns/Campaigns.json"));
-    const exportedCampaign = JSON.parse(String(campaignEntry?.content)).campaigns[0];
-    expect(exportedCampaign.boardPreviewUnitId).toBe("Peasants/Fighter/1");
-    expect(exportedCampaign.settings.factionSelectionEnabled).toBe(false);
+    expect(manifest.missionRuntimeSupported).toBe(true);
+    const missionEntry = entries.find(entry => entry.path.endsWith("missions/Missions.json"));
+    const exportedMission = JSON.parse(String(missionEntry?.content)).missions[0];
+    expect(exportedMission.boardPreviewUnitId).toBe("Peasants/Fighter/1");
+    expect(exportedMission.settings.factionSelectionEnabled).toBe(false);
   });
 
   it("round trips stored archives and reports unsupported or damaged ZIP data", async () => {
@@ -47,42 +47,42 @@ describe("content export and ZIP packages", () => {
     expect(parseImportedJson('{"ok":true}')).toEqual({ ok: true });
     expect(() => parseImportedJson("{")).toThrow();
     expect(suggestedFilename("army", "Test Army!!")).toBe("Test-Army.army.json");
-    expect(suggestedFilename("campaign", "one floor")).toBe("one-floor.campaign.json");
+    expect(suggestedFilename("mission", "one floor")).toBe("one-floor.mission.json");
   });
 
   it("serializes each standalone content type and the complete ZIP package", async () => {
     expect(JSON.parse(activeDialogueJson(dialogueFixture())).sequenceId).toBe("test-dialogue");
     expect(JSON.parse(activeQuestJson(questFixture())).quests[0].id).toBe("test-quest");
-    expect(JSON.parse(activeCampaignJson(campaignFixture())).campaign.id).toBe("test-campaign");
+    expect(JSON.parse(activeMissionJson(missionFixture())).mission.id).toBe("test-mission");
     const packageBlob = workspacePackage(workspaceFixture(), rosterFixture);
     const zipFiles = readStoredZip(new Uint8Array(await packageBlob.arrayBuffer()));
     expect(zipFiles.has("meowdieval-content/manifest.json")).toBe(true);
     expect(zipFiles.has("meowdieval-content/dialogues/test-dialogue.json")).toBe(true);
   });
 
-  it("exports campaign event triggers and Army references in standalone JSON and packages", async () => {
+  it("exports mission event triggers and Army references in standalone JSON and packages", async () => {
     const workspace = workspaceFixture();
-    const battleId = workspace.campaigns[0].floors[0].nodes.find(node => node.kind === "Battle")!.id;
+    const battleId = workspace.missions[0].floors[0].nodes.find(node => node.kind === "Battle")!.id;
     const events = [
-      { id: "opening-lineup", trigger: "campaign-start" as const, actions: [{ kind: "replace-player-army", armyId: workspace.armies[0].id }] },
+      { id: "opening-lineup", trigger: "mission-start" as const, actions: [{ kind: "replace-player-army", armyId: workspace.armies[0].id }] },
       { id: "boss-lineup", trigger: "before-battle" as const, floorNumber: 1, nodeId: battleId,
         actions: [{ kind: "replace-player-army", armyId: workspace.armies[0].id }] }
     ];
-    workspace.campaigns[0].events = events;
+    workspace.missions[0].events = events;
 
-    expect(JSON.parse(activeCampaignJson(workspace.campaigns[0])).campaign.events).toEqual(events);
+    expect(JSON.parse(activeMissionJson(workspace.missions[0])).mission.events).toEqual(events);
     const entries = createPackageEntries(workspace, rosterFixture);
-    const packageCampaigns = JSON.parse(String(entries.find(entry => entry.path.endsWith("campaigns/Campaigns.json"))?.content));
-    expect(packageCampaigns.campaigns[0].events).toEqual(events);
+    const packageMissions = JSON.parse(String(entries.find(entry => entry.path.endsWith("missions/Missions.json"))?.content));
+    expect(packageMissions.missions[0].events).toEqual(events);
 
     const archive = readStoredZip(new Uint8Array(await workspacePackage(workspace, rosterFixture).arrayBuffer()));
-    const packagedJson = JSON.parse(new TextDecoder().decode(archive.get("meowdieval-content/campaigns/Campaigns.json")));
-    expect(packagedJson.campaigns[0].events).toEqual(events);
+    const packagedJson = JSON.parse(new TextDecoder().decode(archive.get("meowdieval-content/missions/Missions.json")));
+    expect(packagedJson.missions[0].events).toEqual(events);
   });
 
-  it("exports saved dialogue decisions without inventing an empty campaign file", () => {
+  it("exports saved dialogue decisions without inventing an empty mission file", () => {
     const workspace = workspaceFixture();
-    workspace.campaigns = [];
+    workspace.missions = [];
     workspace.dialogues[0].sequence.nodes[0].actions = [{
       label: "Repair it",
       targetNodeId: "opening",
@@ -92,10 +92,10 @@ describe("content export and ZIP packages", () => {
     const manifest = JSON.parse(String(entries.find(entry => entry.path.endsWith("manifest.json"))?.content));
     const extensions = JSON.parse(String(entries.find(entry => entry.path.endsWith("meowedit-v1.json"))?.content));
 
-    expect(manifest.campaignsIncluded).toBe(false);
-    expect(manifest.campaignRuntimeSupported).toBe(false);
-    expect(manifest.files).not.toHaveProperty("campaigns");
-    expect(entries.some(entry => entry.path.endsWith("/campaigns/Campaigns.json"))).toBe(false);
+    expect(manifest.missionsIncluded).toBe(false);
+    expect(manifest.missionRuntimeSupported).toBe(false);
+    expect(manifest.files).not.toHaveProperty("missions");
+    expect(entries.some(entry => entry.path.endsWith("/missions/Missions.json"))).toBe(false);
     expect(extensions.dialogueDecisions).toEqual([{
       sequenceId: "test-dialogue",
       nodeId: "opening",

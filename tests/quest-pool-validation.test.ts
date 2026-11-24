@@ -13,7 +13,7 @@ function questPoolSet(): ContentSetDocument {
   return {
     schemaVersion: 2,
     set: { schemaVersion: 2, setId: "adventure-default-questpool", name: localized("Adventure Default Quest Pool"),
-      description: localized(""), displayOrder: 0, campaignOrder: [] },
+      description: localized(""), displayOrder: 0, missionOrder: [] },
     quests: [
       { schemaVersion: 2, id: "fetch-sealed-letter", title: localized("The Sealed Letter"), description: localized(""),
         objectiveKind: "Fetch", itemId: namedRef("sealed-letter"), speakerUnitId: namedRef("Peasants/Village Elder/1"),
@@ -38,7 +38,7 @@ function questPoolSet(): ContentSetDocument {
           killCount: { targetKind: "unit", targetId: namedRef("Peasants/Fighter/1"), count: 1 }, minimumNodeDistances: []
         } }
     ],
-    armies: [], campaigns: [], dialogues: []
+    armies: [], missions: [], dialogues: []
   };
 }
 

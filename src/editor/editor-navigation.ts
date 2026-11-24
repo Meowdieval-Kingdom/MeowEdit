@@ -2,7 +2,7 @@ import type { QuestRecord } from "./model";
 
 export type RelatedEditorReturnContext =
   | {
-      parentType: "campaign";
+      parentType: "mission";
       parentKey: string;
       floorId: string;
       nodeId: string | null;
@@ -45,7 +45,7 @@ export class EditorNavigationHistory {
       const context = item as Partial<RelatedEditorReturnContext>;
       if (typeof context.parentKey !== "string" || typeof context.returnLabel !== "string" ||
           !Number.isInteger(context.parentStep) || Number(context.parentStep) < 0) continue;
-      if (context.parentType === "campaign" && typeof context.floorId === "string" &&
+      if (context.parentType === "mission" && typeof context.floorId === "string" &&
           (context.nodeId === null || typeof context.nodeId === "string") &&
           (context.target === "army" || context.target === "quest-node" || context.target === "quest-pool" || context.target === "event-army") &&
           (context.target !== "event-army" || typeof context.eventId === "string") &&

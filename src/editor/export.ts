@@ -1,4 +1,4 @@
-import { dialogueActionsForNode, type ArmyRecord, type CampaignRecord, type DialogueRecord, type QuestRecord, type UnitRoster, type Workspace } from "./model";
+import { dialogueActionsForNode, type ArmyRecord, type MissionRecord, type DialogueRecord, type QuestRecord, type UnitRoster, type Workspace } from "./model";
 import { createStoredZip, type ZipEntry } from "./zip";
 
 const encoder = new TextEncoder();
@@ -65,7 +65,7 @@ function armyDocument(record: ArmyRecord): object {
   };
 }
 
-function campaignDocument(record: CampaignRecord): object {
+function missionDocument(record: MissionRecord): object {
   return {
     id: record.id,
     name: record.name,
@@ -93,8 +93,8 @@ export function activeArmyJson(record: ArmyRecord): string {
   return prettyJson({ schemaVersion: 1, format: "meowedit-army", army: armyDocument(record) });
 }
 
-export function activeCampaignJson(record: CampaignRecord): string {
-  return prettyJson({ schemaVersion: 1, format: "meowedit-campaign", campaign: campaignDocument(record) });
+export function activeMissionJson(record: MissionRecord): string {
+  return prettyJson({ schemaVersion: 1, format: "meowedit-mission", mission: missionDocument(record) });
 }
 
 export function workspaceJson(workspace: Workspace): string {
@@ -115,8 +115,8 @@ export function workspaceJson(workspace: Workspace): string {
         units: record.units
       }
     })),
-    campaigns: workspace.campaigns.map(record => ({
-      ...campaignDocument(record),
+    missions: workspace.missions.map(record => ({
+      ...missionDocument(record),
       _meowEditWorkspace: {
         key: record.key,
         idAuto: record.idAuto === true,
@@ -166,12 +166,12 @@ export function createPackageEntries(workspace: Workspace, roster: UnitRoster): 
     format: "meowdieval-content-package",
     packageVersion: 1,
     editorVersion: "0.1.5",
-    campaignsIncluded: workspace.campaigns.length > 0,
-    campaignRuntimeSupported: workspace.campaigns.length > 0,
+    missionsIncluded: workspace.missions.length > 0,
+    missionRuntimeSupported: workspace.missions.length > 0,
     files: {
       quests: "quests/Definitions.json",
       armies: "armies/ArmyConfigurations.json",
-      ...(workspace.campaigns.length > 0 ? { campaigns: "campaigns/Campaigns.json" } : {}),
+      ...(workspace.missions.length > 0 ? { missions: "missions/Missions.json" } : {}),
       dialogues: workspace.dialogues.map(record => "dialogues/" + safeName(record.sequence.sequenceId) + ".json"),
       extensions: "extensions/meowedit-v1.json"
     },
@@ -186,12 +186,12 @@ export function createPackageEntries(workspace: Workspace, roster: UnitRoster): 
       content: [
         "Meowdieval content package",
         "",
-        "This package uses schema version 1 for quests, dialogues, armies, campaign floors, routes, shops, and supported MeowEdit quest extensions.",
-        "The game validates all package references before offering a campaign. Invalid or unsupported content is rejected as a whole.",
+        "This package uses schema version 1 for quests, dialogues, armies, mission floors, routes, shops, and supported MeowEdit quest extensions.",
+        "The game validates all package references before offering a mission. Invalid or unsupported content is rejected as a whole.",
         "Continuing runs stay pinned to the exact immutable package revision they started with; new runs use the latest registered revision.",
-        workspace.campaigns.length > 0
-          ? "This package contains playable campaign boards, reusable quests, dialogues, army configurations, and shop offers. Extract it under Resources/AdventureContent/<revision>/ and register its manifest in PackageIndex.json."
-          : "This package contains quests, dialogues, and army configurations but no campaign, so it is not offered as a playable campaign.",
+        workspace.missions.length > 0
+          ? "This package contains playable mission boards, reusable quests, dialogues, army configurations, and shop offers. Extract it under Resources/AdventureContent/<revision>/ and register its manifest in PackageIndex.json."
+          : "This package contains quests, dialogues, and army configurations but no mission, so it is not offered as a playable mission.",
         ""
       ].join("\n")
     }
@@ -203,8 +203,8 @@ export function createPackageEntries(workspace: Workspace, roster: UnitRoster): 
     });
   }
   files.push({ path: root + "/armies/ArmyConfigurations.json", content: prettyJson({ schemaVersion: 1, armies: workspace.armies.map(armyDocument) }) });
-  if (workspace.campaigns.length > 0) {
-    files.push({ path: root + "/campaigns/Campaigns.json", content: prettyJson({ schemaVersion: 1, campaigns: workspace.campaigns.map(campaignDocument) }) });
+  if (workspace.missions.length > 0) {
+    files.push({ path: root + "/missions/Missions.json", content: prettyJson({ schemaVersion: 1, missions: workspace.missions.map(missionDocument) }) });
   }
   return files;
 }
@@ -225,6 +225,6 @@ export function toZipFileBytes(text: string): Uint8Array {
   return encoder.encode(text);
 }
 
-export function suggestedFilename(type: "dialogue" | "quest" | "army" | "campaign", id: string): string {
-  return safeName(id) + (type === "dialogue" ? ".dialogue.json" : type === "quest" ? ".quest.json" : type === "army" ? ".army.json" : ".campaign.json");
+export function suggestedFilename(type: "dialogue" | "quest" | "army" | "mission", id: string): string {
+  return safeName(id) + (type === "dialogue" ? ".dialogue.json" : type === "quest" ? ".quest.json" : type === "army" ? ".army.json" : ".mission.json");
 }

@@ -3,6 +3,6 @@ import { createSeedWorkspace } from "../src/editor/seed";
 
 describe("new workspace seed", () => {
   it("starts clean with no imported game content", () => {
-    expect(createSeedWorkspace()).toEqual({ schemaVersion: 1, dialogues: [], quests: [], armies: [], campaigns: [], selectedType: null, selectedKey: null, activeNodeId: null });
+    expect(createSeedWorkspace()).toEqual({ schemaVersion: 1, dialogues: [], quests: [], armies: [], missions: [], selectedType: null, selectedKey: null, activeNodeId: null });
   });
 });

@@ -8,7 +8,7 @@ Status legend: **[done]** works in the current build · **[partial]** data/field
 
 - **Content sets** browser: create / rename / open / (admin-gated) delete a set. Badges show Local only / Draft vN / Published.
 - **New set** → set ID and name prompts, then the set dashboard. All authoring happens in the single classic editor.
-- **Open set** → per-category list (Campaigns / Quests / Armies / Dialogues) with Add / Edit / Remove.
+- **Open set** → per-category list (Missions / Quests / Armies / Dialogues) with Add / Edit / Remove.
 - **Edit entry** → category editor with the **Full/Advanced** mode for full structured fields, stable IDs and registry parameters.
 - **Save / Upload** creates or updates a private draft in Neon; **Publish** makes it the latest public revision and warns that tester progress resets.
 - **Help** toggle reveals `.help-copy` hints; **version** and **Sign out** sit top-right.
@@ -18,7 +18,7 @@ Status legend: **[done]** works in the current build · **[partial]** data/field
 - **Focused author** — Guided path only; unrelated controls stay folded or hidden.
 - **Quick editor** — opens an existing entry, changes one value in Advanced, returns to the list.
 - **Systems author** — needs IDs, availability, progress rules, effects, routes and extension fields; lives in Full/Advanced.
-- **Campaign author** — chooses generated-only vs custom/mixed; only relevant steps appear.
+- **Mission author** — chooses generated-only vs custom/mixed; only relevant steps appear.
 - **Reviewer** — needs readable summaries of configured values plus validation before Publish.
 
 Core jobs: create without manual IDs, continue a draft, make a narrow edit, build related content without losing context, check the result, publish.
@@ -35,7 +35,7 @@ Core jobs: create without manual IDs, continue a draft, make a narrow edit, buil
 | G4 | Continue a draft after reload | Content session restores last set and Help; editor session restores mode, step and related-record return stack per set | — | **[done]** across the two local sessions |
 | G5 | Save without publishing | **Save / Upload** → Draft vN | Same button in set list | **[done]** |
 | G6 | Publish | **Publish** → warning → hash verification | Same | **[done]** |
-| G7 | Validate before publish | Plain-language issue list in the set dashboard and editor | Same list | **[partial]** schema, refs, enums, campaign graph rules and dialogue structure are checked; no one-click fixes |
+| G7 | Validate before publish | Plain-language issue list in the set dashboard and editor | Same list | **[partial]** schema, refs, enums, mission graph rules and dialogue structure are checked; no one-click fixes |
 | G8 | Get help | Help toggle reveals field hints | Same toggle | **[done]** |
 | G9 | Import / export JSON or ZIP | Hidden "Import / export JSON" control in the editor area | Same | **[done]** JSON/ZIP transfer; static examples were removed |
 | G10 | Static examples | — | — | **[removed by design]** — live published sets are the reference |
@@ -97,22 +97,22 @@ Core jobs: create without manual IDs, continue a draft, make a narrow edit, buil
 
 ---
 
-## 7. Campaign jobs
+## 7. Mission jobs
 
 | # | Use case | Guided path | Advanced path | Status |
 |---|---|---|---|---|
-| C1 | Create a campaign | Add Campaign → Name → Floors → Map → Node → Quests → Shops → Starting Run → Review | `id`, `name`, `description` | **[done]** |
+| C1 | Create a mission | Add Mission → Name → Floors → Map → Node → Quests → Shops → Starting Run → Review | `id`, `name`, `description` | **[done]** |
 | C2 | Choose approach (randomizer-only vs custom) | Name step: approach buttons filter the step list | `settings.*` | **[done]** |
 | C3 | Floors: add / select / remove / mode | Floor tabs, Add/Remove floor, layout mode and generated counts | `floors.F.{id,number,mode}` | **[done]** |
 | C4 | Adventure map authoring | Map step: click empty cell to add node, click node to edit, Connect then click neighbor, distance labels | `floors.F.nodes.*` | **[done]** including plug dragging |
 | C5 | Routes | Connect from a node, click neighbor; one-way toggle + Disconnect in Connections list | `floors.F.routes.*` | **[done]** adjacency/reachability validated |
 | C6 | Focused node step | Node step: node picker, contextual fields, connect/remove | Advanced | **[done]** |
-| C7 | Node inspector by kind | Battle/Boss army+faction with Create Army; Quest with Create Quest; Reward; Shop offers | `armyId`, `questId`, `enemyFactionId`, `reward*`, `shopOffers` | **[done]** with return-to-campaign |
+| C7 | Node inspector by kind | Battle/Boss army+faction with Create Army; Quest with Create Quest; Reward; Shop offers | `armyId`, `questId`, `enemyFactionId`, `reward*`, `shopOffers` | **[done]** with return-to-mission |
 | C8 | Exact three shop offers | Shop node offers: stock mode (generated/exact), pool, item, price, max 3 | `shopOffers` rows | **[done]** |
 | C9 | Quest pool + floor pools | Quests step: toggle chips for authored quests | `questIds`, `questPoolIds` | **[done]** (per-floor subset only in Advanced) |
 | C10 | Shop pools + tiers | Shops step: pool checkboxes + floor tier | `shopPoolKinds`, `shopLevel` | **[done]** |
 | C11 | Events | Review events: ID, trigger, floor, node, remove | conditions/actions parameters | **[done]** (parameters in Advanced) |
-| C12 | Starting run / progression panels | Starting Run step: board character, resources, faction, toggles, growth settings and per-campaign Sardine payout switch/base/per-floor | `settings.*`, `settings.sardinePayout*` | **[done]** |
+| C12 | Starting run / progression panels | Starting Run step: board character, resources, faction, toggles, growth settings and per-mission Sardine payout switch/base/per-floor | `settings.*`, `settings.sardinePayout*` | **[done]** |
 | C13 | Review every floor | Review step lists each floor's mode, nodes, routes and shop tier | — | **[done]** |
 | C14 | Publish / revision | Publish in set list | Same | **[done]** |
 
@@ -124,7 +124,7 @@ Core jobs: create without manual IDs, continue a draft, make a narrow edit, buil
 2. Anything marked **[partial]** must have the missing control either in the guided flow or in Advanced with a clear label; if neither, it is **[missing]**.
 3. New features must keep the set layout: no second editor page, no duplicate Save/Publish, one entry at a time.
 4. Deprecated by the new layout (do **not** restore): static example import and the per-type "publish to game" button.
-5. The interactive surfaces implemented natively (highest impact): dialogue moment map, game-faithful preview, army catalog/grid/cell-target focus, campaign snap map with plug drag, and related-record return contexts.
+5. The interactive surfaces implemented natively (highest impact): dialogue moment map, game-faithful preview, army catalog/grid/cell-target focus, mission snap map with plug drag, and related-record return contexts.
 
 ## 9. Workflow-to-test map
 

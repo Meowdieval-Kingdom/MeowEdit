@@ -2,7 +2,7 @@
   "appVersion": "0.2.2",
   "buildNumber": 6,
   "schemaVersions": [2],
-  "triggers": ["campaign-start", "after-battle", "battle-won", "dialogue-choice-selected"],
+  "triggers": ["mission-start", "after-battle", "battle-won", "dialogue-choice-selected"],
   "actions": ["replace-player-army", "dialogue"],
   "conditions": ["choice-outcome"],
   "parameters": {

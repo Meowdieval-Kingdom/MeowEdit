@@ -6,7 +6,7 @@
     "name": { "default": "Test Set", "locales": { "de": "Test-Set" } },
     "description": { "default": "A hand-authored v2 contract fixture.", "locales": {} },
     "displayOrder": 1,
-    "campaignOrder": ["first-mission"]
+    "missionOrder": ["first-mission"]
   },
   "quests": [
     {
@@ -83,7 +83,7 @@
       "CellBlessingPicks": []
     }
   ],
-  "campaigns": [
+  "missions": [
     {
       "schemaVersion": 2,
       "id": "first-mission",
@@ -96,9 +96,9 @@
           "id": "floor-1",
           "number": 1,
           "mode": "authored",
-          "questPoolMode": "campaign",
+          "questPoolMode": "mission",
           "questPoolIds": [{ "id": "find-key", "label": { "default": "Find the Key", "locales": {} } }],
-          "shopPoolMode": "campaign",
+          "shopPoolMode": "mission",
           "shopPoolKinds": ["Unit"],
           "shopLevel": 1,
           "randomSettings": { "nodeCount": 12, "questNodeCount": 2, "shopNodeCount": 3 },
@@ -142,7 +142,7 @@
       "events": [
         {
           "id": "event-1",
-          "trigger": "campaign-start",
+          "trigger": "mission-start",
           "conditions": [
             { "key": "choice-outcome", "value": "outcome-1" },
             { "key": "battle-won", "value": null }

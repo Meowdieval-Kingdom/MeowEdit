@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { validateArmy, validateCampaign, validateDialogue, validateQuest, validateWorkspace } from "../src/editor/validation";
-import { armyFixture, campaignFixture, catalog, dialogueFixture, questFixture, workspaceFixture } from "./fixtures";
+import { validateArmy, validateMission, validateDialogue, validateQuest, validateWorkspace } from "../src/editor/validation";
+import { armyFixture, missionFixture, catalog, dialogueFixture, questFixture, workspaceFixture } from "./fixtures";
 
 describe("content validation", () => {
   it("accepts catalog-backed army units and their individual spells", () => {
@@ -62,60 +62,60 @@ describe("content validation", () => {
     expect(messages).toContain("Choose unit spells from the current game catalog.");
   });
 
-  it("checks campaign floors and required starter graph structure", () => {
-    const campaign = campaignFixture();
-    expect(validateCampaign(campaign, workspaceFixture(), catalog).filter(issue => issue.level === "error")).toEqual([]);
-    campaign.floors[0].routes = [];
-    expect(validateCampaign(campaign, workspaceFixture(), catalog).some(issue => issue.message.includes("unreachable from Start"))).toBe(true);
+  it("checks mission floors and required starter graph structure", () => {
+    const mission = missionFixture();
+    expect(validateMission(mission, workspaceFixture(), catalog).filter(issue => issue.level === "error")).toEqual([]);
+    mission.floors[0].routes = [];
+    expect(validateMission(mission, workspaceFixture(), catalog).some(issue => issue.message.includes("unreachable from Start"))).toBe(true);
   });
 
-  it("validates campaign event scopes and Army references while preserving unknown actions", () => {
+  it("validates mission event scopes and Army references while preserving unknown actions", () => {
     const workspace = workspaceFixture();
-    const campaign = workspace.campaigns[0];
-    const battle = campaign.floors[0].nodes.find(node => node.kind === "Battle")!;
-    campaign.events = [{
+    const mission = workspace.missions[0];
+    const battle = mission.floors[0].nodes.find(node => node.kind === "Battle")!;
+    mission.events = [{
       id: "boss-party", trigger: "before-battle", floorNumber: 1, nodeId: battle.id,
       actions: [{ kind: "replace-player-army", armyId: workspace.armies[0].id }]
     }];
-    expect(validateCampaign(campaign, workspace, catalog).filter(issue => issue.level === "error")).toEqual([]);
+    expect(validateMission(mission, workspace, catalog).filter(issue => issue.level === "error")).toEqual([]);
 
-    campaign.events[0].actions[0] = { kind: "replace-player-army", armyId: "missing-army" };
-    campaign.events[0].nodeId = "start";
-    const messages = validateCampaign(campaign, workspace, catalog).map(issue => issue.message);
-    expect(messages).toContain("Campaign event “boss-party”: battle triggers must target a Battle or Boss node.");
-    expect(messages).toContain("Campaign event “boss-party”: replace-player-army must reference an Army Editor army.");
+    mission.events[0].actions[0] = { kind: "replace-player-army", armyId: "missing-army" };
+    mission.events[0].nodeId = "start";
+    const messages = validateMission(mission, workspace, catalog).map(issue => issue.message);
+    expect(messages).toContain("Mission event “boss-party”: battle triggers must target a Battle or Boss node.");
+    expect(messages).toContain("Mission event “boss-party”: replace-player-army must reference an Army Editor army.");
 
-    campaign.events[0].nodeId = battle.id;
-    campaign.events[0].actions = [{ kind: "grant-token", tokenId: "future-content" }];
-    const issues = validateCampaign(campaign, workspace, catalog);
+    mission.events[0].nodeId = battle.id;
+    mission.events[0].actions = [{ kind: "grant-token", tokenId: "future-content" }];
+    const issues = validateMission(mission, workspace, catalog);
     expect(issues.some(issue => issue.level === "warning" && issue.message.includes("grant-token") && issue.message.includes("preserved in export"))).toBe(true);
   });
 
   it("validates authored board preview units against the runtime unit catalog", () => {
     const workspace = workspaceFixture();
-    const campaign = workspace.campaigns[0];
-    campaign.boardPreviewUnitId = "Peasants/Fighter/1";
-    expect(validateCampaign(campaign, workspace, catalog).filter(issue => issue.level === "error")).toEqual([]);
+    const mission = workspace.missions[0];
+    mission.boardPreviewUnitId = "Peasants/Fighter/1";
+    expect(validateMission(mission, workspace, catalog).filter(issue => issue.level === "error")).toEqual([]);
 
-    campaign.boardPreviewUnitId = "Missing/Unit/1";
-    expect(validateCampaign(campaign, workspace, catalog).map(issue => issue.message))
+    mission.boardPreviewUnitId = "Missing/Unit/1";
+    expect(validateMission(mission, workspace, catalog).map(issue => issue.message))
       .toContain("Choose a board preview unit from the game catalog, or use the selected faction hero.");
   });
 
-  it("requires a configured player faction when campaign faction selection is disabled", () => {
+  it("requires a configured player faction when mission faction selection is disabled", () => {
     const workspace = workspaceFixture();
-    const campaign = workspace.campaigns[0];
-    campaign.settings.factionSelectionEnabled = false;
-    expect(validateCampaign(campaign, workspace, catalog).map(issue => issue.message))
+    const mission = workspace.missions[0];
+    mission.settings.factionSelectionEnabled = false;
+    expect(validateMission(mission, workspace, catalog).map(issue => issue.message))
       .toContain("Choose a player faction when faction selection is disabled.");
 
-    campaign.settings.playerFactionId = "Peasants";
-    expect(validateCampaign(campaign, workspace, catalog).filter(issue => issue.level === "error")).toEqual([]);
+    mission.settings.playerFactionId = "Peasants";
+    expect(validateMission(mission, workspace, catalog).filter(issue => issue.level === "error")).toEqual([]);
   });
 
-  it("validates exact campaign shop inventory against the game catalog and price rules", () => {
-    const campaign = campaignFixture();
-    const floor = campaign.floors[0];
+  it("validates exact mission shop inventory against the game catalog and price rules", () => {
+    const mission = missionFixture();
+    const floor = mission.floors[0];
     const shop = { ...floor.nodes[1], id: "market", label: "Market", kind: "Shop" as const, x: 2, y: 0,
       shopOfferMode: "exact" as const,
       shopOffers: [
@@ -124,14 +124,14 @@ describe("content validation", () => {
         { kind: "SpellUnlock" as const, contentId: "fireball", price: 7 }
       ] };
     floor.nodes.push(shop);
-    let messages = validateCampaign(campaign, workspaceFixture(), catalog).map(issue => issue.message);
+    let messages = validateMission(mission, workspaceFixture(), catalog).map(issue => issue.message);
     expect(messages.some(message => message.includes("exact shop") || message.includes("shop prices"))).toBe(false);
 
     shop.shopOffers[2].contentId = "missing-spell";
     shop.shopOffers[1].price = -1;
     shop.shopOffers.push({ kind: "Unit", contentId: "Peasants/Fighter/2", price: 0 });
     floor.shopLevel = 5;
-    messages = validateCampaign(campaign, workspaceFixture(), catalog).map(issue => issue.message);
+    messages = validateMission(mission, workspaceFixture(), catalog).map(issue => issue.message);
     expect(messages.some(message => message.includes("exact shop “Market” needs exactly three offers"))).toBe(true);
     expect(messages.some(message => message.includes("unknown SpellUnlock item"))).toBe(true);
     expect(messages.some(message => message.includes("prices must be whole numbers"))).toBe(true);
@@ -174,37 +174,37 @@ describe("content validation", () => {
     expect(messages).not.toContain("No branching choices yet. Add another choice to create a branch.");
   });
 
-  it("accepts the published character-mission campaign shapes that work in game", () => {
-    const campaign = campaignFixture();
-    campaign.settings.startingSardines = 0;
-    campaign.events = [
-      { id: "intro-lineup", trigger: "campaign-start", floorNumber: 0, nodeId: "", actions: [{ kind: "dialogue" }] } as never,
+  it("accepts the published character-mission mission shapes that work in game", () => {
+    const mission = missionFixture();
+    mission.settings.startingSardines = 0;
+    mission.events = [
+      { id: "intro-lineup", trigger: "mission-start", floorNumber: 0, nodeId: "", actions: [{ kind: "dialogue" }] } as never,
       { id: "add-units", trigger: "battle-won", actions: [{ kind: "grant-blessings" }, { kind: "restart-battle" }] } as never
     ];
-    const startNode = campaign.floors[0].nodes.find(node => node.kind === "Start")!;
+    const startNode = mission.floors[0].nodes.find(node => node.kind === "Start")!;
     startNode.armyId = "none";
     startNode.enemyFactionId = "none";
-    const boss = campaign.floors[0].nodes.find(node => node.kind === "Boss")!;
+    const boss = mission.floors[0].nodes.find(node => node.kind === "Boss")!;
     boss.y = 1;
 
-    const issues = validateCampaign(campaign, workspaceFixture(), catalog);
+    const issues = validateMission(mission, workspaceFixture(), catalog);
     expect(issues.map(issue => issue.message)).toEqual([]);
   });
 
-  it("still flags genuinely broken campaign data", () => {
-    const campaign = campaignFixture();
-    campaign.settings.startingSardines = -1;
-    campaign.events = [{
-      id: "bad", trigger: "campaign-start", floorNumber: 1, nodeId: "missing", actions: [{ kind: "dialogue" }]
+  it("still flags genuinely broken mission data", () => {
+    const mission = missionFixture();
+    mission.settings.startingSardines = -1;
+    mission.events = [{
+      id: "bad", trigger: "mission-start", floorNumber: 1, nodeId: "missing", actions: [{ kind: "dialogue" }]
     } as never];
-    const messages = validateCampaign(campaign, workspaceFixture(), catalog).map(issue => issue.message);
+    const messages = validateMission(mission, workspaceFixture(), catalog).map(issue => issue.message);
     expect(messages.some(message => message.includes("Starting Sardines"))).toBe(true);
     expect(messages.some(message => message.includes("cannot target a floor or node"))).toBe(true);
     expect(messages.some(message => message.includes("choose a supported trigger"))).toBe(false);
 
-    const broken = campaignFixture();
+    const broken = missionFixture();
     broken.events = [{ id: "bad-trigger", trigger: "not-a-trigger", actions: [] } as never];
-    expect(validateCampaign(broken, workspaceFixture(), catalog).some(issue => issue.message.includes("choose a supported trigger"))).toBe(true);
+    expect(validateMission(broken, workspaceFixture(), catalog).some(issue => issue.message.includes("choose a supported trigger"))).toBe(true);
   });
 
   it("validates battle targets and multiple fetch item extension entries", () => {
@@ -287,26 +287,26 @@ describe("content validation", () => {
     expect(messages).toContain("The linked dialogue has no matching wait decision outcome.");
   });
 
-  it("checks workspace-wide duplicate IDs and campaign node references", () => {
+  it("checks workspace-wide duplicate IDs and mission node references", () => {
     const workspace = workspaceFixture();
     workspace.armies.push({ ...workspace.armies[0], key: "second-army" });
-    workspace.campaigns[0].floors[0].nodes[1].armyId = "missing-army";
+    workspace.missions[0].floors[0].nodes[1].armyId = "missing-army";
     const messages = validateWorkspace(workspace, catalog).map(issue => issue.message);
     expect(messages.some(message => message.includes("Army IDs must be unique"))).toBe(true);
     expect(messages.some(message => message.includes("missing Army configuration"))).toBe(true);
   });
 
   it("checks generated floor limits, custom quest pools, and dangling routes", () => {
-    const campaign = campaignFixture();
-    const floor = campaign.floors[0];
+    const mission = missionFixture();
+    const floor = mission.floors[0];
     floor.mode = "mixed";
     floor.randomSettings.nodeCount = 40;
     floor.questPoolMode = "custom";
     floor.questPoolIds = ["outside-pool"];
     floor.routes.push({ id: "bad", fromNodeId: "start", toNodeId: "missing", oneWay: false });
-    const messages = validateCampaign(campaign, workspaceFixture(), catalog).map(issue => issue.message);
+    const messages = validateMission(mission, workspaceFixture(), catalog).map(issue => issue.message);
     expect(messages.some(message => message.includes("exceed the 30-node floor limit"))).toBe(true);
-    expect(messages.some(message => message.includes("outside the campaign Quest pool"))).toBe(true);
+    expect(messages.some(message => message.includes("outside the mission Quest pool"))).toBe(true);
     expect(messages.some(message => message.includes("no longer exists"))).toBe(true);
   });
 });

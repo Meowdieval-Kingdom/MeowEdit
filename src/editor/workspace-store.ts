@@ -8,7 +8,7 @@ export const SCRATCH_WORKSPACE = "__scratch__";
 
 /**
  * The editor keeps its native workspace as its own state, scoped per set.
- * Drawflow positions, editor labels, army placement IDs and campaign design
+ * Drawflow positions, editor labels, army placement IDs and mission design
  * mode live here exactly as authored — they are authoring state,
  * not part of the game's strict structured content contract.
  */
@@ -28,7 +28,7 @@ function isWorkspace(value: unknown): value is Workspace {
     && Array.isArray(candidate.dialogues) && candidate.dialogues.every(item => item?.sequence && Array.isArray(item.sequence.nodes))
     && Array.isArray(candidate.quests) && candidate.quests.every(item => item?.definition && item?.extension)
     && Array.isArray(candidate.armies) && candidate.armies.every(item => Array.isArray(item?.units))
-    && Array.isArray(candidate.campaigns) && candidate.campaigns.every(item => item?.settings && Array.isArray(item?.floors));
+    && Array.isArray(candidate.missions) && candidate.missions.every(item => item?.settings && Array.isArray(item?.floors));
 }
 
 export function loadWorkspace(
@@ -77,7 +77,7 @@ export function markWorkspaceSynced(setId: string, draftVersion: number): void {
   }
 }
 
-const SCRATCH_SECTIONS = ["dialogues", "quests", "armies", "campaigns"] as const;
+const SCRATCH_SECTIONS = ["dialogues", "quests", "armies", "missions"] as const;
 
 function hasEditorKey(value: unknown): boolean {
   const key = (value as { key?: unknown } | null)?.key;

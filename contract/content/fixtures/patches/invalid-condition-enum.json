@@ -1,6 +1,6 @@
 {
   "op": "set",
-  "path": "campaigns[0].events[0].conditions",
+  "path": "missions[0].events[0].conditions",
   "value": [
     { "key": "choice-outcome", "value": "outcome-1" },
     { "key": "node-kind", "value": "Teleport" }

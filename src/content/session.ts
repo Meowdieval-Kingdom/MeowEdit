@@ -2,7 +2,7 @@ import { getBridgeUserId } from "../bridge-context";
 
 export interface LastEdited {
   workspace: string; // "__scratch__" or a setId
-  section: "dialogues" | "quests" | "armies" | "campaigns";
+  section: "dialogues" | "quests" | "armies" | "missions";
   key: string;
   label: string;
 }
@@ -31,7 +31,7 @@ export function loadSession(): ContentSession {
       savedAt: typeof loaded.savedAt === "string" ? loaded.savedAt : null,
       setId: typeof loaded.setId === "string" ? loaded.setId : null,
       lastEdited: last && typeof last.workspace === "string" && typeof last.key === "string"
-        && ["dialogues", "quests", "armies", "campaigns"].includes(last.section)
+        && ["dialogues", "quests", "armies", "missions"].includes(last.section)
         ? last as LastEdited : null
     };
   } catch {

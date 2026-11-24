@@ -1,5 +1,5 @@
-import { DEFAULT_QUEST, emptyQuestExtension, type ArmyCatalog, type ArmyRecord, type CampaignRecord, type DialogueRecord, type QuestRecord, type UnitRoster, type Workspace } from "../src/editor/model";
-import { createCampaignFloor } from "../src/editor/campaign-domain";
+import { DEFAULT_QUEST, emptyQuestExtension, type ArmyCatalog, type ArmyRecord, type MissionRecord, type DialogueRecord, type QuestRecord, type UnitRoster, type Workspace } from "../src/editor/model";
+import { createMissionFloor } from "../src/editor/mission-domain";
 
 export const catalog: ArmyCatalog = {
   schemaVersion: 1,
@@ -40,11 +40,11 @@ export function questFixture(): QuestRecord {
   return { key: "quest-key", idAuto: false, definition: { ...DEFAULT_QUEST, id: "test-quest", title: "Test Quest" }, extension };
 }
 
-export function campaignFixture(): CampaignRecord {
+export function missionFixture(): MissionRecord {
   return {
-    key: "campaign-key", id: "test-campaign", idAuto: false, name: "Test Campaign", description: "", boardPreviewUnitId: "", designMode: "custom", questIds: [],
+    key: "mission-key", id: "test-mission", idAuto: false, name: "Test Mission", description: "", boardPreviewUnitId: "", designMode: "custom", questIds: [],
     events: [],
-    floors: [createCampaignFloor(1, "authored", prefix => prefix + "-id")],
+    floors: [createMissionFloor(1, "authored", prefix => prefix + "-id")],
     settings: { startingLives: 3, startingSardines: 10, startingNodeCount: 12, playerFactionId: "", factionSelectionEnabled: true, battleShopEnabled: true,
       shopPoolKinds: ["Unit", "Blessing", "Research", "SpellUnlock"],
       sardinePayoutEnabled: true, sardinePayoutBase: 10, sardinePayoutPerFloor: 1,
@@ -53,7 +53,7 @@ export function campaignFixture(): CampaignRecord {
 }
 
 export function workspaceFixture(): Workspace {
-  return { schemaVersion: 1, dialogues: [dialogueFixture()], quests: [questFixture()], armies: [armyFixture()], campaigns: [campaignFixture()],
+  return { schemaVersion: 1, dialogues: [dialogueFixture()], quests: [questFixture()], armies: [armyFixture()], missions: [missionFixture()],
     selectedType: "army", selectedKey: "army-key", activeNodeId: null };
 }
 

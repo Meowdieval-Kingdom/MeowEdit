@@ -1,6 +1,6 @@
 # MeowEdit
 
-The browser authoring studio for Meowdieval content sets: campaigns, quests, armies and dialogues in one structured content document.
+The browser authoring studio for Meowdieval content sets: missions, quests, armies and dialogues in one structured content document.
 
 > **Contract:** the single source of truth is `C:\Users\ekkii\Projects\MeowdievalKingdom\Docs\MeowEdit-Content-Contract.md`. The original local-only editor was replaced by the set/cloud editor; static "Import examples" were removed. JSON/ZIP transfer remains available inside each content editor. Sign-in is required, drafts autosave locally, uploading a draft and publishing a revision are separate explicit actions.
 
@@ -24,9 +24,9 @@ To refresh demo copies after changing local originals, put them under `.local-as
 
 ## Editor scope
 
-- **Content sets** are the unit of authoring and publishing: one set contains one or more campaigns plus shared quests, armies and dialogues.
+- **Content sets** are the unit of authoring and publishing: one set contains one or more missions plus shared quests, armies and dialogues.
 - Creating a set asks for an ID and a name, then opens its set dashboard.
-- Each category opens in the **one classic editor**: the original Drawflow dialogue map with game preview, full quest and campaign editors, and the footprint-aware army grid with drag/swap placement. It has exactly two modes per content type — **Guided** (focused steps) and **Full/Advanced** (complete record). Set/cloud controls (Save / Upload, Publish, Dashboard/Set, Sign out) sit in the topbar; JSON import/export is in the editor area, not the toolbar. The editor uses its native per-set workspace, so Drawflow node positions, editor labels, army placement IDs and campaign design mode still work exactly as before; conversion to the strict cloud format happens only at Save / Publish.
+- Each category opens in the **one classic editor**: the original Drawflow dialogue map with game preview, full quest and mission editors, and the footprint-aware army grid with drag/swap placement. It has exactly two modes per content type — **Guided** (focused steps) and **Full/Advanced** (complete record). Set/cloud controls (Save / Upload, Publish, Dashboard/Set, Sign out) sit in the topbar; JSON import/export is in the editor area, not the toolbar. The editor uses its native per-set workspace, so Drawflow node positions, editor labels, army placement IDs and mission design mode still work exactly as before; conversion to the strict cloud format happens only at Save / Publish.
 - Validation reports plain-language issues in the set dashboard and in the editor; dialogue-only sets are valid.
 - The capability manifest (`public/game-capabilities.json`) drives pickers, strict validation and enum whitelists; `npm run snapshot-game-capabilities` regenerates it from the game checkout.
 

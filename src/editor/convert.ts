@@ -1,6 +1,6 @@
 import { localized, namedRef } from "../content/factory";
 import type {
-  CampaignEvent,
+  MissionEvent,
   ContentSetDocument,
   DialogueDecision,
   GameCapabilities
@@ -9,7 +9,7 @@ import {
   emptyQuestExtension,
   type AdventureQuestDefinition,
   type ArmyRecord,
-  type CampaignRecord,
+  type MissionRecord,
   type DialogueNode,
   type DialogueRecord,
   type QuestRecord,
@@ -173,20 +173,20 @@ export function draftToWorkspace(
     };
   });
 
-  const campaigns: CampaignRecord[] = draft.campaigns.map(doc => ({
+  const missions: MissionRecord[] = draft.missions.map(doc => ({
     key: doc.id, id: doc.id, idAuto: true, name: text(doc.name), description: text(doc.description),
     boardPreviewUnitId: ref(doc.boardPreviewUnitId),
     designMode: "choose",
     questIds: doc.questIds.map(item => item.id),
     floors: doc.floors.map(floor => ({
-      id: floor.id, number: floor.number, mode: floor.mode as CampaignRecord["floors"][number]["mode"],
-      questPoolMode: floor.questPoolMode as "campaign" | "custom", questPoolIds: floor.questPoolIds.map(item => item.id),
-      shopPoolMode: floor.shopPoolMode as "campaign" | "custom", shopPoolKinds: [...floor.shopPoolKinds] as CampaignRecord["floors"][number]["shopPoolKinds"],
+      id: floor.id, number: floor.number, mode: floor.mode as MissionRecord["floors"][number]["mode"],
+      questPoolMode: floor.questPoolMode as "mission" | "custom", questPoolIds: floor.questPoolIds.map(item => item.id),
+      shopPoolMode: floor.shopPoolMode as "mission" | "custom", shopPoolKinds: [...floor.shopPoolKinds] as MissionRecord["floors"][number]["shopPoolKinds"],
       shopLevel: floor.shopLevel, randomSettings: { ...floor.randomSettings },
       nodes: floor.nodes.map(node => ({
-        id: node.id, label: text(node.label), kind: node.kind as CampaignRecord["floors"][number]["nodes"][number]["kind"],
+        id: node.id, label: text(node.label), kind: node.kind as MissionRecord["floors"][number]["nodes"][number]["kind"],
         x: node.x, y: node.y, armyId: ref(node.armyId), questId: ref(node.questId),
-        enemyFactionId: ref(node.enemyFactionId), rewardKind: node.rewardKind as CampaignRecord["floors"][number]["nodes"][number]["rewardKind"],
+        enemyFactionId: ref(node.enemyFactionId), rewardKind: node.rewardKind as MissionRecord["floors"][number]["nodes"][number]["rewardKind"],
         rewardAmount: node.rewardAmount, rewardContentId: ref(node.rewardContentId),
         shopOfferMode: node.shopOfferMode === "exact" ? "exact" : "generated",
         shopOffers: node.shopOffers.map(offer => ({ kind: offer.kind as "Unit", contentId: ref(offer.contentId), price: offer.price }))
@@ -194,7 +194,7 @@ export function draftToWorkspace(
       routes: floor.routes.map(route => ({ id: route.id, fromNodeId: route.fromNodeId, toNodeId: route.toNodeId, oneWay: route.oneWay }))
     })),
     events: doc.events.map(event => ({
-      id: event.id, trigger: event.trigger as CampaignRecord["events"][number]["trigger"],
+      id: event.id, trigger: event.trigger as MissionRecord["events"][number]["trigger"],
       ...(event.floorNumber !== undefined ? { floorNumber: event.floorNumber } : {}),
       ...(event.nodeId !== undefined ? { nodeId: event.nodeId } : {}),
       conditions: event.conditions?.map(condition => ({ ...condition })) ?? [],
@@ -213,7 +213,7 @@ export function draftToWorkspace(
       startingLives: doc.settings.startingLives, startingSardines: doc.settings.startingSardines,
       startingNodeCount: doc.settings.startingNodeCount, playerFactionId: ref(doc.settings.playerFactionId),
       factionSelectionEnabled: doc.settings.factionSelectionEnabled, battleShopEnabled: doc.settings.battleShopEnabled,
-      shopPoolKinds: [...doc.settings.shopPoolKinds] as CampaignRecord["settings"]["shopPoolKinds"],
+      shopPoolKinds: [...doc.settings.shopPoolKinds] as MissionRecord["settings"]["shopPoolKinds"],
       questNodeCountPerRandomFloor: doc.settings.questNodeCountPerRandomFloor,
       shopNodeCountPerRandomFloor: doc.settings.shopNodeCountPerRandomFloor,
       nodeGrowthPerFloor: doc.settings.nodeGrowthPerFloor,
@@ -228,18 +228,18 @@ export function draftToWorkspace(
     { section: "dialogues", key: selected?.section === "dialogues" ? dialogues[selected.index]?.key : undefined, type: "dialogue" },
     { section: "quests", key: selected?.section === "quests" ? quests[selected.index]?.key : undefined, type: "quest" },
     { section: "armies", key: selected?.section === "armies" ? armies[selected.index]?.key : undefined, type: "army" },
-    { section: "campaigns", key: selected?.section === "campaigns" ? campaigns[selected.index]?.key : undefined, type: "campaign" }
+    { section: "missions", key: selected?.section === "missions" ? missions[selected.index]?.key : undefined, type: "mission" }
   ];
   const chosen = sections.find(item => item.key);
-  const first = dialogues[0] ?? quests[0] ?? armies[0] ?? campaigns[0];
+  const first = dialogues[0] ?? quests[0] ?? armies[0] ?? missions[0];
   const firstType: Workspace["selectedType"] = dialogues.length ? "dialogue" : quests.length ? "quest"
-    : armies.length ? "army" : campaigns.length ? "campaign" : null;
+    : armies.length ? "army" : missions.length ? "mission" : null;
   const type = chosen?.type ?? firstType;
   const key = chosen?.key ?? first?.key ?? null;
   const activeNodeId = type === "dialogue"
     ? dialogues.find(item => item.key === key)?.sequence.startNodeId ?? null : null;
   return {
-    schemaVersion: 1, dialogues, quests, armies, campaigns,
+    schemaVersion: 1, dialogues, quests, armies, missions,
     selectedType: type, selectedKey: key, activeNodeId
   };
 }
@@ -374,16 +374,16 @@ export function workspaceToDraft(
     } as ContentSetDocument["armies"][number];
   });
 
-  const oldCampaigns = new Map(draft.campaigns.map(doc => [doc.id, doc]));
-  draft.campaigns = workspace.campaigns.map(record => {
-    const events: CampaignEvent[] = record.events.map(event => ({
+  const oldMissions = new Map(draft.missions.map(doc => [doc.id, doc]));
+  draft.missions = workspace.missions.map(record => {
+    const events: MissionEvent[] = record.events.map(event => ({
       id: event.id, trigger: event.trigger,
       ...(event.floorNumber !== undefined ? { floorNumber: event.floorNumber } : {}),
       ...(event.nodeId !== undefined ? { nodeId: event.nodeId } : {}),
       conditions: (event.conditions ?? []).map(condition => ({
         key: condition.key, value: condition.value ?? null
       })),
-      oneShot: (event.oneShot as CampaignEvent["oneShot"]) ?? "per-run",
+      oneShot: (event.oneShot as MissionEvent["oneShot"]) ?? "per-run",
       actions: event.actions.map(action => ({
         kind: action.kind,
         parameters: Object.entries(action)
@@ -429,9 +429,9 @@ export function workspaceToDraft(
         sardinePayoutEnabled: record.settings.sardinePayoutEnabled,
         sardinePayoutBase: record.settings.sardinePayoutBase,
         sardinePayoutPerFloor: record.settings.sardinePayoutPerFloor,
-        blessingsEnabled: oldCampaigns.get(record.key)?.settings.blessingsEnabled ?? true,
-        restoreArmyAfterLoss: oldCampaigns.get(record.key)?.settings.restoreArmyAfterLoss ?? true
+        blessingsEnabled: oldMissions.get(record.key)?.settings.blessingsEnabled ?? true,
+        restoreArmyAfterLoss: oldMissions.get(record.key)?.settings.restoreArmyAfterLoss ?? true
       }
-    } as ContentSetDocument["campaigns"][number];
+    } as ContentSetDocument["missions"][number];
   });
 }

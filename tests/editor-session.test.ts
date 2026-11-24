@@ -22,10 +22,10 @@ describe("editor session persistence", () => {
       sidebarCollapsed: true,
       selectedArmyPlacementId: "placement-1",
       armyCatalogKind: "buildings" as const,
-      selectedCampaignFloorId: "floor-2",
-      selectedCampaignNodeId: "boss-2",
+      selectedMissionFloorId: "floor-2",
+      selectedMissionNodeId: "boss-2",
       relatedReturnContexts: [{
-        parentType: "campaign" as const, parentKey: "campaign-1", floorId: "floor-2", nodeId: "boss-2",
+        parentType: "mission" as const, parentKey: "mission-1", floorId: "floor-2", nodeId: "boss-2",
         target: "army" as const, parentStep: 3, returnLabel: "Willow Road"
       }]
     };

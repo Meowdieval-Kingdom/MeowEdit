@@ -18,8 +18,8 @@ describe("dashboard and scratch content", () => {
     setBridgeFetch(async (requestPath, init) => {
       let body: unknown = { sets: [{ setId: "target-set", draftVersion: 2, publishedPackageId: "pkg" }] };
       if (requestPath === "/v1/editor/capabilities") body = caps;
-      else if (requestPath.endsWith("/campaign-sets/target-set") && init?.method === "POST") body = { draftVersion: 3 };
-      else if (requestPath.includes("/campaign-sets/") && !requestPath.endsWith("/publish")) body = { draftVersion: 2, draft: valid };
+      else if (requestPath.endsWith("/mission-sets/target-set") && init?.method === "POST") body = { draftVersion: 3 };
+      else if (requestPath.includes("/mission-sets/") && !requestPath.endsWith("/publish")) body = { draftVersion: 2, draft: valid };
       else if (requestPath.endsWith("/publish")) body = { packageId: "pkg-new", contentHash: "hash" };
       return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
     });
@@ -34,7 +34,7 @@ describe("dashboard and scratch content", () => {
     expect(container.textContent).toContain("Your dashboard");
     expect(container.textContent).toContain("Create new content");
     expect(container.textContent).toContain("Local drafts (not in a set)");
-    for (const section of ["dialogues", "quests", "armies", "campaigns"])
+    for (const section of ["dialogues", "quests", "armies", "missions"])
       expect(container.querySelector('[data-create="' + section + '"]')).not.toBeNull();
     expect(container.querySelector('[data-open="target-set"]')).not.toBeNull();
   });

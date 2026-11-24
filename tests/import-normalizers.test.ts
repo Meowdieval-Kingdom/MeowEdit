@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizeArmy, normalizeCampaign, normalizeQuest } from "../src/editor/import-normalizers";
+import { normalizeArmy, normalizeMission, normalizeQuest } from "../src/editor/import-normalizers";
 
 describe("content import normalization", () => {
   it("upgrades old army files and preserves per-placement spell IDs", () => {
@@ -48,25 +48,25 @@ describe("content import normalization", () => {
     });
   });
 
-  it("normalizes standalone campaign envelopes and fills missing board settings", () => {
-    const campaign = normalizeCampaign({
-      format: "meowedit-campaign", _meowEditWorkspace: { key: "local-key", idAuto: true },
-      campaign: { id: "imported", boardPreviewUnitId: "Peasants/Fighter/1", floors: [{ mode: "mixed", nodes: [{ kind: "Shop", label: "Market", x: 2, y: -1 }], routes: [{ fromNodeId: "shop", toNodeId: "start" }] }], settings: { battleShopEnabled: false } }
+  it("normalizes standalone mission envelopes and fills missing board settings", () => {
+    const mission = normalizeMission({
+      format: "meowedit-mission", _meowEditWorkspace: { key: "local-key", idAuto: true },
+      mission: { id: "imported", boardPreviewUnitId: "Peasants/Fighter/1", floors: [{ mode: "mixed", nodes: [{ kind: "Shop", label: "Market", x: 2, y: -1 }], routes: [{ fromNodeId: "shop", toNodeId: "start" }] }], settings: { battleShopEnabled: false } }
     }, prefix => prefix + "-fixture");
-    expect(campaign).toMatchObject({ key: "local-key", id: "imported", idAuto: true, name: "imported", boardPreviewUnitId: "Peasants/Fighter/1" });
-    expect(campaign.floors[0]).toMatchObject({ id: "floor-import-fixture", number: 1, mode: "mixed", questPoolMode: "campaign", shopPoolMode: "campaign", shopLevel: 1, randomSettings: { nodeCount: 12, questNodeCount: 2, shopNodeCount: 3 } });
-    expect(campaign.floors[0].nodes[0]).toMatchObject({ id: "node-import-fixture", label: "Market", kind: "Shop", x: 2, y: -1, rewardAmount: 10, shopOfferMode: "generated", shopOffers: [] });
-    expect(campaign.floors[0].routes[0]).toMatchObject({ id: "route-import-fixture", fromNodeId: "shop", toNodeId: "start", oneWay: false });
-    expect(campaign.settings).toMatchObject({ startingLives: 3, factionSelectionEnabled: true, battleShopEnabled: false, shopPoolKinds: ["Unit", "Blessing", "Research", "SpellUnlock"], continueWithGeneratedFloors: false });
-    expect(campaign.events).toEqual([]);
+    expect(mission).toMatchObject({ key: "local-key", id: "imported", idAuto: true, name: "imported", boardPreviewUnitId: "Peasants/Fighter/1" });
+    expect(mission.floors[0]).toMatchObject({ id: "floor-import-fixture", number: 1, mode: "mixed", questPoolMode: "mission", shopPoolMode: "mission", shopLevel: 1, randomSettings: { nodeCount: 12, questNodeCount: 2, shopNodeCount: 3 } });
+    expect(mission.floors[0].nodes[0]).toMatchObject({ id: "node-import-fixture", label: "Market", kind: "Shop", x: 2, y: -1, rewardAmount: 10, shopOfferMode: "generated", shopOffers: [] });
+    expect(mission.floors[0].routes[0]).toMatchObject({ id: "route-import-fixture", fromNodeId: "shop", toNodeId: "start", oneWay: false });
+    expect(mission.settings).toMatchObject({ startingLives: 3, factionSelectionEnabled: true, battleShopEnabled: false, shopPoolKinds: ["Unit", "Blessing", "Research", "SpellUnlock"], continueWithGeneratedFloors: false });
+    expect(mission.events).toEqual([]);
 
-    expect(normalizeCampaign({ id: "old-campaign", floors: [], settings: {} }).boardPreviewUnitId).toBe("");
-    expect(normalizeCampaign({ id: "fixed-faction", floors: [], settings: { factionSelectionEnabled: false, playerFactionId: "Peasants" } }).settings)
+    expect(normalizeMission({ id: "old-mission", floors: [], settings: {} }).boardPreviewUnitId).toBe("");
+    expect(normalizeMission({ id: "fixed-faction", floors: [], settings: { factionSelectionEnabled: false, playerFactionId: "Peasants" } }).settings)
       .toMatchObject({ factionSelectionEnabled: false, playerFactionId: "Peasants" });
   });
 
-  it("normalizes campaign event scopes while preserving unknown action data", () => {
-    const campaign = normalizeCampaign({
+  it("normalizes mission event scopes while preserving unknown action data", () => {
+    const mission = normalizeMission({
       id: "event-import",
       events: [{
         id: "battle-lineup", trigger: "before-battle", floorNumber: "2", nodeId: "boss-two",
@@ -77,7 +77,7 @@ describe("content import normalization", () => {
       }],
       floors: [], settings: {}
     });
-    expect(campaign.events).toEqual([{
+    expect(mission.events).toEqual([{
       id: "battle-lineup", trigger: "before-battle", floorNumber: 2, nodeId: "boss-two",
       actions: [
         { kind: "replace-player-army", armyId: "boss-party" },
@@ -86,18 +86,18 @@ describe("content import normalization", () => {
     }]);
   });
 
-  it("recognizes randomizer-only campaign imports and defaults omitted lists safely", () => {
-    const campaign = normalizeCampaign({
+  it("recognizes randomizer-only mission imports and defaults omitted lists safely", () => {
+    const mission = normalizeMission({
       id: "randomizer-run",
       floors: [{ mode: "random", randomSettings: { nodeCount: 14, questNodeCount: 0, shopNodeCount: 2 } }],
       settings: { questNodeCountPerRandomFloor: 0 }
     }, prefix => prefix + "-fixture");
-    expect(campaign.designMode).toBe("settings-only");
-    expect(campaign.questIds).toEqual([]);
-    expect(campaign.floors[0]).toMatchObject({
-      id: "floor-import-fixture", number: 1, questPoolMode: "campaign", questPoolIds: [],
+    expect(mission.designMode).toBe("settings-only");
+    expect(mission.questIds).toEqual([]);
+    expect(mission.floors[0]).toMatchObject({
+      id: "floor-import-fixture", number: 1, questPoolMode: "mission", questPoolIds: [],
       randomSettings: { nodeCount: 14, questNodeCount: 0, shopNodeCount: 2 }, nodes: [], routes: []
     });
-    expect(campaign.settings).toMatchObject({ startingLives: 3, startingSardines: 10, questNodeCountPerRandomFloor: 0 });
+    expect(mission.settings).toMatchObject({ startingLives: 3, startingSardines: 10, questNodeCountPerRandomFloor: 0 });
   });
 });

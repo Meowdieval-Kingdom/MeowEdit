@@ -7,7 +7,7 @@ export function createSeedWorkspace(): Workspace {
     dialogues: [],
     quests: [],
     armies: [],
-    campaigns: [],
+    missions: [],
     selectedType: null,
     selectedKey: null,
     activeNodeId: null

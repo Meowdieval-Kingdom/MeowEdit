@@ -51,7 +51,7 @@ export const setDocumentSchema = z.object({
   name: localizedTextSchema,
   description: localizedTextSchema,
   displayOrder: z.number().int(),
-  campaignOrder: z.array(z.string()),
+  missionOrder: z.array(z.string()),
   minAppVersion: z.string().optional(),
   requiredCapabilities: z.array(z.string()).optional()
 }).strict();
@@ -158,7 +158,7 @@ export const armyDocumentSchema = z.object({
   }).strict())
 }).strict();
 
-const campaignSettingsSchema = z.object({
+const missionSettingsSchema = z.object({
   startingLives: z.number().int().positive(),
   startingSardines: z.number().int().nonnegative(),
   startingNodeCount: z.number().int().nonnegative(),
@@ -177,7 +177,7 @@ const campaignSettingsSchema = z.object({
   sardinePayoutPerFloor: z.number().int().nonnegative().optional()
 }).strict();
 
-export const campaignDocumentSchema = z.object({
+export const missionDocumentSchema = z.object({
   schemaVersion: z.literal(2),
   id: z.string().min(1),
   name: localizedTextSchema,
@@ -228,7 +228,7 @@ export const campaignDocumentSchema = z.object({
     actions: z.array(z.object({ kind: z.enum(actions), parameters: z.array(parameterSchema) }).strict()),
     oneShot: z.enum(["per-run", "per-node", "always"])
   }).strict()),
-  settings: campaignSettingsSchema
+  settings: missionSettingsSchema
 }).strict();
 
 export const dialogueDocumentSchema = z.object({
@@ -263,7 +263,7 @@ export const contentSetSchema = z.object({
   set: setDocumentSchema,
   quests: z.array(questDocumentSchema),
   armies: z.array(armyDocumentSchema),
-  campaigns: z.array(campaignDocumentSchema),
+  missions: z.array(missionDocumentSchema),
   dialogues: z.array(dialogueDocumentSchema)
 }).strict();
 

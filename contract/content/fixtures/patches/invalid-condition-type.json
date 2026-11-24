@@ -1,5 +1,5 @@
 {
   "op": "set",
-  "path": "campaigns[0].events[0].conditions[0].value",
+  "path": "missions[0].events[0].conditions[0].value",
   "value": 5
 }

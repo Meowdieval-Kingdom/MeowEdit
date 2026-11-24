@@ -1,20 +1,20 @@
-import { createKey, type AdventureNodeKind, type CampaignFloor, type CampaignFloorMode, type CampaignNode, type CampaignRecord } from "./model";
+import { createKey, type AdventureNodeKind, type MissionFloor, type MissionFloorMode, type MissionNode, type MissionRecord } from "./model";
 
 type IdFactory = (prefix: string) => string;
 
-export function createCampaignFloor(number: number, mode: CampaignFloorMode = "authored", idFactory: IdFactory = createKey): CampaignFloor {
-  const floor: CampaignFloor = {
+export function createMissionFloor(number: number, mode: MissionFloorMode = "authored", idFactory: IdFactory = createKey): MissionFloor {
+  const floor: MissionFloor = {
     id: idFactory("floor"), number, mode,
-    questPoolMode: "campaign", questPoolIds: [],
-    shopPoolMode: "campaign", shopPoolKinds: [], shopLevel: Math.min(number, 4),
+    questPoolMode: "mission", questPoolIds: [],
+    shopPoolMode: "mission", shopPoolKinds: [], shopLevel: Math.min(number, 4),
     randomSettings: { nodeCount: 12, questNodeCount: 2, shopNodeCount: 3 },
     nodes: [], routes: []
   };
   if (mode !== "random") {
-    const start: CampaignNode = { id: "start", label: "Start", kind: "Start", x: 0, y: 0, armyId: "", questId: "", enemyFactionId: "", rewardKind: "Sardines", rewardAmount: 10, rewardContentId: "", shopOfferMode: "generated", shopOffers: [] };
-    const battleA: CampaignNode = { id: "battle-a-" + number, label: "Battle 1", kind: "Battle", x: -1, y: 1, armyId: "", questId: "", enemyFactionId: "", rewardKind: "Sardines", rewardAmount: 10, rewardContentId: "", shopOfferMode: "generated", shopOffers: [] };
-    const battleB: CampaignNode = { id: "battle-b-" + number, label: "Battle 2", kind: "Battle", x: 1, y: 1, armyId: "", questId: "", enemyFactionId: "", rewardKind: "Sardines", rewardAmount: 10, rewardContentId: "", shopOfferMode: "generated", shopOffers: [] };
-    const boss: CampaignNode = { id: "f" + number + "-boss", label: "Boss", kind: "Boss", x: 0, y: 2, armyId: "", questId: "", enemyFactionId: "", rewardKind: "Sardines", rewardAmount: 10, rewardContentId: "", shopOfferMode: "generated", shopOffers: [] };
+    const start: MissionNode = { id: "start", label: "Start", kind: "Start", x: 0, y: 0, armyId: "", questId: "", enemyFactionId: "", rewardKind: "Sardines", rewardAmount: 10, rewardContentId: "", shopOfferMode: "generated", shopOffers: [] };
+    const battleA: MissionNode = { id: "battle-a-" + number, label: "Battle 1", kind: "Battle", x: -1, y: 1, armyId: "", questId: "", enemyFactionId: "", rewardKind: "Sardines", rewardAmount: 10, rewardContentId: "", shopOfferMode: "generated", shopOffers: [] };
+    const battleB: MissionNode = { id: "battle-b-" + number, label: "Battle 2", kind: "Battle", x: 1, y: 1, armyId: "", questId: "", enemyFactionId: "", rewardKind: "Sardines", rewardAmount: 10, rewardContentId: "", shopOfferMode: "generated", shopOffers: [] };
+    const boss: MissionNode = { id: "f" + number + "-boss", label: "Boss", kind: "Boss", x: 0, y: 2, armyId: "", questId: "", enemyFactionId: "", rewardKind: "Sardines", rewardAmount: 10, rewardContentId: "", shopOfferMode: "generated", shopOffers: [] };
     floor.nodes = [start, battleA, battleB, boss];
     floor.routes = [
       { id: idFactory("route"), fromNodeId: start.id, toNodeId: battleA.id, oneWay: false },
@@ -34,9 +34,9 @@ function uniqueNodeId(value: string, existing: string[], fallback: string): stri
   return candidate;
 }
 
-export type CampaignNodeAddResult = { ok: true; node: CampaignNode } | { ok: false; message: string };
+export type MissionNodeAddResult = { ok: true; node: MissionNode } | { ok: false; message: string };
 
-export function addCampaignNode(floor: CampaignFloor, kind: AdventureNodeKind, x: number, y: number): CampaignNodeAddResult {
+export function addMissionNode(floor: MissionFloor, kind: AdventureNodeKind, x: number, y: number): MissionNodeAddResult {
   if (floor.mode === "random") return { ok: false, message: "Random floors do not contain authored nodes." };
   if (kind === "Start" && floor.nodes.some(node => node.kind === "Start")) return { ok: false, message: "This floor already has a Start node." };
   if (kind === "Boss" && floor.nodes.some(node => node.kind === "Boss")) return { ok: false, message: "This floor already has a Boss node." };
@@ -47,7 +47,7 @@ export function addCampaignNode(floor: CampaignFloor, kind: AdventureNodeKind, x
   const number = floor.nodes.filter(node => node.kind === kind).length + 1;
   const ids = floor.nodes.map(node => node.id);
   const id = kind === "Start" ? "start" : kind === "Boss" ? "f" + floor.number + "-boss" : uniqueNodeId(kind.toLowerCase() + "-" + number, ids, kind.toLowerCase());
-  const node: CampaignNode = {
+  const node: MissionNode = {
     id,
     label: kind === "Start" ? "Start" : kind === "Boss" ? "Boss" : kind + " " + number,
     kind, x, y, armyId: "", questId: "", enemyFactionId: "",
@@ -57,9 +57,9 @@ export function addCampaignNode(floor: CampaignFloor, kind: AdventureNodeKind, x
   return { ok: true, node };
 }
 
-export function moveCampaignNode(floor: CampaignFloor, nodeId: string, x: number, y: number): string | null {
+export function moveMissionNode(floor: MissionFloor, nodeId: string, x: number, y: number): string | null {
   const node = floor.nodes.find(item => item.id === nodeId);
-  if (!node) return "Campaign node was not found.";
+  if (!node) return "Mission node was not found.";
   if (Math.abs(x) > 30 || Math.abs(y) > 30) return "Place nodes within 30 map steps of the Start.";
   if (floor.nodes.some(item => item.id !== nodeId && item.x === x && item.y === y)) return "That map coordinate is occupied.";
   if (node.kind === "Start" && (x !== 0 || y !== 0)) return "Start stays at the game map origin (0, 0).";
@@ -77,9 +77,9 @@ export function moveCampaignNode(floor: CampaignFloor, nodeId: string, x: number
   return null;
 }
 
-export type CampaignRouteResult = "added" | "exists" | "same-node" | "not-neighbors";
+export type MissionRouteResult = "added" | "exists" | "same-node" | "not-neighbors";
 
-export function connectCampaignNodes(floor: CampaignFloor, from: string, to: string, oneWay: boolean, idFactory: IdFactory = createKey): CampaignRouteResult {
+export function connectMissionNodes(floor: MissionFloor, from: string, to: string, oneWay: boolean, idFactory: IdFactory = createKey): MissionRouteResult {
   if (from === to) return "same-node";
   const fromNode = floor.nodes.find(node => node.id === from);
   const toNode = floor.nodes.find(node => node.id === to);
@@ -92,7 +92,7 @@ export function connectCampaignNodes(floor: CampaignFloor, from: string, to: str
   return "added";
 }
 
-export function removeCampaignNode(floor: CampaignFloor, nodeId: string): boolean {
+export function removeMissionNode(floor: MissionFloor, nodeId: string): boolean {
   const oldLength = floor.nodes.length;
   floor.nodes = floor.nodes.filter(node => node.id !== nodeId);
   if (floor.nodes.length === oldLength) return false;
@@ -100,10 +100,10 @@ export function removeCampaignNode(floor: CampaignFloor, nodeId: string): boolea
   return true;
 }
 
-export function removeCampaignFloor(campaign: CampaignRecord, floorId: string): boolean {
-  if (campaign.floors.length <= 1 || !campaign.floors.some(floor => floor.id === floorId)) return false;
-  campaign.floors = campaign.floors.filter(floor => floor.id !== floorId);
-  campaign.floors.forEach((floor, index) => {
+export function removeMissionFloor(mission: MissionRecord, floorId: string): boolean {
+  if (mission.floors.length <= 1 || !mission.floors.some(floor => floor.id === floorId)) return false;
+  mission.floors = mission.floors.filter(floor => floor.id !== floorId);
+  mission.floors.forEach((floor, index) => {
     const previousNumber = floor.number;
     floor.number = index + 1;
     const boss = floor.nodes.find(node => node.kind === "Boss");

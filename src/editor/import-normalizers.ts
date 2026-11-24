@@ -3,7 +3,7 @@ import {
   DEFAULT_QUEST,
   emptyTimerLogic,
   type ArmyRecord,
-  type CampaignRecord,
+  type MissionRecord,
   type AdventureQuestDefinition,
   type KillCountTargetKind,
   type QuestRecord
@@ -106,14 +106,14 @@ export function normalizeQuest(value: unknown, idFactory: IdFactory = createKey)
   };
 }
 
-export function normalizeCampaign(value: unknown, idFactory: IdFactory = createKey): CampaignRecord {
+export function normalizeMission(value: unknown, idFactory: IdFactory = createKey): MissionRecord {
   const source = value as Record<string, any>;
   const meta = source._meowEditWorkspace ?? {};
-  const raw = source.campaign ?? source;
+  const raw = source.mission ?? source;
   return {
-    key: String(meta.key ?? idFactory("campaign-import")),
-      id: String(raw.id ?? "imported-campaign"), idAuto: meta.idAuto === true,
-    name: String(raw.name ?? raw.id ?? "Imported campaign"),
+    key: String(meta.key ?? idFactory("mission-import")),
+      id: String(raw.id ?? "imported-mission"), idAuto: meta.idAuto === true,
+    name: String(raw.name ?? raw.id ?? "Imported mission"),
     description: String(raw.description ?? ""),
     boardPreviewUnitId: String(raw.boardPreviewUnitId ?? ""),
     designMode: meta.designMode === "settings-only" || meta.designMode === "custom" || meta.designMode === "choose"
@@ -126,8 +126,8 @@ export function normalizeCampaign(value: unknown, idFactory: IdFactory = createK
       .filter((event: unknown) => !!event && typeof event === "object" && !Array.isArray(event))
       .map((event: Record<string, any>) => ({
         ...event,
-        id: String(event.id ?? idFactory("campaign-event-import")),
-        trigger: String(event.trigger ?? "campaign-start") as CampaignRecord["events"][number]["trigger"],
+        id: String(event.id ?? idFactory("mission-event-import")),
+        trigger: String(event.trigger ?? "mission-start") as MissionRecord["events"][number]["trigger"],
         ...(event.floorNumber !== undefined && event.floorNumber !== null ? { floorNumber: Number(event.floorNumber) } : {}),
         ...(event.nodeId !== undefined && event.nodeId !== null && event.nodeId !== "" ? { nodeId: String(event.nodeId) } : {}),
         actions: Array.isArray(event.actions) ? event.actions
@@ -142,17 +142,17 @@ export function normalizeCampaign(value: unknown, idFactory: IdFactory = createK
         questNodeCount: Number(floor.randomSettings?.questNodeCount ?? 2),
         shopNodeCount: Number(floor.randomSettings?.shopNodeCount ?? 3)
       },
-      questPoolMode: floor.questPoolMode === "custom" ? "custom" : "campaign",
+      questPoolMode: floor.questPoolMode === "custom" ? "custom" : "mission",
       questPoolIds: Array.isArray(floor.questPoolIds) ? floor.questPoolIds.map(String) : [],
-      shopPoolMode: floor.shopPoolMode === "custom" ? "custom" : "campaign",
+      shopPoolMode: floor.shopPoolMode === "custom" ? "custom" : "mission",
       shopPoolKinds: Array.isArray(floor.shopPoolKinds) ? floor.shopPoolKinds.filter((kind: string) => ["Unit", "Blessing", "Research", "SpellUnlock"].includes(kind)) : [],
       shopLevel: Number(floor.shopLevel ?? Math.min(Number(floor.number ?? index + 1), 4)),
       nodes: Array.isArray(floor.nodes) ? floor.nodes.map((node: Record<string, any>, nodeIndex: number) => ({
         id: String(node.id ?? idFactory("node-import")), label: String(node.label ?? "Node " + (nodeIndex + 1)),
-        kind: String(node.kind ?? "Battle") as CampaignRecord["floors"][number]["nodes"][number]["kind"],
+        kind: String(node.kind ?? "Battle") as MissionRecord["floors"][number]["nodes"][number]["kind"],
         x: Number(node.x ?? 0), y: Number(node.y ?? 0),
         armyId: String(node.armyId ?? ""), questId: String(node.questId ?? ""), enemyFactionId: String(node.enemyFactionId ?? ""),
-        rewardKind: String(node.rewardKind ?? "Sardines") as CampaignRecord["floors"][number]["nodes"][number]["rewardKind"],
+        rewardKind: String(node.rewardKind ?? "Sardines") as MissionRecord["floors"][number]["nodes"][number]["rewardKind"],
         rewardAmount: Number(node.rewardAmount ?? 10), rewardContentId: String(node.rewardContentId ?? ""),
         shopOfferMode: node.shopOfferMode === "exact" ? "exact" : "generated",
         shopOffers: Array.isArray(node.shopOffers) ? node.shopOffers.map((offer: Record<string, any>) => ({

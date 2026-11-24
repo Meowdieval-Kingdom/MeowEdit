@@ -20,7 +20,7 @@ import {
 } from "../editor/workspace-store";
 import { workspaceToDraft } from "../editor/convert";
 import {
-  activeArmyJson, activeCampaignJson, activeDialogueJson, activeQuestJson,
+  activeArmyJson, activeMissionJson, activeDialogueJson, activeQuestJson,
   parseImportedJson, decodeZipText
 } from "../editor/export";
 import { readStoredZip } from "../editor/zip";
@@ -57,12 +57,12 @@ interface AppState {
   lastEdited: LastEdited | null;
 }
 
-type DetailSection = "campaigns" | "quests" | "armies" | "dialogues";
+type DetailSection = "missions" | "quests" | "armies" | "dialogues";
 const SECTION_LABELS: Record<DetailSection, string> = {
-  campaigns: "Campaign", quests: "Quest", armies: "Army", dialogues: "Dialogue"
+  missions: "Mission", quests: "Quest", armies: "Army", dialogues: "Dialogue"
 };
-const SECTION_SINGULAR: Record<DetailSection, "campaign" | "quest" | "army" | "dialogue"> = {
-  campaigns: "campaign", quests: "quest", armies: "army", dialogues: "dialogue"
+const SECTION_SINGULAR: Record<DetailSection, "mission" | "quest" | "army" | "dialogue"> = {
+  missions: "mission", quests: "quest", armies: "army", dialogues: "dialogue"
 };
 const SECTIONS = Object.keys(SECTION_LABELS) as DetailSection[];
 
@@ -251,14 +251,14 @@ async function loadCapabilities(): Promise<GameCapabilities> {
   return capabilities;
 }
 
-function newCampaign(id: string, name: string, capabilities: GameCapabilities): ContentSetDocument["campaigns"][number] {
+function newMission(id: string, name: string, capabilities: GameCapabilities): ContentSetDocument["missions"][number] {
   return {
     schemaVersion: 2, id, name: { default: name, locales: {} }, description: { default: "", locales: {} },
     boardPreviewUnitId: namedRef(capabilities.ids.units[0] ?? "unknown-unit"),
     questIds: [],
     floors: [{
-      id: "floor-1", number: 1, mode: capabilities.enums.floorMode[0], questPoolMode: "campaign",
-      questPoolIds: [], shopPoolMode: "campaign", shopPoolKinds: [capabilities.enums.shopPoolKind[0]],
+      id: "floor-1", number: 1, mode: capabilities.enums.floorMode[0], questPoolMode: "mission",
+      questPoolIds: [], shopPoolMode: "mission", shopPoolKinds: [capabilities.enums.shopPoolKind[0]],
       shopLevel: 1, randomSettings: { nodeCount: 12, questNodeCount: 2, shopNodeCount: 3 },
       nodes: [], routes: []
     }],
@@ -444,8 +444,8 @@ async function createSet(container: HTMLElement, state: AppState): Promise<void>
   }
   const name = window.prompt("Set name:", id)?.trim() || id;
   const draft = emptyContentSet(id, name);
-  draft.campaigns.push(newCampaign("campaign-1", "First campaign", state.capabilities));
-  draft.set.campaignOrder = [draft.campaigns[0].id];
+  draft.missions.push(newMission("mission-1", "First mission", state.capabilities));
+  draft.set.missionOrder = [draft.missions[0].id];
   state.setId = id;
   state.draft = draft;
   state.draftVersion = 0;
@@ -469,7 +469,7 @@ function recordJson(section: DetailSection, key: string): string | null {
   if (section === "dialogues") return activeDialogueJson(item as never);
   if (section === "quests") return activeQuestJson(item as never);
   if (section === "armies") return activeArmyJson(item as never);
-  return activeCampaignJson(item as never);
+  return activeMissionJson(item as never);
 }
 
 function recordLabel(section: DetailSection, item: Record<string, unknown>): string {
@@ -608,7 +608,7 @@ async function continueEditing(container: HTMLElement, state: AppState, input: {
   if (!draft) {
     try {
       const loaded = await requestJson<{ draft: ContentSetDocument; draftVersion: number }>(
-        "/v1/editor/campaign-sets/" + encodeURIComponent(input.workspace));
+        "/v1/editor/mission-sets/" + encodeURIComponent(input.workspace));
       draft = loaded.draft;
     } catch { return false; }
   }
@@ -714,7 +714,7 @@ function missingDependencies(workspace: Workspace, section: DetailSection, key: 
     const ext = (item.extension as { dialogueLinks?: Record<string, string> } | undefined)?.dialogueLinks ?? {};
     Object.values(ext).forEach(add);
     for (const target of ((item.extension as { battleTargets?: Array<{ armyId?: string }> } | undefined)?.battleTargets ?? [])) add(target.armyId);
-  } else if (section === "campaigns") {
+  } else if (section === "missions") {
     add((item.boardPreviewUnitId as string | undefined));
     for (const questId of ((item.questIds as string[] | undefined) ?? [])) add(questId);
     for (const floor of ((item.floors as Array<{ nodes?: Array<{ armyId?: string; questId?: string }> }> | undefined) ?? []))
@@ -754,7 +754,7 @@ async function showAssignDialog(container: HTMLElement, state: AppState, input: 
     sets.map(set => '<option value="' + escapeHtml(set.setId) + '">' + escapeHtml(set.name || set.setId) + "</option>").join("") +
     "</select></label>" +
     (deps.length ? '<div class="assign-deps"><strong>Related content in this draft</strong>' +
-      deps.map(dep => '<label class="campaign-check"><input type="checkbox" checked data-dep="' +
+      deps.map(dep => '<label class="mission-check"><input type="checkbox" checked data-dep="' +
         dep.section + "|" + escapeHtml(dep.key) + '"><span>' + escapeHtml(SECTION_LABELS[dep.section]) + ": " +
         escapeHtml(dep.label) + "</span></label>").join("") + "</div>" : "") +
     '<div class="assign-summary"></div>' +
@@ -802,7 +802,7 @@ async function performAssign(
     let version: number;
     if (targetRecord && targetRecord.draftVersion > 0) {
       const loaded = await requestJson<{ draft: ContentSetDocument; draftVersion: number }>(
-        "/v1/editor/campaign-sets/" + encodeURIComponent(setId));
+        "/v1/editor/mission-sets/" + encodeURIComponent(setId));
       draft = loaded.draft;
       version = loaded.draftVersion;
     } else {
@@ -840,7 +840,7 @@ async function performAssign(
       }
     }
     const result = await requestJson<{ draftVersion: number; currentVersion?: number; code?: string }>(
-      version > 0 ? "/v1/editor/campaign-sets/" + encodeURIComponent(setId) : "/v1/editor/campaign-sets",
+      version > 0 ? "/v1/editor/mission-sets/" + encodeURIComponent(setId) : "/v1/editor/mission-sets",
       { method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify(version > 0 ? saveDraftRequest(version, draft) : createSetRequest(setId, draft)) });
     if (isDraftConflict(result)) {
@@ -899,7 +899,7 @@ async function renameSet(container: HTMLElement, state: AppState, setId: string)
   if (summary && summary.draftVersion > 0) {
     try {
       const loaded = await requestJson<{ draft: ContentSetDocument; draftVersion: number }>(
-        "/v1/editor/campaign-sets/" + encodeURIComponent(setId));
+        "/v1/editor/mission-sets/" + encodeURIComponent(setId));
       draft = loaded.draft;
       version = loaded.draftVersion;
     } catch (error) {
@@ -917,7 +917,7 @@ async function renameSet(container: HTMLElement, state: AppState, setId: string)
   try {
     if (version > 0) {
       const result = await requestJson<{ draftVersion: number }>(
-        "/v1/editor/campaign-sets/" + encodeURIComponent(setId), {
+        "/v1/editor/mission-sets/" + encodeURIComponent(setId), {
           method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify(saveDraftRequest(version, draft))
         });
@@ -943,7 +943,7 @@ async function deleteSet(container: HTMLElement, state: AppState, setId: string)
   const version = records[setId]?.draftVersion ?? state.sets.find(item => item.setId === setId)?.draftVersion ?? 0;
   try {
     if (version > 0)
-      await requestJson<{ deleted: boolean }>("/v1/editor/campaign-sets/" + encodeURIComponent(setId), { method: "DELETE" });
+      await requestJson<{ deleted: boolean }>("/v1/editor/mission-sets/" + encodeURIComponent(setId), { method: "DELETE" });
   } catch (error) {
     state.status = error instanceof Error ? error.message : "The request failed; nothing was removed.";
     renderBrowser(container, state);
@@ -974,7 +974,7 @@ async function openSet(container: HTMLElement, state: AppState, setId: string): 
   if ((summary?.draftVersion ?? local?.draftVersion ?? 0) > 0) {
     try {
       const loaded = await requestJson<{ draftVersion: number; draft: ContentSetDocument }>(
-        "/v1/editor/campaign-sets/" + encodeURIComponent(setId));
+        "/v1/editor/mission-sets/" + encodeURIComponent(setId));
       draft = loaded.draft;
       version = loaded.draftVersion;
     } catch (error) {
@@ -1004,8 +1004,8 @@ async function openSet(container: HTMLElement, state: AppState, setId: string): 
   }
   if (!draft) {
     draft = emptyContentSet(setId, setId);
-    draft.campaigns.push(newCampaign("campaign-1", "First campaign", state.capabilities));
-    draft.set.campaignOrder = [draft.campaigns[0].id];
+    draft.missions.push(newMission("mission-1", "First mission", state.capabilities));
+    draft.set.missionOrder = [draft.missions[0].id];
   }
   state.draft = draft;
   state.draft.set.setId = setId;
@@ -1048,7 +1048,7 @@ function renderSetView(container: HTMLElement, state: AppState): void {
     '<button type="button" class="text-button" data-sign-out>Sign out</button></div></div>' +
     '<div class="editor-main' + (state.help ? ' help-visible' : '') + '"><div class="editor-heading"><div><h1>' +
     escapeHtml(draft.set.name.default || state.setId) + "</h1><p>" +
-    draft.campaigns.length + " campaigns · " + draft.quests.length + " quests · " +
+    draft.missions.length + " missions · " + draft.quests.length + " quests · " +
     draft.armies.length + " armies · " + draft.dialogues.length + " dialogues</p></div></div>" +
     '<div class="guided-actions set-tabs">' + tabs + "</div>" + rows +
     '<section class="content-validation"><h2>Validation</h2>' + validation + "</section>" +
@@ -1133,7 +1133,7 @@ async function saveDraft(state: AppState): Promise<string> {
       ? createSetRequest(state.setId, state.draft)
       : saveDraftRequest(state.draftVersion, state.draft);
     const result = await requestJson<{ draftVersion: number; currentVersion?: number; code?: string }>(
-      creating ? "/v1/editor/campaign-sets" : "/v1/editor/campaign-sets/" + encodeURIComponent(state.setId),
+      creating ? "/v1/editor/mission-sets" : "/v1/editor/mission-sets/" + encodeURIComponent(state.setId),
       { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(request) }
     );
     if (isDraftConflict(result)) {
@@ -1168,7 +1168,7 @@ async function publishDraft(state: AppState): Promise<string> {
   }
   try {
     const result = await requestJson<{ packageId: string; contentHash?: string }>(
-      "/v1/editor/campaign-sets/" + encodeURIComponent(state.setId) + "/publish",
+      "/v1/editor/mission-sets/" + encodeURIComponent(state.setId) + "/publish",
       { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(publishRequest(state.draftVersion)) }
     );
     const packed = await packContentSet(state.draft, state.capabilities);
@@ -1191,7 +1191,7 @@ async function publishDraft(state: AppState): Promise<string> {
 
 async function refreshSets(state: AppState): Promise<void> {
   try {
-    const result = await requestJson<{ sets: SetSummary[] }>("/v1/editor/campaign-sets");
+    const result = await requestJson<{ sets: SetSummary[] }>("/v1/editor/mission-sets");
     state.sets = result.sets;
   } catch {
     // Keep the last known list; local drafts remain visible.
@@ -1239,7 +1239,7 @@ export async function mountApp(container: HTMLElement): Promise<void> {
   const capabilities = await loadCapabilities();
   const session = loadSession();
   const state: AppState = {
-    capabilities, sets: [], view: "browser", activeSection: "campaigns", setId: "", draft: emptyContentSet("", ""),
+    capabilities, sets: [], view: "browser", activeSection: "missions", setId: "", draft: emptyContentSet("", ""),
     draftVersion: 0, status: "", validation: { valid: false, issues: [] },
     help: session.help, savedAt: session.savedAt, lastEdited: session.lastEdited
   };

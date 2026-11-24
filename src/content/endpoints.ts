@@ -9,7 +9,7 @@ export interface EditorAccessResponse {
   userId: string;
 }
 
-export interface CampaignSetSummary {
+export interface MissionSetSummary {
   setId: string;
   name: LocalizedText;
   displayOrder: number;
@@ -19,11 +19,11 @@ export interface CampaignSetSummary {
   canPublish: boolean;
 }
 
-export interface CampaignSetListResponse {
-  sets: CampaignSetSummary[];
+export interface MissionSetListResponse {
+  sets: MissionSetSummary[];
 }
 
-export interface CampaignSetDraftResponse {
+export interface MissionSetDraftResponse {
   setId: string;
   draftVersion: number;
   draft: ContentSetDocument;

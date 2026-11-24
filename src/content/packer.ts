@@ -56,7 +56,7 @@ export async function packContentSet(
       set: "set.json",
       quests: "quests/Definitions.json",
       armies: "armies/ArmyConfigurations.json",
-      campaigns: "campaigns/Campaigns.json",
+      missions: "missions/Missions.json",
       extensions: "extensions/meowedit-v1.json",
       dialogues: set.dialogues.map(dialogue => "dialogues/" + dialogue.sequenceId + ".json")
     }
@@ -65,7 +65,7 @@ export async function packContentSet(
     "set.json": json({ schemaVersion: 2, ...(set.set as unknown as Record<string, unknown>) }),
     "quests/Definitions.json": json({ schemaVersion: 2, quests: set.quests }),
     "armies/ArmyConfigurations.json": json({ schemaVersion: 2, armies: set.armies }),
-    "campaigns/Campaigns.json": json({ schemaVersion: 2, campaigns: set.campaigns }),
+    "missions/Missions.json": json({ schemaVersion: 2, missions: set.missions }),
     "extensions/meowedit-v1.json": json(extensionIndex(set)),
     "manifest.json": json(manifest)
   };

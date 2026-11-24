@@ -75,25 +75,25 @@ describe("browser history routing", () => {
     await vi.waitFor(() => expect(document.querySelector(".army-editor")).not.toBeNull(), { timeout: 10000 });
   });
 
-  it("opens a local campaign from the Local drafts Edit button", async () => {
-    container.querySelector<HTMLElement>('[data-create="campaigns"]')!.click();
+  it("opens a local mission from the Local drafts Edit button", async () => {
+    container.querySelector<HTMLElement>('[data-create="missions"]')!.click();
     await vi.waitFor(() => expect(document.querySelector('[data-action="open-content-editor"]')).not.toBeNull(), { timeout: 10000 });
     document.querySelector<HTMLElement>('[data-action="open-content-editor"]')!.click();
     await vi.waitFor(() => expect(container.textContent).toContain("Your dashboard"));
-    const edit = container.querySelector<HTMLElement>('[data-edit-local^="campaigns|"]');
+    const edit = container.querySelector<HTMLElement>('[data-edit-local^="missions|"]');
     expect(edit).not.toBeNull();
     edit!.click();
-    await vi.waitFor(() => expect(document.querySelector(".campaign-editor")).not.toBeNull(), { timeout: 10000 });
+    await vi.waitFor(() => expect(document.querySelector(".mission-editor")).not.toBeNull(), { timeout: 10000 });
   });
 
   it("opens the set record that was clicked after returning to the set dashboard", async () => {
     const draft = emptyContentSet("published-set", "Published Set");
-    for (const [id, name] of [["campaign-a", "First Mission"], ["campaign-b", "Second Mission"]]) {
-      draft.campaigns.push({
+    for (const [id, name] of [["mission-a", "First Mission"], ["mission-b", "Second Mission"]]) {
+      draft.missions.push({
         schemaVersion: 2, id, name: localized(name), description: localized(""),
         boardPreviewUnitId: namedRef(capabilities.ids.units[0]), questIds: [],
-        floors: [{ id: id + "-floor", number: 1, mode: "authored", questPoolMode: "campaign",
-          questPoolIds: [], shopPoolMode: "campaign", shopPoolKinds: ["Unit"], shopLevel: 1,
+        floors: [{ id: id + "-floor", number: 1, mode: "authored", questPoolMode: "mission",
+          questPoolIds: [], shopPoolMode: "mission", shopPoolKinds: ["Unit"], shopLevel: 1,
           randomSettings: { nodeCount: 12, questNodeCount: 2, shopNodeCount: 3 }, nodes: [], routes: [] }],
         events: [],
         settings: { startingLives: 3, startingSardines: 10, startingNodeCount: 12,
@@ -105,10 +105,10 @@ describe("browser history routing", () => {
     setBridgeFetch(async requestPath => {
       if (requestPath === "/v1/editor/capabilities")
         return new Response(JSON.stringify(capabilities), { status: 200, headers: { "content-type": "application/json" } });
-      if (requestPath === "/v1/editor/campaign-sets")
+      if (requestPath === "/v1/editor/mission-sets")
         return new Response(JSON.stringify({ sets: [{ setId: "published-set", draftVersion: 1 }] }),
           { status: 200, headers: { "content-type": "application/json" } });
-      if (requestPath.includes("/v1/editor/campaign-sets/"))
+      if (requestPath.includes("/v1/editor/mission-sets/"))
         return new Response(JSON.stringify({ setId: "published-set", draftVersion: 1, draft }),
           { status: 200, headers: { "content-type": "application/json" } });
       return new Response("{}", { status: 200 });
@@ -116,20 +116,20 @@ describe("browser history routing", () => {
     await mountApp(container);
 
     container.querySelector<HTMLElement>('[data-open="published-set"]')!.click();
-    await vi.waitFor(() => expect(container.querySelector('[data-edit="campaigns:0"]')).not.toBeNull());
-    container.querySelector<HTMLElement>('[data-edit="campaigns:0"]')!.click();
+    await vi.waitFor(() => expect(container.querySelector('[data-edit="missions:0"]')).not.toBeNull());
+    container.querySelector<HTMLElement>('[data-edit="missions:0"]')!.click();
     await vi.waitFor(() => expect(document.querySelector('[data-bind="name"]')).not.toBeNull());
     expect(document.querySelector<HTMLInputElement>('[data-bind="name"]')!.value).toBe("First Mission");
 
     document.querySelector<HTMLElement>('[data-action="open-content-editor"]')!.click();
-    await vi.waitFor(() => expect(container.querySelector('[data-edit="campaigns:1"]')).not.toBeNull());
-    container.querySelector<HTMLElement>('[data-edit="campaigns:1"]')!.click();
+    await vi.waitFor(() => expect(container.querySelector('[data-edit="missions:1"]')).not.toBeNull());
+    container.querySelector<HTMLElement>('[data-edit="missions:1"]')!.click();
     await vi.waitFor(() => expect(document.querySelector<HTMLInputElement>('[data-bind="name"]')?.value).toBe("Second Mission"));
   });
 
   it("opens the record that was clicked after returning to the dashboard", async () => {
     const scratch = {
-      schemaVersion: 1, dialogues: [], quests: [], armies: [], campaigns: [],
+      schemaVersion: 1, dialogues: [], quests: [], armies: [], missions: [],
       selectedType: null, selectedKey: null, activeNodeId: null
     };
     (scratch.armies as unknown[]).push(
@@ -153,11 +153,11 @@ describe("browser history routing", () => {
     const scratch = JSON.parse(localStorage.getItem("meowedit.workspace.v1.history-user." + SCRATCH_WORKSPACE) ?? "null");
     expect(scratch).toBeNull();
     const workspace = {
-      schemaVersion: 1, dialogues: [], quests: [], armies: [], campaigns: [],
+      schemaVersion: 1, dialogues: [], quests: [], armies: [], missions: [],
       selectedType: null, selectedKey: null, activeNodeId: null
     };
     (workspace.armies as unknown[]).push({ id: "army-1", idAuto: true, name: "Old Army", units: [], spellIds: [], blessingIds: [] });
-    (workspace.campaigns as unknown[]).push({ id: "campaign-1", idAuto: true, name: "Old Campaign", description: "",
+    (workspace.missions as unknown[]).push({ id: "mission-1", idAuto: true, name: "Old Mission", description: "",
       designMode: "custom", boardPreviewUnitId: "", questIds: [], floors: [], events: [],
       settings: { startingLives: 3, startingSardines: 10, startingNodeCount: 12, playerFactionId: "",
         factionSelectionEnabled: true, battleShopEnabled: true, shopPoolKinds: ["Unit"],
@@ -167,21 +167,21 @@ describe("browser history routing", () => {
     await mountApp(container);
 
     expect(container.querySelector('[data-edit-local^="armies|"]')).toBeNull();
-    expect(container.querySelector('[data-edit-local^="campaigns|"]')).toBeNull();
+    expect(container.querySelector('[data-edit-local^="missions|"]')).toBeNull();
     expect(container.textContent).toContain("No local drafts yet.");
     const stored = JSON.parse(localStorage.getItem("meowedit.workspace.v1.history-user." + SCRATCH_WORKSPACE)!);
     expect(stored.armies).toEqual([]);
-    expect(stored.campaigns).toEqual([]);
+    expect(stored.missions).toEqual([]);
   });
 
   it("returns to the dashboard when browser Back is pressed from a set dashboard", async () => {
     setBridgeFetch(async requestPath => {
       if (requestPath === "/v1/editor/capabilities")
         return new Response(JSON.stringify(capabilities), { status: 200, headers: { "content-type": "application/json" } });
-      if (requestPath === "/v1/editor/campaign-sets")
+      if (requestPath === "/v1/editor/mission-sets")
         return new Response(JSON.stringify({ sets: [{ setId: "published-set", draftVersion: 0 }] }),
           { status: 200, headers: { "content-type": "application/json" } });
-      if (requestPath.includes("/v1/editor/campaign-sets/"))
+      if (requestPath.includes("/v1/editor/mission-sets/"))
         return new Response(JSON.stringify({ setId: "published-set", draftVersion: 0,
           draft: emptyContentSet("published-set", "Published Set") }),
           { status: 200, headers: { "content-type": "application/json" } });
