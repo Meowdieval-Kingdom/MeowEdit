@@ -52,7 +52,7 @@ function describePath(set: ContentSetDocument, path: string): { label: string; s
   const section = ["campaigns", "quests", "armies", "dialogues"].includes(segments[0]) ? segments[0] : undefined;
   const entryIndex = section && /^\d+$/.test(segments[1] ?? "") ? Number(segments[1]) : undefined;
   const rest = segments.slice(entryIndex === undefined ? 1 : 2).filter(part => !/^\d+$/.test(part));
-  const field = humanize(rest.at(-1) ?? segments.at(-1) ?? "value");
+  const field = humanize(rest.at(-1) === "id" ? rest.at(-2) ?? "id" : rest.at(-1) ?? segments.at(-1) ?? "value");
   if (section && entryIndex !== undefined) return { label: humanize(section.slice(0, -1)) + ' "' + entryName(set, section, entryIndex) + '" → ' + field, section, entryIndex, field };
   return { label: field, section, field };
 }
@@ -200,11 +200,12 @@ export function validateContentSet(value: unknown, capabilities: GameCapabilitie
   });
 
   // Dialogue-only sets are valid (tutorial dialogue collections do not need a campaign).
-  if (set.campaigns.length === 0 && set.dialogues.length === 0)
+  if (set.campaigns.length === 0 && set.dialogues.length === 0
+    && set.quests.length === 0 && set.armies.length === 0)
     issues.push({
       path: "campaigns", code: "empty-set", severity: "warning",
       message: "This set is empty.",
-      hint: "Add a campaign for game content, or add a dialogue if this is a dialogue collection."
+      hint: "Add a campaign, quest, army or dialogue to this set."
     });
 
   const local = localIds(set);
@@ -225,8 +226,12 @@ export function validateContentSet(value: unknown, capabilities: GameCapabilitie
   }
 
   walk(set, "", (node, path) => {
-    if (isNamedRef(node) && !allowed.has(node.id))
-      issues.push(referenceIssue(set, allowed, path + ".id", node.id));
+    if (!isNamedRef(node) || allowed.has(node.id)) return;
+    // Fetch item IDs are authored free-form labels; the game never resolves them against a catalog.
+    if (path.endsWith(".itemId")) return;
+    // Runtime sentinels are mapped to empties/choices by AdventureContentRuntimeAdapter; they are not references.
+    if (node.id === "none" || (path.endsWith(".rewardContentId") && node.id.toLowerCase() === "choice")) return;
+    issues.push(referenceIssue(set, allowed, path + ".id", node.id));
   });
 
   for (const campaignId of set.set.campaignOrder)
