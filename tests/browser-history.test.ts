@@ -86,7 +86,7 @@ describe("browser history routing", () => {
     await vi.waitFor(() => expect(document.querySelector(".campaign-editor")).not.toBeNull(), { timeout: 10000 });
   });
 
-  it("opens older local drafts that have no editor key", async () => {
+  it("drops older local drafts that have no editor key", async () => {
     const scratch = JSON.parse(localStorage.getItem("meowedit.workspace.v1.history-user." + SCRATCH_WORKSPACE) ?? "null");
     expect(scratch).toBeNull();
     const workspace = {
@@ -103,8 +103,12 @@ describe("browser history routing", () => {
     saveScratchWorkspace(workspace as never);
     await mountApp(container);
 
-    container.querySelector<HTMLElement>('[data-edit-local^="armies|"]')!.click();
-    await vi.waitFor(() => expect(document.querySelector(".army-editor")).not.toBeNull(), { timeout: 10000 });
+    expect(container.querySelector('[data-edit-local^="armies|"]')).toBeNull();
+    expect(container.querySelector('[data-edit-local^="campaigns|"]')).toBeNull();
+    expect(container.textContent).toContain("No local drafts yet.");
+    const stored = JSON.parse(localStorage.getItem("meowedit.workspace.v1.history-user." + SCRATCH_WORKSPACE)!);
+    expect(stored.armies).toEqual([]);
+    expect(stored.campaigns).toEqual([]);
   });
 
   it("returns to the dashboard when browser Back is pressed from a set dashboard", async () => {

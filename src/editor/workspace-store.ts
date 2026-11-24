@@ -77,13 +77,39 @@ export function markWorkspaceSynced(setId: string, draftVersion: number): void {
   }
 }
 
+const SCRATCH_SECTIONS = ["dialogues", "quests", "armies", "campaigns"] as const;
+
+function hasEditorKey(value: unknown): boolean {
+  const key = (value as { key?: unknown } | null)?.key;
+  return typeof key === "string" && key.length > 0;
+}
+
 /** Unassigned scratch workspace shared by the dashboard and the classic editor. */
 export function loadScratchWorkspace(): Workspace {
   try {
     const raw = localStorage.getItem(workspaceKey(SCRATCH_WORKSPACE));
     if (raw) {
       const parsed = JSON.parse(raw) as unknown;
-      if (isWorkspace(parsed)) return parsed;
+      if (isWorkspace(parsed)) {
+        // Records without an editor key cannot be opened or addressed; drop them.
+        const cleaned = { ...parsed } as Workspace;
+        let removed = false;
+        for (const section of SCRATCH_SECTIONS) {
+          const kept = parsed[section].filter(hasEditorKey);
+          if (kept.length !== parsed[section].length) removed = true;
+          (cleaned[section] as unknown[]) = kept;
+        }
+        if (removed) {
+          if (cleaned.selectedKey && !SCRATCH_SECTIONS.some(section =>
+            (cleaned[section] as unknown as Array<{ key: string }>).some(item => item.key === cleaned.selectedKey))) {
+            cleaned.selectedKey = null;
+            cleaned.selectedType = null;
+            cleaned.activeNodeId = null;
+          }
+          saveScratchWorkspace(cleaned);
+        }
+        return cleaned;
+      }
     }
   } catch {
     // Fall through to a fresh scratch workspace.
