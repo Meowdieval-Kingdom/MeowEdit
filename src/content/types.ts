@@ -22,6 +22,8 @@ export interface SetDocument {
   description: LocalizedText;
   displayOrder: number;
   campaignOrder: string[];
+  minAppVersion?: string;
+  requiredCapabilities?: string[];
 }
 
 export interface CompletionEffect {

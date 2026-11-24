@@ -35,6 +35,14 @@ describe("JSON Schema / zod agreement (§9.2)", () => {
     expect(agreed(validSet)).toEqual({ jsonSchema: true, zod: true });
   });
 
+  it("accepts authored minAppVersion and requiredCapabilities in both validators", () => {
+    const candidate = structuredClone(validSet) as Record<string, unknown>;
+    const set = candidate.set as Record<string, unknown>;
+    set.minAppVersion = "0.2.2";
+    set.requiredCapabilities = ["v2-content", "typed-triggers"];
+    expect(agreed(candidate)).toEqual({ jsonSchema: true, zod: true });
+  });
+
   it("accepts the generated capability manifest in both validators", () => {
     expect(validateCapabilitiesJson(generatedCapabilities)).toBe(true);
     expect(gameCapabilitiesSchema.safeParse(generatedCapabilities).success).toBe(true);

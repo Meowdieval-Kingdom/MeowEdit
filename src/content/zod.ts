@@ -51,7 +51,9 @@ export const setDocumentSchema = z.object({
   name: localizedTextSchema,
   description: localizedTextSchema,
   displayOrder: z.number().int(),
-  campaignOrder: z.array(z.string())
+  campaignOrder: z.array(z.string()),
+  minAppVersion: z.string().optional(),
+  requiredCapabilities: z.array(z.string()).optional()
 }).strict();
 
 const completionEffectSchema = z.object({

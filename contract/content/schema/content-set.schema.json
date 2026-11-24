@@ -72,7 +72,9 @@
         "name": { "$ref": "#/$defs/localizedText" },
         "description": { "$ref": "#/$defs/localizedText" },
         "displayOrder": { "type": "integer" },
-        "campaignOrder": { "type": "array", "items": { "type": "string" } }
+        "campaignOrder": { "type": "array", "items": { "type": "string" } },
+        "minAppVersion": { "type": "string" },
+        "requiredCapabilities": { "type": "array", "items": { "type": "string" } }
       }
     },
     "completionEffect": {
