@@ -176,6 +176,19 @@ describe("editor rendering", () => {
     expect(renderApp(armyWorkspace, rosterFixture, catalog, [], 0, "full")).toContain('class="army-data-note help-copy"');
   });
 
+  it("shows granted blessing details for spells and lays out army panels side by side", () => {
+    const workspace = workspaceFixture();
+    workspace.selectedType = "army";
+    workspace.selectedKey = workspace.armies[0].key;
+    const html = renderApp(workspace, rosterFixture, catalog, [], 0, "full");
+    expect(html).toContain('class="army-compact-panels"');
+    const granting = catalog.spells.find(spell => JSON.stringify(spell.mechanics ?? {}).includes("GrantAbilitySpell"));
+    if (granting) {
+      const name = (granting.mechanics as { abilityData?: { abilityname?: string } })?.abilityData?.abilityname;
+      if (name) expect(html).toContain("Grants " + name);
+    }
+  });
+
   it("keeps Dialogue Guided sequential and shows all advanced fields for quick edits", () => {
     const workspace = workspaceFixture();
     workspace.selectedType = "dialogue";

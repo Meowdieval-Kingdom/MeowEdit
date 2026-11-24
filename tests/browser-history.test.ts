@@ -75,6 +75,12 @@ describe("browser history routing", () => {
     await vi.waitFor(() => expect(document.querySelector(".army-editor")).not.toBeNull(), { timeout: 10000 });
   });
 
+  it("creates a mission from the Create new content button", async () => {
+    container.querySelector<HTMLElement>('[data-create="missions"]')!.click();
+    await vi.waitFor(() => expect(document.querySelector(".mission-editor")).not.toBeNull(), { timeout: 10000 });
+    expect(location.hash).toContain("#/edit/__scratch__/missions/");
+  });
+
   it("opens a local mission from the Local drafts Edit button", async () => {
     container.querySelector<HTMLElement>('[data-create="missions"]')!.click();
     await vi.waitFor(() => expect(document.querySelector('[data-action="open-content-editor"]')).not.toBeNull(), { timeout: 10000 });

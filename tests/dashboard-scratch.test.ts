@@ -33,7 +33,8 @@ describe("dashboard and scratch content", () => {
   it("lands on a dashboard with creation buttons and local drafts", () => {
     expect(container.textContent).toContain("Your dashboard");
     expect(container.textContent).toContain("Create new content");
-    expect(container.textContent).toContain("Local drafts (not in a set)");
+    expect(container.textContent).toContain("Your content");
+    expect(container.querySelector('[data-dashboard-panel="local"]')).not.toBeNull();
     for (const section of ["dialogues", "quests", "armies", "missions"])
       expect(container.querySelector('[data-create="' + section + '"]')).not.toBeNull();
     expect(container.querySelector('[data-open="target-set"]')).not.toBeNull();

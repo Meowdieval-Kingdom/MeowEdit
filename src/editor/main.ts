@@ -84,6 +84,7 @@ let guidedContextUnlocked = false;
 let lastFocusSignature = "";
 let lastNotifiedStep = -1;
 let lastNotifiedMode: "guided" | "full" | null = null;
+let lastReportedRecord = "";
 const isScratch = () => !mountOptions?.setId;
 
 /**
@@ -192,9 +193,12 @@ function reportRecord(): void {
   const singular = workspace.selectedType;
   const section = ({ dialogue: "dialogues", quest: "quests", army: "armies", mission: "missions" } as const)[singular];
   const key = workspace.selectedKey;
+  const reportId = singular + "|" + key;
+  if (reportId === lastReportedRecord) return;
   const collection = workspace[section] as unknown as Array<Record<string, unknown>>;
   const item = collection.find(record => record.key === key);
   if (!item) return;
+  lastReportedRecord = reportId;
   const label = singular === "dialogue"
     ? String((item.sequence as { nodes?: Array<{ headline?: string }>; sequenceId?: string } | undefined)?.nodes?.[0]?.headline
       ?? (item.sequence as { sequenceId?: string } | undefined)?.sequenceId ?? key)
@@ -338,6 +342,7 @@ function render(): void {
   if (selectedArmyPlacementId && !currentArmy()?.units.some(unit => unit.id === selectedArmyPlacementId)) selectedArmyPlacementId = null;
   if (selectedArmyBattlefieldEffectId && !currentArmy()?.blessingIds.some(id => id === selectedArmyBattlefieldEffectId)) selectedArmyBattlefieldEffectId = null;
   persistEditorSession();
+  reportRecord();
   const focusAfterPath = guidedFocusAfterPath;
   const focusExactPath = guidedFocusExactPath;
   guidedFocusAfterPath = null;

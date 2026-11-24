@@ -56,6 +56,8 @@ interface AppState {
   help: boolean;
   savedAt: string | null;
   lastEdited: LastEdited | null;
+  recent: LastEdited[];
+  dashboardTab: "recent" | "local" | "cloud";
 }
 
 type DetailSection = "missions" | "quests" | "armies" | "dialogues";
@@ -131,7 +133,8 @@ function replaceRoute(route: AppRoute): void {
 }
 
 function editorNavigation(route: Extract<AppRoute, { kind: "editor" }>, navigation: { step: number; mode: "guided" | "full" }): void {
-  const withNav = { ...route, step: navigation.step, mode: navigation.mode };
+  const withNav = { ...(activeEditorRoute ?? route), step: navigation.step, mode: navigation.mode };
+  activeEditorRoute = withNav;
   if (editorMountPending) {
     editorMountPending = false;
     replaceRoute(withNav);
@@ -152,7 +155,8 @@ function storage(): Record<string, LocalRecord> {
 
 function writeSession(state: AppState): void {
   saveSession({
-    help: state.help, savedAt: state.savedAt, setId: state.setId || null, lastEdited: state.lastEdited
+    help: state.help, savedAt: state.savedAt, setId: state.setId || null,
+    lastEdited: state.lastEdited, recent: state.recent
   });
 }
 
@@ -313,25 +317,21 @@ function scratchRecords(): Array<{ section: DetailSection; key: string; label: s
   return records;
 }
 
-function continueCard(state: AppState): string {
-  const last = state.lastEdited;
-  if (!last) return "";
-  const inScratch = last.workspace === SCRATCH_WORKSPACE;
-  const exists = inScratch
-    ? scratchRecords().some(record => record.section === last.section && record.key === last.key)
-    : (() => {
-      const draft = storage()[last.workspace]?.draft;
-      if (!draft) return false;
-      const items = draft[last.section] as unknown as Array<{ id?: string; sequenceId?: string }>;
-      return items.some(item => (item.id ?? item.sequenceId) === last.key);
-    })();
-  if (!exists) return "";
-  return '<div class="set-row continue-row"><div class="set-row-main"><strong>Continue editing: ' +
-    escapeHtml(last.label) + "</strong><small>" + escapeHtml(SECTION_LABELS[last.section]) +
-    " · " + (inScratch ? "local draft" : "set " + escapeHtml(last.workspace)) + "</small></div>" +
-    '<button type="button" class="button button-primary" data-continue-edit="' +
-    escapeHtml(last.workspace) + "|" + last.section + "|" + last.key + '">Continue editing</button></div>';
+function recordEdited(state: AppState, entry: LastEdited): void {
+  state.lastEdited = entry;
+  const id = (item: LastEdited) => item.workspace + "|" + item.section + "|" + item.key;
+  state.recent = [entry, ...state.recent.filter(item => id(item) !== id(entry))].slice(0, 5);
 }
+
+function recordExists(entry: LastEdited): boolean {
+  if (entry.workspace === SCRATCH_WORKSPACE)
+    return scratchRecords().some(record => record.section === entry.section && record.key === entry.key);
+  const draft = storage()[entry.workspace]?.draft;
+  if (!draft) return false;
+  const items = draft[entry.section] as unknown as Array<{ id?: string; sequenceId?: string }>;
+  return items.some(item => (item.id ?? item.sequenceId) === entry.key);
+}
+
 
 function renderBrowser(container: HTMLElement, state: AppState): void {
   pushRoute({ kind: "browser" });
@@ -350,15 +350,36 @@ function renderBrowser(container: HTMLElement, state: AppState): void {
     "<small>" + escapeHtml(summary.setId) + "</small></div>" +
     '<span class="set-badge">' + (summary.kind === "data" ? "Data" : "Missions") + "</span>" +
     badge(summary) +
-    '<button type="button" class="text-button" data-rename="' + escapeHtml(summary.setId) + '">Rename</button>' +
+    '<button type="button" class="text-button icon-button" data-export-set="' + escapeHtml(summary.setId) +
+    '" title="Export set JSON" aria-label="Export ' + escapeHtml(summary.setId) + '">↧</button>' +
+    '<button type="button" class="text-button icon-button" data-rename="' + escapeHtml(summary.setId) +
+    '" title="Rename set" aria-label="Rename ' + escapeHtml(summary.setId) + '">✎</button>' +
     (canDeleteSets()
-      ? '<button type="button" class="text-button danger-text" data-delete="' + escapeHtml(summary.setId) + '">Delete</button>'
+      ? '<button type="button" class="text-button icon-button danger-text" data-delete="' + escapeHtml(summary.setId) +
+        '" title="Delete set" aria-label="Delete ' + escapeHtml(summary.setId) + '">✕</button>'
       : "") +
     '<button type="button" class="button button-outline" data-open="' + escapeHtml(summary.setId) + '">Open</button></div>';
-  const missionRows = sets.filter(set => set.kind !== "data");
-  const dataRows = sets.filter(set => set.kind === "data");
-  const rows = (list: SetSummary[]) => list.length ? list.map(setRow).join("")
-    : '<div class="set-empty">None yet.</div>';
+  const setRows = (list: SetSummary[]) => list.length ? list.map(setRow).join("")
+    : '<div class="set-empty">No sets yet.</div>';
+  const needsAttention = state.sets.filter(summary => {
+    const record = records[summary.setId];
+    return record && !validateContentSet(record.draft, state.capabilities).valid;
+  });
+  const notifications = needsAttention.length
+    ? '<section class="set-group notifications"><h2>Needs attention</h2>' + needsAttention.map(summary =>
+      '<div class="set-row"><div class="set-row-main"><strong>⚠ ' + escapeHtml(summary.name || summary.setId) +
+      "</strong><small>Validation issues — open the set to fix them</small></div>" +
+      '<button type="button" class="button button-outline" data-open="' + escapeHtml(summary.setId) + '">Open</button></div>').join("") +
+      "</section>"
+    : "";
+  const recent = state.recent.filter(recordExists).slice(0, 5);
+  const recentRows = recent.length ? recent.map(entry =>
+    '<div class="set-row"><div class="set-row-main"><strong>' + escapeHtml(entry.label) + "</strong><small>" +
+    SECTION_LABELS[entry.section] + " · " +
+    (entry.workspace === SCRATCH_WORKSPACE ? "local draft" : "set " + escapeHtml(entry.workspace)) +
+    '</small></div><button type="button" class="button button-outline" data-continue-edit="' +
+    escapeHtml(entry.workspace) + "|" + entry.section + "|" + escapeHtml(entry.key) + '">Continue</button></div>'
+  ).join("") : '<div class="set-empty">Nothing edited yet.</div>';
   const locals = scratchRecords();
   const localRows = locals.length ? locals.map(record =>
     '<div class="set-row"><div class="set-row-main"><strong>' + escapeHtml(record.label) + "</strong><small>" +
@@ -368,6 +389,15 @@ function renderBrowser(container: HTMLElement, state: AppState): void {
     '<button type="button" class="text-button danger-text" data-delete-local="' + record.section + "|" + escapeHtml(record.key) + '">Delete</button>' +
     '<button type="button" class="button button-outline" data-assign-local="' + record.section + "|" + escapeHtml(record.key) + '">Assign to set</button></div>'
   ).join("") : '<div class="set-empty">No local drafts yet. Create content below.</div>';
+  const dashboardTabs = ([["recent", "Recent"], ["local", "Local"], ["cloud", "Cloud"]] as const).map(([id, label]) =>
+    '<button type="button" class="button button-outline set-tab' + (state.dashboardTab === id ? " is-active" : "") +
+    '" data-dashboard-tab="' + id + '" aria-pressed="' + (state.dashboardTab === id) + '">' + label + "</button>").join("");
+  const panel = (id: "recent" | "local" | "cloud", content: string) =>
+    '<div class="set-list dashboard-panel" data-dashboard-panel="' + id + '"' +
+    (state.dashboardTab === id ? "" : " hidden") + ">" + content + "</div>";
+  const tabContent = panel("recent", recentRows) + panel("local", localRows +
+    '<div class="guided-actions"><button type="button" class="button button-outline" data-import>Import JSON / ZIP</button></div>') +
+    panel("cloud", setRows(sets));
 
   container.innerHTML = '<main class="editor-shell"><div class="topbar"><div class="topbar-context">' +
     '<span class="brand-mark">M</span><strong>MeowEdit</strong><span class="context-divider">/</span>' +
@@ -378,14 +408,12 @@ function renderBrowser(container: HTMLElement, state: AppState): void {
     '<div class="editor-main' + (state.help ? ' help-visible' : '') + '"><div class="editor-heading"><div><h1>Your dashboard</h1>' +
     "<p>Create content locally, then assign it to a set to upload it.</p></div>" +
     '<button type="button" class="button button-primary" data-new-set>+ New set</button></div>' +
-    '<section class="set-group"><h2>Continue editing</h2>' + (continueCard(state) || '<div class="set-empty">Nothing in progress.</div>') + '</section>' +
-    '<section class="set-group"><h2>Mission sets</h2><div class="set-list">' + rows(missionRows) + "</div></section>" +
-    '<section class="set-group"><h2>Data sets</h2><div class="set-list">' + rows(dataRows) + "</div></section>" +
+    notifications +
     '<section class="set-group"><h2>Create new content</h2><div class="guided-actions">' +
     SECTIONS.map(section => '<button type="button" class="button button-outline" data-create="' + section + '">+ ' +
       SECTION_LABELS[section] + "</button>").join("") + "</div></section>" +
-    '<section class="set-group"><h2>Local drafts (not in a set)</h2><div class="set-list">' + localRows + "</div>" +
-    '<div class="guided-actions"><button type="button" class="button button-outline" data-import>Import JSON / ZIP</button></div></section>' +
+    '<section class="set-group"><h2>Your content</h2><div class="guided-actions set-tabs">' + dashboardTabs + "</div>" +
+    tabContent + "</section>" +
     '<input id="dashboard-import-file" class="visually-hidden" type="file" accept=".json,.zip,application/json,application/zip">' +
     '<p class="guided-status" data-status>' + escapeHtml(state.status) + "</p></div></main>";
   writeSession(state);
@@ -396,6 +424,18 @@ function renderBrowser(container: HTMLElement, state: AppState): void {
     syncSession(state);
     renderBrowser(container, state);
   });
+  container.querySelectorAll<HTMLElement>("[data-dashboard-tab]").forEach(button => button.addEventListener("click", () => {
+    const id = button.dataset.dashboardTab as AppState["dashboardTab"];
+    state.dashboardTab = id;
+    container.querySelectorAll<HTMLElement>("[data-dashboard-tab]").forEach(tab =>
+      tab.classList.toggle("is-active", tab === button));
+    container.querySelectorAll<HTMLElement>("[data-dashboard-panel]").forEach(panel =>
+      panel.hidden = panel.dataset.dashboardPanel !== id);
+  }));
+  container.querySelectorAll<HTMLElement>("[data-export-set]").forEach(button => button.addEventListener("click", () => {
+    const draft = records[button.dataset.exportSet!]?.draft;
+    if (draft) downloadText(button.dataset.exportSet! + ".json", JSON.stringify(draft, null, 2));
+  }));
   container.querySelector<HTMLElement>("[data-new-set]")?.addEventListener("click", () => { void createSet(container, state); });
   container.querySelectorAll<HTMLElement>("[data-open]").forEach(button => button.addEventListener("click", () => {
     void openSet(container, state, button.dataset.open!);
@@ -675,7 +715,7 @@ async function openEditor(container: HTMLElement, state: AppState, target: Edito
   editorMountPending = true;
   try {
     const { mountEditor } = await import("../editor/main");
-    state.lastEdited = { workspace: target.workspace, section: target.section, key: target.key, label: target.label };
+    recordEdited(state, { workspace: target.workspace, section: target.section, key: target.key, label: target.label });
     syncSession(state);
     const scratch = target.workspace === SCRATCH_WORKSPACE;
     mountEditor({
@@ -699,7 +739,9 @@ async function openEditor(container: HTMLElement, state: AppState, target: Edito
       canPublishEditor: () => state.validation.valid && canPublish(),
       onAssign: () => { void showAssignDialog(container, state, { section: target.section, key: target.key }); },
       onRecordChange: (section, key, label) => {
-        state.lastEdited = { workspace: target.workspace, section: section as DetailSection, key, label };
+        recordEdited(state, { workspace: target.workspace, section: section as DetailSection, key, label });
+        activeEditorRoute = { kind: "editor", workspace: target.workspace, section: section as DetailSection, key };
+        pushRoute(activeEditorRoute);
         syncSession(state);
       }
     });
@@ -1033,17 +1075,26 @@ function renderSetView(container: HTMLElement, state: AppState): void {
     SECTION_LABELS[section] + " (" + entryCount(draft, section) + ")</button>").join("");
   const section = state.activeSection;
   const items = draft[section];
-  const rows = '<div class="set-group"><h3>' + SECTION_LABELS[section] + "</h3>" +
-    (items.length ? items.map((_, index) =>
-      '<div class="set-row"><div class="set-row-main"><strong>' +
-      escapeHtml(entryLabel(draft, section, index)) + "</strong></div>" +
-      '<button type="button" class="text-button" data-edit="' + section + ":" + index + '">Edit</button></div>').join("")
-      : '<div class="set-empty">No ' + section + " yet.</div>") + "</div>";
   const issues = state.validation.issues;
+  const issueCount = (entrySection: string, entryIndex: number) =>
+    issues.filter(issue => issue.section === entrySection && issue.entryIndex === entryIndex).length;
+  const rows = '<div class="set-group"><h3>' + SECTION_LABELS[section] + "</h3>" +
+    (items.length ? items.map((_, index) => {
+      const count = issueCount(section, index);
+      return '<div class="set-row"><div class="set-row-main"><strong>' +
+        escapeHtml(entryLabel(draft, section, index)) + "</strong></div>" +
+        (count ? '<span class="set-badge draft" title="' + count + ' validation issue(s)">⚠ ' + count + "</span>" : "") +
+        '<button type="button" class="text-button icon-button" data-export-item="' + section + ":" + index +
+        '" title="Export JSON" aria-label="Export ' + escapeHtml(entryLabel(draft, section, index)) + '">↧</button>' +
+        '<button type="button" class="text-button" data-edit="' + section + ":" + index + '">Edit</button></div>';
+    }).join("") : '<div class="set-empty">No ' + section + " yet.</div>") + "</div>";
   const validation = issues.length
     ? '<ul class="validation-issue-list">' + issues.slice(0, 8).map(issue =>
-      '<li class="validation-issue"><span class="validation-issue-title">' + escapeHtml(issue.message) + "</span></li>").join("") + "</ul>"
-    : '<p class="step-copy">No validation issues. This set is ready to save and publish.</p>';
+      '<li class="validation-issue"><span class="validation-issue-title">' + escapeHtml(issue.message) + "</span>" +
+      (issue.section && issue.entryIndex !== undefined
+        ? '<button type="button" class="text-button" data-fix-issue="' + issue.section + ":" + issue.entryIndex + '">Fix</button>'
+        : "") + "</li>").join("") + "</ul>"
+    : '<p class="step-copy">No validation issues. This set is ready to publish.</p>';
 
   container.innerHTML = '<main class="editor-shell"><div class="topbar"><div class="topbar-context">' +
     '<span class="brand-mark">M</span><strong>MeowEdit</strong><span class="context-divider">/</span>' +
@@ -1058,8 +1109,8 @@ function renderSetView(container: HTMLElement, state: AppState): void {
     draft.armies.length + " armies · " + draft.dialogues.length + " dialogues</p></div></div>" +
     '<div class="guided-actions set-tabs">' + tabs + "</div>" + rows +
     '<section class="content-validation"><h2>Validation</h2>' + validation + "</section>" +
-    '<div class="guided-actions"><button type="button" class="button button-outline" data-save>Save / Upload</button>' +
-    '<button type="button" class="button button-primary" data-publish' +
+    '<div class="guided-actions"><button type="button" class="button button-outline" data-save title="Uploads the private draft to your set on the server">Save draft</button>' +
+    '<button type="button" class="button button-primary" data-publish title="Makes this set the latest public revision for players"' +
     (canPublish() && state.validation.valid ? "" : " disabled") + ">Publish</button></div>" +
     '<p class="guided-status" data-status>' + escapeHtml(state.status) + "</p></div></main>";
   writeSession(state);
@@ -1080,6 +1131,13 @@ function renderSetView(container: HTMLElement, state: AppState): void {
   }));
   container.querySelectorAll<HTMLElement>("[data-edit]").forEach(button => button.addEventListener("click", () => {
     const [section, index] = button.dataset.edit!.split(":");
+    void openClassicEditor(container, state, { section: section as DetailSection, index: Number(index) }, "full");
+  }));
+  container.querySelectorAll<HTMLElement>("[data-export-item]").forEach(button => button.addEventListener("click", () => {
+    exportLocal(buttonData(button.dataset.exportItem));
+  }));
+  container.querySelectorAll<HTMLElement>("[data-fix-issue]").forEach(button => button.addEventListener("click", () => {
+    const [section, index] = button.dataset.fixIssue!.split(":");
     void openClassicEditor(container, state, { section: section as DetailSection, index: Number(index) }, "full");
   }));
   container.querySelector<HTMLElement>("[data-save]")?.addEventListener("click", () => { void saveDraft(state).then(() => flashStatus(container, state)); });
@@ -1247,7 +1305,8 @@ export async function mountApp(container: HTMLElement): Promise<void> {
   const state: AppState = {
     capabilities, sets: [], view: "browser", activeSection: "missions", setId: "", draft: emptyContentSet("", ""),
     draftVersion: 0, status: "", validation: { valid: false, issues: [] },
-    help: session.help, savedAt: session.savedAt, lastEdited: session.lastEdited
+    help: session.help, savedAt: session.savedAt, lastEdited: session.lastEdited,
+    recent: session.recent, dashboardTab: "recent"
   };
   appContainer = container;
   appState = state;

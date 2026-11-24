@@ -62,7 +62,8 @@ describe("set manager and single editor", () => {
   });
 
   it("lists sets with status badges and no examples section", () => {
-    expect(container.textContent).toContain("Mission sets");
+    expect(container.textContent).toContain("Your content");
+    expect(container.querySelector('[data-dashboard-tab="cloud"]')).not.toBeNull();
     expect(container.querySelector(".set-badge.published")).not.toBeNull();
     expect(container.querySelector(".set-badge.local")).not.toBeNull();
     expect(container.textContent).not.toContain("Import examples");
@@ -96,6 +97,32 @@ describe("set manager and single editor", () => {
     await vi.waitFor(() => expect(container.querySelector("[data-back-browser]")).not.toBeNull());
     container.querySelector<HTMLElement>("[data-back-browser]")!.click();
     expect(container.textContent).toContain("Your dashboard");
+  });
+
+  it("switches dashboard tabs between recent, local and cloud panels", () => {
+    const cloud = container.querySelector<HTMLElement>('[data-dashboard-tab="cloud"]')!;
+    const local = container.querySelector<HTMLElement>('[data-dashboard-tab="local"]')!;
+    expect(container.querySelector<HTMLElement>('[data-dashboard-panel="cloud"]')!.hidden).toBe(true);
+    cloud.click();
+    expect(container.querySelector<HTMLElement>('[data-dashboard-panel="cloud"]')!.hidden).toBe(false);
+    expect(container.querySelector<HTMLElement>('[data-dashboard-panel="recent"]')!.hidden).toBe(true);
+    expect(cloud.classList.contains("is-active")).toBe(true);
+    local.click();
+    expect(container.querySelector<HTMLElement>('[data-dashboard-panel="local"]')!.hidden).toBe(false);
+    expect(container.querySelector<HTMLElement>('[data-export-set="published-set"]')).not.toBeNull();
+  });
+
+  it("offers a Fix link for validation issues in a set", async () => {
+    setBridgeFetch(async (requestPath, init) => {
+      const draft = makeValidDraft();
+      draft.missions[0].floors[0].nodes = [];
+      return respond(requestPath, init, draft, 1);
+    });
+    container.querySelector<HTMLElement>('[data-open="published-set"]')!.click();
+    await vi.waitFor(() => expect(container.querySelector(".content-validation")).not.toBeNull());
+    expect(container.querySelector(".content-validation")!.textContent).toContain("Start nodes");
+    const fix = container.querySelector<HTMLElement>("[data-fix-issue]");
+    expect(fix).not.toBeNull();
   });
 
   it("shows only the selected section tab in a set and has no Open editor button", async () => {

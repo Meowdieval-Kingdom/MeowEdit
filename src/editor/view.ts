@@ -115,9 +115,10 @@ function selectField(
     '</label>';
 }
 
-function pickerField(id: string, label: string, value: string | number, options: Array<[string, string]>): string {
-  const optionMarkup = options.map(([optionValue, optionLabel]) =>
-    '<option value="' + escapeHtml(optionValue) + '"' + (String(value) === optionValue ? " selected" : "") + '>' + escapeHtml(optionLabel) + '</option>'
+function pickerField(id: string, label: string, value: string | number, options: Array<[string, string, string?]>): string {
+  const optionMarkup = options.map(([optionValue, optionLabel, title]) =>
+    '<option value="' + escapeHtml(optionValue) + '"' + (String(value) === optionValue ? " selected" : "") +
+    (title ? ' title="' + escapeHtml(title) + '"' : "") + '>' + escapeHtml(optionLabel) + '</option>'
   ).join("");
   return '<label class="field"><span class="field-label">' + escapeHtml(label) + '</span><select id="' + escapeHtml(id) + '">' + optionMarkup + '</select></label>';
 }
@@ -982,6 +983,16 @@ function renderArmyPicker(catalog: ArmyCatalog, kind: ArmyCatalogKind, placement
       '<p class="army-empty">No ' + actualKind + ' are present in the game catalog.</p>') + '</section>';
 }
 
+/** Spell mechanics can grant a named blessing; surface its description as a tooltip. */
+function spellBlessingTooltip(catalog: ArmyCatalog, spell: ArmyCatalogAbility): string {
+  const mechanics = spell.mechanics as { abilityData?: { abilityname?: string } } | undefined;
+  const name = mechanics?.abilityData?.abilityname;
+  if (!name) return "";
+  const blessing = catalog.blessings.find(item => item.name === name || item.id === name);
+  if (!blessing?.description) return "";
+  return "Grants " + blessing.name + ": " + blessing.description.replace(/<[^>]+>/g, "");
+}
+
 function renderArmyAbilityPicker(catalog: ArmyCatalog, kind: "spells" | "blessings" | "curses", ids: string[], sourceIds: string[] = ids, filter: "all" | "field" = "all", selectedId = ""): string {
   const entries = kind === "spells" ? catalog.spells : kind === "curses" ? catalog.curses ?? [] : catalog.blessings;
   const assignedIds = ids.filter(id => entries.some(entry => entry.id === id));
@@ -989,7 +1000,8 @@ function renderArmyAbilityPicker(catalog: ArmyCatalog, kind: "spells" | "blessin
   const fieldEntries = entries.filter(item => battlefieldTargetSummary(item));
   const visibleEntries = filter === "field" ? fieldEntries : entries;
   const options = visibleEntries.map(item => [item.id, item.name + (item.level && item.level > 1 ? " · Level " + item.level : "") +
-    (item.isAdventureOnly ? " · Adventure only" : "") + (battlefieldTargetSummary(item) ? " · " + (filter === "field" ? "" : "FIELD · ") + battlefieldTargetSummary(item) : "") + (ids.includes(item.id) ? " · In army" : "")] as [string, string]);
+    (item.isAdventureOnly ? " · Adventure only" : "") + (battlefieldTargetSummary(item) ? " · " + (filter === "field" ? "" : "FIELD · ") + battlefieldTargetSummary(item) : "") + (ids.includes(item.id) ? " · In army" : ""),
+    kind === "spells" ? spellBlessingTooltip(catalog, item) : ""] as [string, string, string]);
   const pickerId = kind === "spells" ? "army-spell-picker" : kind === "curses" ? "army-curse-picker" : "army-blessing-picker";
   const label = kind === "spells" ? "Spell" : kind === "curses" ? "Curse" : "Blessing";
   const action = kind === "spells" ? "add-army-spell" : kind === "curses" ? "add-army-curse" : "add-army-blessing";
@@ -1150,7 +1162,7 @@ function renderArmyEditor(record: ArmyRecord, catalog: ArmyCatalog, roster: Unit
   const picker = renderArmyPicker(catalog, actualKind, selected, roster);
   const board = '<div class="army-board-column"><div class="army-board-heading"><div><h2>' + size.width + ' × ' + size.height + '</h2></div>' + inputField("Battle floor", "previewFloor", floor, { type: "number", min: 1, max: 99, rerender: true }) + '</div><p class="section-note help-copy">Select a field and click an open cell to move it. Drag onto another placement to swap positions.</p>' + grid + '</div>';
   const unitSpellIds = selected?.spellIds ?? [], unitSpells = unitSpellIds.map((id, index) => armyAbilityChip(catalog, id, index, "unit-spell")).join("");
-  const unitSpellPanel = selected ? '<section class="army-unit-spells"><span class="eyebrow">SPELLS FOR THIS ' + (resolved?.kind === "buildings" ? "BUILDING" : "UNIT") + '</span><div class="army-add-row">' + pickerField("army-unit-spell-picker", "Spell", "", [["", "Choose a spell"], ...catalog.spells.map(item => [item.id, item.name] as [string, string])]) + actionButton("add-army-unit-spell", "Add", "button button-small") + '</div><div id="army-unit-spell-preview">' + renderArmyAbilityPreview(catalog, "", "spells") + '</div><div class="army-chips">' + (unitSpells || '<p class="section-note">No spells assigned.</p>') + '</div></section>' : '<p class="section-note help-copy">Select a lineup entry to edit its spells.</p>';
+  const unitSpellPanel = selected ? '<section class="army-unit-spells"><span class="eyebrow">SPELLS FOR THIS ' + (resolved?.kind === "buildings" ? "BUILDING" : "UNIT") + '</span><div class="army-add-row">' + pickerField("army-unit-spell-picker", "Spell", "", [["", "Choose a spell"], ...catalog.spells.map(item => [item.id, item.name, spellBlessingTooltip(catalog, item)] as [string, string, string])]) + actionButton("add-army-unit-spell", "Add", "button button-small") + '</div><div id="army-unit-spell-preview">' + renderArmyAbilityPreview(catalog, "", "spells") + '</div><div class="army-chips">' + (unitSpells || '<p class="section-note">No spells assigned.</p>') + '</div></section>' : '<p class="section-note help-copy">Select a lineup entry to edit its spells.</p>';
   const selectedStats = selected && resolved ? armyLevelMarkup(resolved.entity, resolved.level, resolved.kind, armyLevelPreviewPath(selected.unitId, resolved.level, resolved.kind, roster)) : '<div class="army-preview-empty">Select a unit or building to see full stats.</div>';
   const detail = selected ? selectedStats + unitSpellPanel : '<div class="army-preview-empty">Select a unit or building to see full stats and edit its spells.</div>';
   const spells = record.spellIds.map((id, index) => armyAbilityChip(catalog, id, index, "spell")).join("");
@@ -1190,7 +1202,7 @@ function renderArmyEditor(record: ArmyRecord, catalog: ArmyCatalog, roster: Unit
     renderAdvancedSectionNav(advancedSections) +
     '<section class="army-identity" id="army-identity"><label class="field"><span class="field-label">Army name</span><input data-bind="name" value="' + escapeHtml(record.name) + '" placeholder="Bridge guards"></label>' + inputField("Army ID (system managed)", "id", record.id, { readOnly: true, hint: "Generated automatically; referenced by quest nodes." }) + '</section>' +
     '<section class="army-layout" id="army-placement">' + board + '<aside class="army-pickers">' + picker + unitSpellPanel + '</aside></section>' +
-    armyAbilities + '<section class="army-roster-section" id="army-lineup"><div class="section-heading"><div><h2>Lineup</h2><p class="help-copy">Select a row to preview it in the formation and edit its spells.</p></div></div>' + list + '</section>' +
+    '<div class="army-compact-panels">' + armyAbilities + '<section class="army-roster-section" id="army-lineup"><div class="section-heading"><div><h2>Lineup</h2><p class="help-copy">Select a row to preview it in the formation and edit its spells.</p></div></div>' + list + '</section></div>' +
     '<section class="army-data-note help-copy"><strong>Game loading pending</strong><p>Authored Armies are included in exports; the game does not load them yet.</p></section></main>' + cellFocusOverlay;
 }
 

@@ -862,6 +862,9 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 .army-unit-row > button:first-child small { color: #777d71; font-size: 10px; white-space: nowrap; }
 .army-unit-row.is-selected { background: #edf1e8; }
 .army-empty { margin: 8px 0; color: #7a7f75; font-size: 12px; }
+.army-compact-panels { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+.army-compact-panels > * { min-width: 0; }
+@media (max-width: 1100px) { .army-compact-panels { grid-template-columns: minmax(0, 1fr); } }
 .army-data-note { margin-top: 18px; padding: 13px 16px; color: #665e4c; background: #f1efe7; border-left: 2px solid #a78a52; font-size: 12px; }
 .army-data-note p { margin: 5px 0 0; line-height: 1.5; }
 .fetch-items-editor { display: grid; gap: 8px; }
