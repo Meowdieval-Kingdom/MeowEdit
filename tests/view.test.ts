@@ -355,26 +355,27 @@ describe("editor rendering", () => {
     expect(advanced).toContain('details class="campaign-advanced-node" open');
     expect(advanced).toContain('class="campaign-floor-pool" open');
     const nameStep = renderApp(workspace, rosterFixture, catalog, [], 0, "guided", null, view);
-    expect(nameStep).toContain("Step 1 of 10");
+    expect(nameStep).toContain("Step 1 of 9");
     expect(nameStep).toContain('data-bind="name"');
     expect(nameStep).not.toContain('data-campaign-canvas');
     expect(nameStep).not.toContain('class="campaign-settings-panel"');
-    expect(renderApp(workspace, rosterFixture, catalog, [], 1, "guided", null, view)).toContain("Choose the boards");
-    const mapStep = renderApp(workspace, rosterFixture, catalog, [], 2, "guided", null, view);
-    expect(mapStep).toContain("Arrange the path");
-    expect(mapStep).toContain('data-campaign-port="output"');
-    expect(mapStep).toContain('data-action="campaign-toggle-add-menu"');
-    expect(mapStep).toContain('class="campaign-route-distance"');
-    expect(mapStep).toContain("map distance 1 step");
-    expect(mapStep).toContain("grid cell 0, 0");
-    expect(mapStep).not.toContain('data-action="campaign-connect-mode"');
-    const nodeStep = renderApp(workspace, rosterFixture, catalog, [], 3, "guided", null, view);
-    expect(nodeStep).toContain("Step 4 of 10");
+    const floorStep = renderApp(workspace, rosterFixture, catalog, [], 1, "guided", null, view);
+    expect(floorStep).toContain("Step 2 of 9");
+    expect(floorStep).toContain("Choose the boards");
+    expect(floorStep).toContain("Place nodes and connect routes");
+    expect(floorStep).toContain('data-campaign-port="output"');
+    expect(floorStep).toContain('data-action="campaign-toggle-add-menu"');
+    expect(floorStep).toContain('class="campaign-route-distance"');
+    expect(floorStep).toContain("map distance 1 step");
+    expect(floorStep).toContain("grid cell 0, 0");
+    expect(floorStep).not.toContain('data-action="campaign-connect-mode"');
+    const nodeStep = renderApp(workspace, rosterFixture, catalog, [], 2, "guided", null, view);
+    expect(nodeStep).toContain("Step 3 of 9");
     expect(nodeStep).toContain('data-action="campaign-back-to-map"');
     expect(nodeStep).toContain('class="campaign-map-step campaign-context-map"');
     expect(nodeStep).toContain('data-campaign-canvas');
-    expect(renderApp(workspace, rosterFixture, catalog, [], 4, "guided", null, view)).toContain("Find a quest");
-    expect(renderApp(workspace, rosterFixture, catalog, [], 9, "guided", null, view)).toContain("Review your campaign");
+    expect(renderApp(workspace, rosterFixture, catalog, [], 3, "guided", null, view)).toContain("Find a quest");
+    expect(renderApp(workspace, rosterFixture, catalog, [], 8, "guided", null, view)).toContain("Review your campaign");
     workspace.campaigns[0].floors[0].mode = "random";
     expect(renderApp(workspace, rosterFixture, catalog, [], 0, "full", null, view)).toContain("GENERATED BOARD");
   });
@@ -397,13 +398,13 @@ describe("editor rendering", () => {
     expect(advanced).toContain("Create army");
     expect(advanced).toContain("Edit linked army");
 
-    const eventStep = renderApp(workspace, rosterFixture, catalog, [], 9, "guided", null, view, undefined, "units", false, undefined, undefined, undefined, undefined, "event-battle");
-    expect(eventStep).toContain("Step 10 of 11 · Campaign");
+    const eventStep = renderApp(workspace, rosterFixture, catalog, [], 8, "guided", null, view, undefined, "units", false, undefined, undefined, undefined, undefined, "event-battle");
+    expect(eventStep).toContain("Step 9 of 10 · Campaign");
     expect(eventStep).toContain('class="campaign-event-editor campaign-event-focus"');
     expect(eventStep).toContain('data-bind="events.0.floorNumber"');
     expect(eventStep).toContain('<option value="battle-a-1" selected>Battle 1 · Battle</option>');
 
-    const review = renderApp(workspace, rosterFixture, catalog, [], 10, "guided", null, view);
+    const review = renderApp(workspace, rosterFixture, catalog, [], 9, "guided", null, view);
     expect(review).toContain("Review your campaign");
     expect(review).toContain("Before a battle · Floor 1 · Battle 1");
   });
@@ -511,7 +512,7 @@ describe("editor rendering", () => {
     workspace.selectedKey = campaign.key;
     const view = { selectedFloorId: campaign.floors[0].id, selectedNodeId: "battle-a-1", interactionMode: "select" as const, nodeKind: "Battle" as const, addMenuOpen: false, pendingPlugFromId: null, selectedRouteId: null };
     const returnState = { parent: "Campaign" as const, label: campaign.name };
-    const campaignHtml = renderApp(workspace, rosterFixture, catalog, [], 3, "guided", null, view, returnState);
+    const campaignHtml = renderApp(workspace, rosterFixture, catalog, [], 2, "guided", null, view, returnState);
     expect(campaignHtml).toContain('data-action="return-to-parent"');
     expect(campaignHtml).toContain('data-action="create-campaign-army"');
 

@@ -21,6 +21,8 @@
 .editor-shell .set-empty { padding: 30px; text-align: center; color: var(--muted); font-size: 12px; background: var(--paper); border: 1px dashed var(--line); border-radius: 10px; }
 
 .editor-shell .guided-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.editor-shell .set-tabs { margin-bottom: 18px; }
+.editor-shell .set-tab.is-active { color: #fff; background: var(--ink); border-color: var(--ink); }
 .editor-shell .guided-status { color: var(--green-dark); font-size: 12px; min-height: 1em; }
 
 .editor-shell .help-copy { display: none; }

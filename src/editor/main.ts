@@ -863,7 +863,7 @@ function addCampaignNodeAt(x: number, y: number): void {
   campaignInteractionMode = "select";
   campaignAddMenuOpen = false;
   selectedCampaignRouteId = null;
-  if (editorMode === "guided") activeEditorStep = 3;
+  if (editorMode === "guided") activeEditorStep = 2;
   saveWorkspace();
   render();
 }
@@ -890,7 +890,7 @@ function selectCampaignNode(nodeId: string): void {
   selectedCampaignNodeId = nodeId;
   selectedCampaignRouteId = null;
   campaignInteractionMode = "select";
-  if (editorMode === "guided" && activeEditorStep === 2) activeEditorStep = 3;
+  if (editorMode === "guided" && activeEditorStep === 1) activeEditorStep = 2;
   render();
 }
 
@@ -2041,11 +2041,11 @@ function onAction(button: HTMLButtonElement): void {
       if (!floor || !selectedCampaignNodeId) return;
       removeCampaignNode(floor, selectedCampaignNodeId);
       selectedCampaignNodeId = floor.nodes[0]?.id ?? null; campaignInteractionMode = "select";
-      if (editorMode === "guided") activeEditorStep = 2;
+      if (editorMode === "guided") activeEditorStep = 1;
       saveWorkspace(); render(); return;
     }
     case "campaign-back-to-map":
-      activeEditorStep = 2;
+      activeEditorStep = 1;
       campaignInteractionMode = "select";
       campaignAddMenuOpen = false;
       pendingCampaignPlugFromId = null;

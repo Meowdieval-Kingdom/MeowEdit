@@ -1544,7 +1544,7 @@ function renderCampaignEditor(
 
   const steps = campaign.designMode === "choose" ? ["Approach"] : isSettingsOnly
     ? ["Name", "Randomizer settings", ...(hasQuestContent ? ["Quests"] : []), ...(hasFloorPoolChoices ? ["Floor pools"] : []), ...(hasShopContent ? ["Shop pools", "Shop unlocks"] : []), "Starting run", "Progression", ...(campaign.events.length ? ["Events"] : []), "Review"]
-    : ["Name", "Floors", ...(hasAuthoredBoards ? ["Map", "Node"] : []), "Quests", ...(hasFloorPoolChoices ? ["Floor pools"] : []), ...(hasShopContent ? ["Shop pools", "Shop unlocks"] : []), "Starting run", "Generated floors", ...(campaign.events.length ? ["Events"] : []), "Review"];
+    : ["Name", "Floors", ...(hasAuthoredBoards ? ["Node"] : []), "Quests", ...(hasFloorPoolChoices ? ["Floor pools"] : []), ...(hasShopContent ? ["Shop pools", "Shop unlocks"] : []), "Starting run", "Generated floors", ...(campaign.events.length ? ["Events"] : []), "Review"];
   const step = Math.max(0, Math.min(steps.length - 1, activeStep));
   const stepName = steps[step];
   guidedFinalStepActive = step === steps.length - 1;
@@ -1593,14 +1593,11 @@ function renderCampaignEditor(
   } else if (stepName === "Name") {
     screen = '<section class="campaign-setup-step"><p class="campaign-step-prompt help-copy">Name the campaign so your team can find it.</p>' + guidedIdentity + '</section>';
   } else if (stepName === "Floors" || stepName === "Randomizer settings") {
-    screen = floorSetup + (floor?.mode === "mixed" ? board : "");
+    // One step for adding a floor: generation settings and/or the hand-placed map.
+    screen = floorSetup + (floor?.mode !== "random" ? board : "");
     if (isSettingsOnly && campaign.questIds.length === 0) {
       screen += '<details class="campaign-optional-quest-content"><summary>Add optional authored quests</summary><p class="help-copy">Only needed if generated floors should include campaign quests.</p>' + actionButton("create-campaign-pool-quest", "＋ Create a quest", "text-button related-create") + '</details>';
     }
-  } else if (stepName === "Map") {
-    screen = '<div class="campaign-floor-tabs">' + (floorTabs || "") + '</div>' +
-      (floor ? '<div class="campaign-floor-mode-row"><span>Floor ' + floor.number + ' layout</span>' + floorModes + '</div>' : "") +
-      (floor?.mode === "mixed" ? randomControls : "") + mapBoard;
   } else if (stepName === "Node") {
     screen = selectedNode && floor
       ? (floor.mode === "random" ? "" : mapBoard.replace('class="campaign-map-step"', 'class="campaign-map-step campaign-context-map"')) +

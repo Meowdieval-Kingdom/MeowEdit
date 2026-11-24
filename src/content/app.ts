@@ -44,6 +44,7 @@ interface AppState {
   capabilities: GameCapabilities;
   sets: SetSummary[];
   view: "browser" | "set";
+  activeSection: DetailSection;
   setId: string;
   draft: ContentSetDocument;
   draftVersion: number;
@@ -1018,17 +1019,18 @@ function renderSetView(container: HTMLElement, state: AppState): void {
   activeEditorRoute = null;
   const draft = state.draft;
   const tabs = SECTIONS.map(section =>
-    '<button type="button" class="button button-outline" data-section="' + section + '">' +
+    '<button type="button" class="button button-outline set-tab' +
+    (section === state.activeSection ? " is-active" : "") + '" data-section="' + section +
+    '" aria-pressed="' + (section === state.activeSection) + '">' +
     SECTION_LABELS[section] + " (" + entryCount(draft, section) + ")</button>").join("");
-  const rows = SECTIONS.map(section => {
-    const items = draft[section];
-    return '<div class="set-group"><h3>' + SECTION_LABELS[section] + "</h3>" +
-      (items.length ? items.map((_, index) =>
-        '<div class="set-row"><div class="set-row-main"><strong>' +
-        escapeHtml(entryLabel(draft, section, index)) + "</strong></div>" +
-        '<button type="button" class="text-button" data-edit="' + section + ":" + index + '">Edit</button></div>').join("")
-        : '<div class="set-empty">No ' + section + " yet.</div>") + "</div>";
-  }).join("");
+  const section = state.activeSection;
+  const items = draft[section];
+  const rows = '<div class="set-group"><h3>' + SECTION_LABELS[section] + "</h3>" +
+    (items.length ? items.map((_, index) =>
+      '<div class="set-row"><div class="set-row-main"><strong>' +
+      escapeHtml(entryLabel(draft, section, index)) + "</strong></div>" +
+      '<button type="button" class="text-button" data-edit="' + section + ":" + index + '">Edit</button></div>').join("")
+      : '<div class="set-empty">No ' + section + " yet.</div>") + "</div>";
   const issues = state.validation.issues;
   const validation = issues.length
     ? '<ul class="validation-issue-list">' + issues.slice(0, 8).map(issue =>
@@ -1045,9 +1047,8 @@ function renderSetView(container: HTMLElement, state: AppState): void {
     '<div class="editor-main' + (state.help ? ' help-visible' : '') + '"><div class="editor-heading"><div><h1>' +
     escapeHtml(draft.set.name.default || state.setId) + "</h1><p>" +
     draft.campaigns.length + " campaigns · " + draft.quests.length + " quests · " +
-    draft.armies.length + " armies · " + draft.dialogues.length + " dialogues</p></div>" +
-    '<button type="button" class="button button-primary" data-open-editor>Open editor</button></div>' +
-    '<div class="guided-actions">' + tabs + "</div>" + rows +
+    draft.armies.length + " armies · " + draft.dialogues.length + " dialogues</p></div></div>" +
+    '<div class="guided-actions set-tabs">' + tabs + "</div>" + rows +
     '<section class="content-validation"><h2>Validation</h2>' + validation + "</section>" +
     '<div class="guided-actions"><button type="button" class="button button-outline" data-save>Save / Upload</button>' +
     '<button type="button" class="button button-primary" data-publish' +
@@ -1065,9 +1066,10 @@ function renderSetView(container: HTMLElement, state: AppState): void {
     syncSession(state);
     renderSetView(container, state);
   });
-  container.querySelector<HTMLElement>("[data-open-editor]")?.addEventListener("click", () => {
-    void openClassicEditor(container, state);
-  });
+  container.querySelectorAll<HTMLElement>("[data-section]").forEach(button => button.addEventListener("click", () => {
+    state.activeSection = button.dataset.section as DetailSection;
+    renderSetView(container, state);
+  }));
   container.querySelectorAll<HTMLElement>("[data-edit]").forEach(button => button.addEventListener("click", () => {
     const [section, index] = button.dataset.edit!.split(":");
     void openClassicEditor(container, state, { section: section as DetailSection, index: Number(index) }, "full");
@@ -1234,7 +1236,7 @@ export async function mountApp(container: HTMLElement): Promise<void> {
   const capabilities = await loadCapabilities();
   const session = loadSession();
   const state: AppState = {
-    capabilities, sets: [], view: "browser", setId: "", draft: emptyContentSet("", ""),
+    capabilities, sets: [], view: "browser", activeSection: "campaigns", setId: "", draft: emptyContentSet("", ""),
     draftVersion: 0, status: "", validation: { valid: false, issues: [] },
     help: session.help, savedAt: session.savedAt, lastEdited: session.lastEdited
   };

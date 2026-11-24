@@ -70,7 +70,7 @@ describe("set manager and single editor", () => {
 
   it("opens a set to a read-only dashboard with a single editor entry point", async () => {
     container.querySelector<HTMLElement>('[data-open="published-set"]')!.click();
-    await vi.waitFor(() => expect(container.querySelector("[data-open-editor]")).not.toBeNull());
+    await vi.waitFor(() => expect(container.querySelector("[data-back-browser]")).not.toBeNull());
     expect(container.textContent).toContain("Published Set");
     expect(container.querySelectorAll("[data-edit]").length).toBeGreaterThan(0);
     expect(container.textContent).not.toContain("Quick fields");
@@ -86,21 +86,35 @@ describe("set manager and single editor", () => {
 
   it("opens the classic editor from an entry and returns to the set dashboard", async () => {
     container.querySelector<HTMLElement>('[data-open="published-set"]')!.click();
-    await vi.waitFor(() => expect(container.querySelector("[data-open-editor]")).not.toBeNull());
+    await vi.waitFor(() => expect(container.querySelector("[data-back-browser]")).not.toBeNull());
     expect(container.querySelector<HTMLElement>("[data-back-browser]")!.textContent).toBe("Dashboard");
     container.querySelector<HTMLElement>("[data-edit='campaigns:0']")!.click();
     await vi.waitFor(() => expect(container.querySelector(".app-shell")).not.toBeNull());
     const backToSet = container.querySelector<HTMLElement>('[data-action="open-content-editor"]')!;
     expect(backToSet.textContent).toContain("Set");
     backToSet.click();
-    await vi.waitFor(() => expect(container.querySelector("[data-open-editor]")).not.toBeNull());
+    await vi.waitFor(() => expect(container.querySelector("[data-back-browser]")).not.toBeNull());
     container.querySelector<HTMLElement>("[data-back-browser]")!.click();
     expect(container.textContent).toContain("Your dashboard");
   });
 
+  it("shows only the selected section tab in a set and has no Open editor button", async () => {
+    container.querySelector<HTMLElement>('[data-open="published-set"]')!.click();
+    await vi.waitFor(() => expect(container.querySelector("[data-back-browser]")).not.toBeNull());
+    expect(container.querySelector("[data-open-editor]")).toBeNull();
+    expect(container.querySelectorAll(".set-tab.is-active")).toHaveLength(1);
+    expect(container.querySelector('[data-section="campaigns"]')!.classList.contains("is-active")).toBe(true);
+
+    container.querySelector<HTMLElement>('[data-section="quests"]')!.click();
+    expect(container.querySelector('[data-section="quests"]')!.classList.contains("is-active")).toBe(true);
+    expect(container.querySelector('[data-section="campaigns"]')!.classList.contains("is-active")).toBe(false);
+    expect(container.querySelectorAll(".set-group h3")).toHaveLength(1);
+    expect(container.querySelector(".set-group h3")!.textContent).toBe("Quest");
+  });
+
   it("replays dashboard, set and editor screens on browser Back/Forward", async () => {
     container.querySelector<HTMLElement>('[data-open="published-set"]')!.click();
-    await vi.waitFor(() => expect(container.querySelector("[data-open-editor]")).not.toBeNull());
+    await vi.waitFor(() => expect(container.querySelector("[data-back-browser]")).not.toBeNull());
     expect(location.hash).toBe("#/set/published-set");
 
     container.querySelector<HTMLElement>("[data-edit='campaigns:0']")!.click();
@@ -110,7 +124,7 @@ describe("set manager and single editor", () => {
 
     history.pushState(null, "", "#/set/published-set");
     window.dispatchEvent(new PopStateEvent("popstate"));
-    await vi.waitFor(() => expect(container.querySelector("[data-open-editor]")).not.toBeNull());
+    await vi.waitFor(() => expect(container.querySelector("[data-back-browser]")).not.toBeNull());
 
     history.pushState(null, "", "#/");
     window.dispatchEvent(new PopStateEvent("popstate"));
@@ -118,14 +132,15 @@ describe("set manager and single editor", () => {
 
     history.pushState(null, "", "#/set/published-set");
     window.dispatchEvent(new PopStateEvent("popstate"));
-    await vi.waitFor(() => expect(container.querySelector("[data-open-editor]")).not.toBeNull());
+    await vi.waitFor(() => expect(container.querySelector("[data-back-browser]")).not.toBeNull());
   });
 
   it("opens Edit on a dialogue in the Advanced editor", async () => {
     const validSet = JSON.parse(readFileSync(path.resolve(process.cwd(), "contract/content/fixtures/valid-set.fixture.json"), "utf8"));
     setBridgeFetch(async (requestPath, init) => respond(requestPath, init, validSet));
     container.querySelector<HTMLElement>('[data-open="published-set"]')!.click();
-    await vi.waitFor(() => expect(container.querySelector("[data-edit='dialogues:0']")).not.toBeNull());
+    await vi.waitFor(() => expect(container.querySelector("[data-section='dialogues']")).not.toBeNull());
+    container.querySelector<HTMLElement>("[data-section='dialogues']")!.click();
     container.querySelector<HTMLElement>("[data-edit='dialogues:0']")!.click();
     const key = "meowedit.editor-session.v1.author-1.published-set";
     await vi.waitFor(() => expect(localStorage.getItem(key)).not.toBeNull());
@@ -151,7 +166,7 @@ describe("set manager and single editor", () => {
     })));
     await mountApp(container);
     container.querySelector<HTMLElement>('[data-open="published-set"]')!.click();
-    await vi.waitFor(() => expect(container.querySelector("[data-open-editor]")).not.toBeNull());
+    await vi.waitFor(() => expect(container.querySelector("[data-back-browser]")).not.toBeNull());
     expect(container.textContent).not.toContain("unresolved reference");
   });
 
@@ -173,7 +188,7 @@ describe("set manager and single editor", () => {
     });
     container.querySelector<HTMLElement>('[data-open="published-set"]')!.click();
     await vi.waitFor(() => expect(container.textContent).toContain("saved draft could not be loaded"));
-    expect(container.querySelector("[data-open-editor]")).toBeNull();
+    expect(container.querySelector("[data-back-browser]")).toBeNull();
   });
 
   it("rejects an invalid capability manifest", async () => {
@@ -200,7 +215,7 @@ describe("set manager and single editor", () => {
 
   it("restores the help preference across remounts", async () => {
     container.querySelector<HTMLElement>('[data-open="published-set"]')!.click();
-    await vi.waitFor(() => expect(container.querySelector("[data-open-editor]")).not.toBeNull());
+    await vi.waitFor(() => expect(container.querySelector("[data-back-browser]")).not.toBeNull());
     container.querySelector<HTMLElement>("[data-toggle-help]")!.click();
     expect(container.querySelector(".editor-main")?.classList.contains("help-visible")).toBe(true);
     document.body.innerHTML = '<div id="app"></div>';

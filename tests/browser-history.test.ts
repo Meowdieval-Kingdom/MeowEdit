@@ -128,7 +128,7 @@ describe("browser history routing", () => {
     expect(container.textContent).toContain("Your dashboard");
 
     container.querySelector<HTMLElement>('[data-open="published-set"]')!.click();
-    await vi.waitFor(() => expect(container.querySelector("[data-open-editor]")).not.toBeNull());
+    await vi.waitFor(() => expect(container.querySelector("[data-back-browser]")).not.toBeNull());
     expect(location.hash).toBe("#/set/published-set");
 
     history.back();
