@@ -62,7 +62,7 @@ describe("set manager and single editor", () => {
   });
 
   it("lists sets with status badges and no examples section", () => {
-    expect(container.textContent).toContain("Your content sets");
+    expect(container.textContent).toContain("Your sets");
     expect(container.querySelector(".set-badge.published")).not.toBeNull();
     expect(container.querySelector(".set-badge.local")).not.toBeNull();
     expect(container.textContent).not.toContain("Import examples");
@@ -81,7 +81,7 @@ describe("set manager and single editor", () => {
     vi.stubGlobal("prompt", vi.fn((_message: string, fallback?: string) => fallback ?? "new-set"));
     container.querySelector<HTMLElement>("[data-new-set]")!.click();
     await vi.waitFor(() => expect(container.textContent).toContain("new-set"));
-    expect(localStorage.getItem("meowedit.content.sets.author-1")).toContain("new-set");
+    expect(localStorage.getItem("meowedit.v2.sets.author-1")).toContain("new-set");
   });
 
   it("opens the classic editor from an entry and returns to the dashboard", async () => {
@@ -137,7 +137,7 @@ describe("set manager and single editor", () => {
     await vi.waitFor(() => expect(container.textContent).toContain("Fix the validation issues"));
   });
 
-  it("restores the last set and help preference across remounts", async () => {
+  it("restores the help preference across remounts", async () => {
     container.querySelector<HTMLElement>('[data-open="published-set"]')!.click();
     await vi.waitFor(() => expect(container.querySelector("[data-open-editor]")).not.toBeNull());
     container.querySelector<HTMLElement>("[data-toggle-help]")!.click();
@@ -145,7 +145,7 @@ describe("set manager and single editor", () => {
     document.body.innerHTML = '<div id="app"></div>';
     container = document.querySelector<HTMLElement>("#app")!;
     await mountApp(container);
-    await vi.waitFor(() => expect(container.querySelector("[data-open-editor]")).not.toBeNull());
     expect(container.textContent).toContain("Hide help");
+    expect(container.querySelector('[data-open="published-set"]')).not.toBeNull();
   });
 });

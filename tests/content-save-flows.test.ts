@@ -37,11 +37,7 @@ describe("save and publish flows", () => {
     });
     await mountApp(container);
     // session view defaults to browser with no prior set; open directly
-    const state = JSON.parse(localStorage.getItem("meowedit.content.session.flow-user") ?? "{}");
-    localStorage.setItem("meowedit.content.session.flow-user", JSON.stringify({ ...state, view: "set", setId: "test-set" }));
-    document.body.innerHTML = '<div id="app"></div>';
-    container = document.querySelector<HTMLElement>("#app")!;
-    await mountApp(container);
+    container.querySelector<HTMLElement>('[data-open="test-set"]')!.click();
     await vi.waitFor(() => expect(container.querySelector("[data-save]")).not.toBeNull());
   }
 

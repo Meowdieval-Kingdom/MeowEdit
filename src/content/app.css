@@ -6,6 +6,9 @@
 .editor-shell .editor-heading h1 { margin: 0; font: 800 28px/1.1 "Manrope", sans-serif; letter-spacing: -0.03em; color: var(--ink); }
 .editor-shell .editor-heading p { margin: 6px 0 0; color: var(--ink-soft); font-size: 12px; }
 
+.editor-shell .set-group { display: grid; gap: 10px; margin: 0 0 26px; }
+.editor-shell .set-group h2 { margin: 0; font: 800 13px "Manrope", sans-serif; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-soft); }
+.editor-shell .set-group h3 { margin: 0; font-size: 12px; color: var(--ink); }
 .editor-shell .set-list { display: grid; gap: 10px; }
 .editor-shell .set-row { display: flex; align-items: center; gap: 14px; padding: 16px 18px; background: var(--paper); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); }
 .editor-shell .set-row-main { flex: 1; min-width: 0; }

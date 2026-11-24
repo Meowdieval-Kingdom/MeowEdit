@@ -1869,6 +1869,9 @@ export function renderValidationSummary(issues: ValidationIssue[]): string {
   return renderIssues(issues);
 }
 
+let scratchMode = false;
+export function setScratchMode(value: boolean): void { scratchMode = value; }
+
 export function renderApp(
   workspace: Workspace,
   roster: UnitRoster,
@@ -1895,8 +1898,8 @@ export function renderApp(
   const bridgeUserId = getBridgeUserId();
   const toolbar = '<div class="topbar-actions">' +
     (relatedReturnState ? actionButton("return-to-parent", "← " + escapeHtml(relatedReturnState.label), "text-button return-to-parent", ' aria-label="Return to ' + escapeHtml(relatedReturnState.parent) + '" title="Return to ' + escapeHtml(relatedReturnState.parent) + '"') : "") +
-    (bridgeUserId && canPublish() ? actionButton("publish-package", "Publish", "button button-primary", publishAllowed ? "" : " disabled") : "") +
-    (bridgeUserId ? actionButton("save-package", "Save / Upload", "button button-outline") : "") +
+    (bridgeUserId && publishAllowed && canPublish() ? actionButton("publish-package", "Publish", "button button-primary", publishAllowed ? "" : " disabled") : "") +
+    (bridgeUserId ? actionButton("save-package", scratchMode ? "Save locally" : "Save to cloud", "button button-outline") : "") +
     (bridgeUserId ? actionButton("open-content-editor", "← Back to set", "text-button open-content-editor") : "") +
     (bridgeUserId ? actionButton("bridge-sign-out", "Sign out", "text-button bridge-sign-out") : "") +
     (item && !guidedCompact ? helpToggleButton(helpVisible) : "") +
@@ -1934,7 +1937,9 @@ export function renderApp(
     renderSidebar() +
     '<button type="button" class="sidebar-backdrop" data-action="close-sidebar" aria-label="Close navigation menu" tabindex="-1"></button>' +
     '<div class="stage-wrap">' + content +
-    (item ? '<div class="editor-transfer-bar">' + actionButton("open-transfer", "Import / export JSON", "text-button transfer-button") + '</div>' : '') +
+    (item ? '<div class="editor-transfer-bar">' +
+      (scratchMode ? actionButton("assign-to-set", "Assign to set", "button button-primary") : "") +
+      actionButton("open-transfer", "Import / export JSON", "text-button transfer-button") + '</div>' : '') +
     '</div>' +
     '</div>' +
     '<div class="toast-region" id="toast-region" aria-live="polite"></div>' +
@@ -1949,3 +1954,6 @@ export function renderApp(
     (hasErrors && !focusedDialogueTitle ? '<div class="global-error-dot" title="Fix validation errors before treating this content as ready"></div>' : "") +
     '</div>';
 }
+
+
+

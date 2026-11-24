@@ -33,14 +33,14 @@ import { includeArmyUnitsInRoster } from "./roster";
 import { getBridgeActions } from "../bridge-context";
 import type { ContentSetDocument, GameCapabilities } from "../content/types";
 import { workspaceToDraft } from "./convert";
-import { loadWorkspace, markWorkspaceDirty, saveWorkspace as persistWorkspace } from "./workspace-store";
+import { loadScratchWorkspace, loadWorkspace, markWorkspaceDirty, saveScratchWorkspace, saveWorkspace as persistWorkspace } from "./workspace-store";
 import {
   activeDialogueJson, activeArmyJson, activeCampaignJson, activeQuestJson,
   decodeZipText, parseImportedJson, suggestedFilename, workspacePackage
 } from "./export";
 import { readStoredZip } from "./zip";
 import { normalizeArmy, normalizeCampaign, normalizeQuest } from "./import-normalizers";
-import { escapeHtml, renderApp, renderLivePreview, renderValidationSummary, renderArmyEntityPreview, renderArmyAbilityPreview, type ArmyAbilityFilters, type ArmyAbilityKind, type ArmyAbilitySelections, type EditorMode } from "./view";
+import { escapeHtml, renderApp, renderLivePreview, renderValidationSummary, renderArmyEntityPreview, renderArmyAbilityPreview, setScratchMode, type ArmyAbilityFilters, type ArmyAbilityKind, type ArmyAbilitySelections, type EditorMode } from "./view";
 
 const initialEditorSession = (() => {
   try { return loadEditorSession(localStorage); }
@@ -57,8 +57,9 @@ const root = document.querySelector<HTMLDivElement>("#app");
 if (!root) throw new Error("MeowEdit app root is missing.");
 
 export interface LegacyMountOptions {
-  setId: string;
-  draft: ContentSetDocument;
+  /** Undefined for the unassigned scratch workspace. */
+  setId?: string;
+  draft?: ContentSetDocument;
   capabilities: GameCapabilities;
   selected?: { section: string; index: number };
   onSave(): Promise<string>;
@@ -66,10 +67,13 @@ export interface LegacyMountOptions {
   onBack(): void;
   onPublish?(): Promise<string>;
   canPublishEditor?(): boolean;
+  onAssign?(): void;
+  onRecordChange?(section: string, key: string, label: string): void;
 }
 
 let mountOptions: LegacyMountOptions | null = null;
 let mountGeneration = 0;
+const isScratch = () => !mountOptions?.setId;
 
 /**
  * Repairs stale catalog IDs (for example an old "Cats/Fighter/1" reference)
@@ -108,18 +112,38 @@ export function reconcileCatalogIds(workspaceToRepair: typeof workspace, catalog
 export function mountLegacyEditor(options: LegacyMountOptions): void {
   const generation = ++mountGeneration;
   mountOptions = options;
-  workspace = loadWorkspace(options.setId, options.draft, options.capabilities, options.selected);
+  workspace = options.setId && options.draft
+    ? loadWorkspace(options.setId, options.draft, options.capabilities, options.selected)
+    : loadScratchWorkspace();
   void Promise.all([loadRoster(), loadArmyCatalog()]).then(([loadedRoster, loadedCatalog]) => {
     if (generation !== mountGeneration) return;
     armyCatalog = loadedCatalog;
     roster = includeArmyUnitsInRoster(loadedRoster, loadedCatalog);
     const repaired = reconcileCatalogIds(workspace, loadedCatalog);
     if (repaired > 0) {
-      persistWorkspace(options.setId, workspace);
+      if (options.setId) persistWorkspace(options.setId, workspace); else saveScratchWorkspace(workspace);
       showToast("Updated " + repaired + " outdated catalog reference" + (repaired === 1 ? "" : "s") + ".");
     }
+    reportRecord();
     render();
   });
+}
+
+function reportRecord(): void {
+  if (!mountOptions?.onRecordChange || !workspace.selectedType || !workspace.selectedKey) return;
+  const singular = workspace.selectedType;
+  const section = ({ dialogue: "dialogues", quest: "quests", army: "armies", campaign: "campaigns" } as const)[singular];
+  const key = workspace.selectedKey;
+  const collection = workspace[section] as unknown as Array<Record<string, unknown>>;
+  const item = collection.find(record => record.key === key);
+  if (!item) return;
+  const label = singular === "dialogue"
+    ? String((item.sequence as { nodes?: Array<{ headline?: string }>; sequenceId?: string } | undefined)?.nodes?.[0]?.headline
+      ?? (item.sequence as { sequenceId?: string } | undefined)?.sequenceId ?? key)
+    : singular === "quest"
+      ? String((item.definition as { title?: string } | undefined)?.title ?? key)
+      : String((item.name as string | undefined) ?? key);
+  mountOptions.onRecordChange(section, key, label);
 }
 
 let workspace = createSeedWorkspace();
@@ -186,8 +210,10 @@ async function loadArmyCatalog(): Promise<ArmyCatalog> {
 
 function saveWorkspace(): void {
   if (!mountOptions) return;
-  persistWorkspace(mountOptions.setId, workspace);
-  markWorkspaceDirty(mountOptions.setId);
+  if (mountOptions.setId) {
+    persistWorkspace(mountOptions.setId, workspace);
+    markWorkspaceDirty(mountOptions.setId);
+  } else saveScratchWorkspace(workspace);
   persistEditorSession();
   const status = document.querySelector<HTMLElement>("#save-status");
   if (status) status.textContent = "All changes saved";
@@ -195,7 +221,7 @@ function saveWorkspace(): void {
 
 /** The only structured conversion: at the cloud boundary, never during editing. */
 function syncDraft(): void {
-  if (!mountOptions) return;
+  if (!mountOptions?.setId || !mountOptions.draft) return;
   workspaceToDraft(mountOptions.draft, workspace, mountOptions.capabilities);
   mountOptions.onDraftChange();
 }
@@ -238,6 +264,7 @@ function render(): void {
   activeDialogueGraph = null;
   const issues = validateWorkspace(workspace, armyCatalog);
   const returnContext = relatedReturnContexts.current();
+  setScratchMode(isScratch());
   root!.innerHTML = renderApp(workspace, roster, armyCatalog, issues, activeEditorStep, editorMode, selectedArmyPlacementId, {
     selectedFloorId: selectedCampaignFloorId,
     selectedNodeId: selectedCampaignNodeId,
@@ -250,7 +277,7 @@ function render(): void {
     parent: returnContext.parentType === "campaign" ? "Campaign" : "Quest",
     label: returnContext.returnLabel
   } : undefined, armyCatalogKind, helpVisible, { abilityId: selectedArmyBattlefieldEffectId, region: selectedArmyCellRegion }, armyAbilityFilters, armyAbilityCategory, armyAbilitySelections, selectedCampaignEventId,
-    mountOptions?.canPublishEditor?.() ?? true);
+    (mountOptions?.canPublishEditor?.() ?? true) && !isScratch());
   const appLayout = root!.querySelector<HTMLElement>(".app-layout");
   appLayout?.classList.toggle("is-sidebar-collapsed", sidebarCollapsed);
   appLayout?.classList.toggle("is-sidebar-open", root!.querySelector<HTMLElement>(".sidebar")?.classList.contains("is-open") ?? false);
@@ -2251,6 +2278,11 @@ function onAction(button: HTMLButtonElement): void {
     }
     case "save-package":
       saveWorkspace();
+      if (isScratch()) {
+        const status = document.querySelector<HTMLElement>("#save-status");
+        if (status) status.textContent = "Saved locally";
+        return;
+      }
       syncDraft();
       void Promise.resolve(mountOptions?.onSave()).then(message => {
         const status = document.querySelector<HTMLElement>("#save-status");
@@ -2269,6 +2301,10 @@ function onAction(button: HTMLButtonElement): void {
       saveWorkspace();
       syncDraft();
       mountOptions?.onBack();
+      return;
+    case "assign-to-set":
+      saveWorkspace();
+      mountOptions?.onAssign?.();
       return;
     case "open-transfer": document.querySelector<HTMLDialogElement>("#transfer-dialog")?.showModal(); return;
     case "export-active": exportActive(); return;
@@ -2512,4 +2548,5 @@ root.addEventListener("change", event => {
 });
 
 window.addEventListener("beforeunload", () => { saveWorkspace(); persistEditorSession(); });
+
 

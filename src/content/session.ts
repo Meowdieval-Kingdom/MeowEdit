@@ -1,13 +1,20 @@
 import { getBridgeUserId } from "../bridge-context";
 
+export interface LastEdited {
+  workspace: string; // "__scratch__" or a setId
+  section: "dialogues" | "quests" | "armies" | "campaigns";
+  key: string;
+  label: string;
+}
+
 export interface ContentSession {
-  view: "browser" | "set";
   help: boolean;
   savedAt: string | null;
   setId: string | null;
+  lastEdited: LastEdited | null;
 }
 
-const DEFAULT: ContentSession = { view: "browser", help: false, savedAt: null, setId: null };
+const DEFAULT: ContentSession = { help: false, savedAt: null, setId: null, lastEdited: null };
 
 function key(): string {
   return "meowedit.content.session." + (getBridgeUserId() ?? "local");
@@ -18,11 +25,14 @@ export function loadSession(): ContentSession {
     const raw = localStorage.getItem(key());
     if (!raw) return { ...DEFAULT };
     const loaded = JSON.parse(raw) as Partial<ContentSession>;
+    const last = loaded.lastEdited;
     return {
-      view: loaded.view === "set" ? "set" : "browser",
       help: loaded.help === true,
       savedAt: typeof loaded.savedAt === "string" ? loaded.savedAt : null,
-      setId: typeof loaded.setId === "string" ? loaded.setId : null
+      setId: typeof loaded.setId === "string" ? loaded.setId : null,
+      lastEdited: last && typeof last.workspace === "string" && typeof last.key === "string"
+        && ["dialogues", "quests", "armies", "campaigns"].includes(last.section)
+        ? last as LastEdited : null
     };
   } catch {
     return { ...DEFAULT };

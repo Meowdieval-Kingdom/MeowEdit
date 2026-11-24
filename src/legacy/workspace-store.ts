@@ -1,7 +1,10 @@
 import { getBridgeUserId } from "../bridge-context";
 import type { ContentSetDocument, GameCapabilities } from "../content/types";
 import { draftToWorkspace } from "./convert";
+import { createSeedWorkspace } from "./seed";
 import type { Workspace } from "./model";
+
+export const SCRATCH_WORKSPACE = "__scratch__";
 
 /**
  * The restored editor keeps its native v1 workspace as its own state, scoped
@@ -71,6 +74,28 @@ export function markWorkspaceSynced(setId: string, draftVersion: number): void {
     localStorage.setItem(metaKey(setId), JSON.stringify({ dirty: false, syncedDraftVersion: draftVersion }));
   } catch {
     // Navigation metadata is not critical.
+  }
+}
+
+/** Unassigned scratch workspace shared by the dashboard and the classic editor. */
+export function loadScratchWorkspace(): Workspace {
+  try {
+    const raw = localStorage.getItem(workspaceKey(SCRATCH_WORKSPACE));
+    if (raw) {
+      const parsed = JSON.parse(raw) as unknown;
+      if (isWorkspace(parsed)) return parsed;
+    }
+  } catch {
+    // Fall through to a fresh scratch workspace.
+  }
+  return createSeedWorkspace();
+}
+
+export function saveScratchWorkspace(workspace: Workspace): void {
+  try {
+    localStorage.setItem(workspaceKey(SCRATCH_WORKSPACE), JSON.stringify(workspace));
+  } catch {
+    // The editor reports storage failures where relevant.
   }
 }
 
