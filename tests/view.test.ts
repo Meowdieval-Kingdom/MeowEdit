@@ -6,6 +6,12 @@ import { includeArmyUnitsInRoster } from "../src/legacy/roster";
 import { escapeHtml, renderApp, renderArmyAbilityPreview, renderArmyEntityPreview, renderDialoguePreview, renderLivePreview, renderValidationSummary } from "../src/legacy/view";
 import { armyFixture, catalog, dialogueFixture, rosterFixture, workspaceFixture } from "./fixtures";
 
+function dom(html: string): HTMLElement {
+  const element = document.createElement("div");
+  element.innerHTML = html;
+  return element;
+}
+
 describe("editor rendering", () => {
   it("escapes content before putting it into HTML", () => {
     expect(escapeHtml(`<script a="b">'&`)).toBe("&lt;script a=&quot;b&quot;&gt;&#39;&amp;");
@@ -33,32 +39,32 @@ describe("editor rendering", () => {
     workspace.selectedType = "army";
     workspace.selectedKey = workspace.armies[0].key;
 
-    const name = renderApp(workspace, rosterFixture, catalog, [], 0, "guided");
-    expect(name).toContain("Army name");
-    expect(name).not.toContain("army-unit-picker");
-    expect(name).not.toContain("data-army-grid");
+    const name = dom(renderApp(workspace, rosterFixture, catalog, [], 0, "guided"));
+    expect(name.textContent).toContain("Army name");
+    expect(name.querySelector("#army-unit-picker")).toBeNull();
+    expect(name.querySelector("[data-army-grid]")).toBeNull();
 
-    const units = renderApp(workspace, rosterFixture, catalog, [], 1, "guided");
-    expect(units).toContain("Choose units");
-    expect(units).not.toContain("data-army-grid");
-    expect(units).toContain('aria-label="Catalog type"');
-    expect(units).toContain("Units");
-    expect(units).toContain("Buildings");
-    expect(units).toContain("Health");
-    expect(units).toContain("A sturdy test fighter.");
-    expect(units).toContain('src="./avatars/Peasants-Fighter-1.png"');
-    expect(units).toContain("army-stats-portrait");
-    expect(units.match(/class="army-stats-card"/g)).toHaveLength(1);
+    const units = dom(renderApp(workspace, rosterFixture, catalog, [], 1, "guided"));
+    expect(units.textContent).toContain("Choose units");
+    expect(units.querySelector("[data-army-grid]")).toBeNull();
+    expect(units.querySelector('[aria-label="Catalog type"]')).not.toBeNull();
+    expect(units.textContent).toContain("Units");
+    expect(units.textContent).toContain("Buildings");
+    expect(units.textContent).toContain("Health");
+    expect(units.textContent).toContain("A sturdy test fighter.");
+    expect(units.querySelector('img[src="./avatars/Peasants-Fighter-1.png"]')).not.toBeNull();
+    expect(units.querySelector(".army-stats-portrait")).not.toBeNull();
+    expect(units.querySelectorAll(".army-stats-card")).toHaveLength(1);
 
-    const position = renderApp(workspace, rosterFixture, catalog, [], 2, "guided", "placement-1");
-    expect(position).toContain("data-army-grid");
-    expect(position).toContain("Drag to move");
-    expect(position).toContain("data-army-placement");
-    expect(position).toContain('src="./avatars/Peasants-Fighter-1.png"');
-    expect(position.match(/class="army-stats-card"/g)).toHaveLength(1);
+    const position = dom(renderApp(workspace, rosterFixture, catalog, [], 2, "guided", "placement-1"));
+    expect(position.querySelector("[data-army-grid]")).not.toBeNull();
+    expect(position.querySelector("[data-army-placement]")?.getAttribute("aria-label")).toContain("Drag to move");
+    expect(position.querySelector("[data-army-placement]")).not.toBeNull();
+    expect(position.querySelector('img[src="./avatars/Peasants-Fighter-1.png"]')).not.toBeNull();
+    expect(position.querySelectorAll(".army-stats-card")).toHaveLength(1);
 
-    const advanced = renderApp(workspace, rosterFixture, catalog, [], 2, "full", "placement-1");
-    expect(advanced.match(/class="army-stats-card"/g)).toHaveLength(1);
+    const advanced = dom(renderApp(workspace, rosterFixture, catalog, [], 2, "full", "placement-1"));
+    expect(advanced.querySelectorAll(".army-stats-card")).toHaveLength(1);
 
     const building = renderArmyEntityPreview(catalog, "Peasants/Chapel/1", 1, "buildings");
     expect(building).toContain("BUILDING · LEVEL 1");
@@ -71,23 +77,20 @@ describe("editor rendering", () => {
   });
 
   it("keeps the sidebar compact and moves transfer actions out of the top bar", () => {
-    const html = renderApp(workspaceFixture(), rosterFixture, catalog, [], 0, "full");
-    const sidebar = html.split('<aside class="sidebar">')[1].split("</aside>")[0];
-    const topbar = html.split('<header class="topbar">')[1].split("</header>")[0];
+    const root = dom(renderApp(workspaceFixture(), rosterFixture, catalog, [], 0, "full"));
+    const sidebar = root.querySelector(".sidebar")!;
+    const topbar = root.querySelector(".topbar")!;
 
-    expect(sidebar).not.toContain("doc-item");
-    expect(sidebar).not.toContain("AUTHORING WORKSPACE");
-    expect(sidebar).toContain('data-action="open-content-picker"');
-    expect(sidebar).not.toContain('data-action="open-import"');
-    expect(sidebar).not.toContain('data-action="export-package"');
-    expect(html).not.toContain('id="import-file"');
-    expect(topbar).not.toContain('data-action="open-import"');
-    expect(topbar).not.toContain('data-action="export-active"');
-    expect(topbar).not.toContain('data-action="export-package"');
-    expect(topbar).not.toContain('data-action="delete-active"');
-    expect(topbar).not.toContain('data-action="delete-item"');
-    expect(html).toContain('class="content-picker-dialog"');
-    expect(html).toContain('data-action="delete-item"');
+    expect(sidebar.querySelector(".doc-item")).toBeNull();
+    expect(sidebar.textContent).not.toContain("AUTHORING WORKSPACE");
+    expect(sidebar.querySelector('[data-action="open-content-picker"]')).not.toBeNull();
+    expect(sidebar.querySelector('[data-action="open-import"]')).toBeNull();
+    expect(sidebar.querySelector('[data-action="export-package"]')).toBeNull();
+    expect(root.querySelector("#import-file")).toBeNull();
+    for (const action of ["open-import", "export-active", "export-package", "delete-active", "delete-item"])
+      expect(topbar.querySelector('[data-action="' + action + '"]')).toBeNull();
+    expect(root.querySelector(".content-picker-dialog")).not.toBeNull();
+    expect(root.querySelector('[data-action="delete-item"]')).not.toBeNull();
   });
 
   it("shows ability previews, separates curses, and focuses selected cell targets", () => {

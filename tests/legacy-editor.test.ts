@@ -1,7 +1,6 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { resetBridgeState, setBridgeState } from "../src/bridge-context";
 import { draftToWorkspace, workspaceToDraft } from "../src/legacy/convert";
 import { loadWorkspace, saveWorkspace } from "../src/legacy/workspace-store";
 import { emptyContentSet, localized, namedRef } from "../src/content/factory";
@@ -34,7 +33,8 @@ function draftWithArmy(): ContentSetDocument {
 }
 
 describe("restored v1 editor", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    vi.resetModules();
     if (!document.querySelector("#app")) document.body.innerHTML = '<div id="app"></div>';
     else document.querySelector("#app")!.innerHTML = "";
     for (const key of Object.keys(localStorage))
@@ -44,7 +44,8 @@ describe("restored v1 editor", () => {
       selectedArmyPlacementId: null, armyCatalogKind: "units", selectedCampaignFloorId: null,
       selectedCampaignNodeId: null, relatedReturnContexts: []
     }));
-    setBridgeState({ userId: "author-1", canPublish: true, canDeleteSets: false, actions: { signOut: vi.fn() } });
+    const bridge = await import("../src/bridge-context");
+    bridge.setBridgeState({ userId: "author-1", canPublish: true, canDeleteSets: false, actions: { signOut: vi.fn() } });
     vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request) => {
       const url = String(input);
       if (url.includes("unit-roster.json"))
@@ -55,8 +56,9 @@ describe("restored v1 editor", () => {
     }));
   });
 
-  afterEach(() => {
-    resetBridgeState();
+  afterEach(async () => {
+    const bridge = await import("../src/bridge-context");
+    bridge.resetBridgeState();
     vi.unstubAllGlobals();
   });
 
