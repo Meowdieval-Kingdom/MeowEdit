@@ -292,13 +292,21 @@ function entryLabel(draft: ContentSetDocument, section: DetailSection, index: nu
   return String((name as { default?: string } | undefined)?.default ?? item.id ?? "");
 }
 
+/** Older scratch records predate the editor `key`; fall back to their stable content ID. */
+function scratchKey(section: DetailSection, item: Record<string, unknown>): string {
+  if (typeof item.key === "string" && item.key) return item.key;
+  if (section === "dialogues")
+    return String((item.sequence as { sequenceId?: string } | undefined)?.sequenceId ?? "");
+  return String(item.id ?? "");
+}
+
 function scratchRecords(): Array<{ section: DetailSection; key: string; label: string }> {
   const workspace = loadScratchWorkspace();
   const records: Array<{ section: DetailSection; key: string; label: string }> = [];
   for (const section of SECTIONS) {
     const items = workspace[section] as unknown as Array<Record<string, unknown>>;
     for (const item of items) {
-      const key = String(item.key ?? "");
+      const key = scratchKey(section, item);
       const label = section === "dialogues"
         ? String((item.sequence as { sequenceId?: string } | undefined)?.sequenceId ?? key)
         : section === "quests"
@@ -458,7 +466,7 @@ async function createSet(container: HTMLElement, state: AppState): Promise<void>
 function localRecord(section: DetailSection, key: string): Record<string, unknown> | undefined {
   const workspace = loadScratchWorkspace();
   const items = workspace[section] as unknown as Array<Record<string, unknown>>;
-  return items.find(item => item.key === key);
+  return items.find(item => scratchKey(section, item) === key);
 }
 
 function recordJson(section: DetailSection, key: string): string | null {
@@ -496,7 +504,7 @@ function exportLocal(input: { section: DetailSection; key: string }): void {
 function deleteLocal(input: { section: DetailSection; key: string }): void {
   const workspace = loadScratchWorkspace();
   const items = workspace[input.section] as unknown as Array<Record<string, unknown>>;
-  workspace[input.section] = items.filter(item => item.key !== input.key) as never;
+  workspace[input.section] = items.filter(item => scratchKey(input.section, item) !== input.key) as never;
   if (workspace.selectedKey === input.key) {
     workspace.selectedKey = null;
     workspace.selectedType = null;
@@ -585,9 +593,11 @@ async function createLocal(container: HTMLElement, state: AppState, section: Det
 async function openLocal(container: HTMLElement, state: AppState, input: { section: DetailSection; key: string; step?: number; mode?: "guided" | "full" }, forceMode?: "guided" | "full"): Promise<void> {
   const workspace = loadScratchWorkspace();
   const index = (workspace[input.section] as unknown as Array<Record<string, unknown>>)
-    .findIndex(item => item.key === input.key);
+    .findIndex(item => scratchKey(input.section, item) === input.key);
   if (index < 0) return;
-  const item = localRecord(input.section, input.key)!;
+  const item = (workspace[input.section] as unknown as Array<Record<string, unknown>>)[index];
+  // Normalize legacy records so the editor's key-based selection works too.
+  item.key = input.key;
   workspace.selectedType = SECTION_SINGULAR[input.section];
   workspace.selectedKey = input.key;
   saveScratchWorkspace(workspace);
@@ -597,7 +607,8 @@ async function openLocal(container: HTMLElement, state: AppState, input: { secti
 async function continueEditing(container: HTMLElement, state: AppState, input: { workspace: string; section: DetailSection; key: string; step?: number; mode?: "guided" | "full" }): Promise<boolean> {
   if (input.workspace === SCRATCH_WORKSPACE) {
     const workspace = loadScratchWorkspace();
-    const index = (workspace[input.section] as unknown as Array<{ key?: string }>).findIndex(item => item.key === input.key);
+    const index = (workspace[input.section] as unknown as Array<Record<string, unknown>>)
+      .findIndex(item => scratchKey(input.section, item) === input.key);
     if (index < 0) return false;
     await openLocal(container, state, { section: input.section, key: input.key, step: input.step, mode: input.mode });
     return true;

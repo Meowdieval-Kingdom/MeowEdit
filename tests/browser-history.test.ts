@@ -5,6 +5,7 @@ import { resetBridgeFetch, resetBridgeState, setBridgeFetch, setBridgeState } fr
 import { mountApp } from "../src/content/app";
 import { emptyContentSet } from "../src/content/factory";
 import type { GameCapabilities } from "../src/content/types";
+import { saveScratchWorkspace, SCRATCH_WORKSPACE } from "../src/editor/workspace-store";
 
 const capabilities = JSON.parse(readFileSync(path.resolve(process.cwd(), "public/game-capabilities.json"), "utf8")) as GameCapabilities;
 const roster = JSON.parse(readFileSync(path.resolve(process.cwd(), "public/unit-roster.json"), "utf8"));
@@ -61,6 +62,49 @@ describe("browser history routing", () => {
     window.dispatchEvent(new PopStateEvent("popstate"));
     await vi.waitFor(() => expect(JSON.parse(localStorage.getItem(sessionKey)!).activeEditorStep).toBe(0));
     expect(document.querySelector(".guided-step-heading")?.textContent).toContain("Speaker");
+  });
+
+  it("opens a local army from the Local drafts Edit button", async () => {
+    container.querySelector<HTMLElement>('[data-create="armies"]')!.click();
+    await vi.waitFor(() => expect(document.querySelector('[data-action="open-content-editor"]')).not.toBeNull(), { timeout: 10000 });
+    document.querySelector<HTMLElement>('[data-action="open-content-editor"]')!.click();
+    await vi.waitFor(() => expect(container.textContent).toContain("Your dashboard"));
+    const edit = container.querySelector<HTMLElement>('[data-edit-local^="armies|"]');
+    expect(edit).not.toBeNull();
+    edit!.click();
+    await vi.waitFor(() => expect(document.querySelector(".army-editor")).not.toBeNull(), { timeout: 10000 });
+  });
+
+  it("opens a local campaign from the Local drafts Edit button", async () => {
+    container.querySelector<HTMLElement>('[data-create="campaigns"]')!.click();
+    await vi.waitFor(() => expect(document.querySelector('[data-action="open-content-editor"]')).not.toBeNull(), { timeout: 10000 });
+    document.querySelector<HTMLElement>('[data-action="open-content-editor"]')!.click();
+    await vi.waitFor(() => expect(container.textContent).toContain("Your dashboard"));
+    const edit = container.querySelector<HTMLElement>('[data-edit-local^="campaigns|"]');
+    expect(edit).not.toBeNull();
+    edit!.click();
+    await vi.waitFor(() => expect(document.querySelector(".campaign-editor")).not.toBeNull(), { timeout: 10000 });
+  });
+
+  it("opens older local drafts that have no editor key", async () => {
+    const scratch = JSON.parse(localStorage.getItem("meowedit.workspace.v1.history-user." + SCRATCH_WORKSPACE) ?? "null");
+    expect(scratch).toBeNull();
+    const workspace = {
+      schemaVersion: 1, dialogues: [], quests: [], armies: [], campaigns: [],
+      selectedType: null, selectedKey: null, activeNodeId: null
+    };
+    (workspace.armies as unknown[]).push({ id: "army-1", idAuto: true, name: "Old Army", units: [], spellIds: [], blessingIds: [] });
+    (workspace.campaigns as unknown[]).push({ id: "campaign-1", idAuto: true, name: "Old Campaign", description: "",
+      designMode: "custom", boardPreviewUnitId: "", questIds: [], floors: [], events: [],
+      settings: { startingLives: 3, startingSardines: 10, startingNodeCount: 12, playerFactionId: "",
+        factionSelectionEnabled: true, battleShopEnabled: true, shopPoolKinds: ["Unit"],
+        questNodeCountPerRandomFloor: 2, shopNodeCountPerRandomFloor: 3, nodeGrowthPerFloor: 2,
+        continueWithGeneratedFloors: false, sardinePayoutEnabled: true, sardinePayoutBase: 10, sardinePayoutPerFloor: 1 } });
+    saveScratchWorkspace(workspace as never);
+    await mountApp(container);
+
+    container.querySelector<HTMLElement>('[data-edit-local^="armies|"]')!.click();
+    await vi.waitFor(() => expect(document.querySelector(".army-editor")).not.toBeNull(), { timeout: 10000 });
   });
 
   it("returns to the dashboard when browser Back is pressed from a set dashboard", async () => {
