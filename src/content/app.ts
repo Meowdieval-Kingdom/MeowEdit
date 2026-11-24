@@ -277,7 +277,7 @@ function renderBrowser(container: HTMLElement, state: AppState): void {
     "<p>Create content locally, then assign it to a set to upload it.</p></div>" +
     '<button type="button" class="button button-primary" data-new-set>+ New set</button></div>' +
     '<section class="set-group"><h2>Continue editing</h2>' + (continueCard(state) || '<div class="set-empty">Nothing in progress.</div>') + '</section>' +
-    '<section class="set-group"><h2>Your sets</h2><div class="set-list">' + rows + "</div></section>" +
+    '<section class="set-group"><h2>Sets</h2><div class="set-list">' + rows + "</div></section>" +
     '<section class="set-group"><h2>Create new content</h2><div class="guided-actions">' +
     SECTIONS.map(section => '<button type="button" class="button button-outline" data-create="' + section + '">+ ' +
       SECTION_LABELS[section] + "</button>").join("") + "</div></section>" +
@@ -446,28 +446,41 @@ function createLocalRecord(section: DetailSection, id: string, name: string): Re
   };
 }
 
+function nextSystemId(section: DetailSection): string {
+  const prefix = SECTION_SINGULAR[section];
+  let highest = 0;
+  const consider = (id: unknown) => {
+    const match = typeof id === "string" ? new RegExp("^" + prefix + "-(\\d+)$").exec(id) : null;
+    if (match) highest = Math.max(highest, Number(match[1]));
+  };
+  const scratch = loadScratchWorkspace();
+  for (const item of scratch[section] as unknown as Array<Record<string, unknown>>) {
+    consider(item.id);
+    consider((item.sequence as { sequenceId?: string } | undefined)?.sequenceId);
+  }
+  for (const record of Object.values(storage())) {
+    for (const item of record.draft[section] as unknown as Array<Record<string, unknown>>) {
+      consider(item.id);
+      consider((item.sequenceId as string | undefined));
+    }
+  }
+  return prefix + "-" + (highest + 1);
+}
+
 async function createLocal(container: HTMLElement, state: AppState, section: DetailSection): Promise<void> {
-  const id = window.prompt("ID for this " + SECTION_LABELS[section].toLowerCase() + ":")?.trim() || "";
-  if (!id || !/^[a-z0-9][a-z0-9._-]{0,63}$/.test(id)) {
-    state.status = "Enter a valid ID (lowercase letters, numbers, -, _, .).";
-    renderBrowser(container, state);
-    return;
-  }
-  const name = window.prompt("Name:", id)?.trim() || id;
+  const id = nextSystemId(section);
+  const name = SECTION_LABELS[section] + " " + id.split("-")[1];
   const workspace = loadScratchWorkspace();
-  const existing = (workspace[section] as unknown as Array<Record<string, unknown>>)
-    .some(item => (item.id as string | undefined) === id || (item.sequence as { sequenceId?: string } | undefined)?.sequenceId === id);
-  if (existing) {
-    state.status = "A local draft with this ID already exists.";
-    renderBrowser(container, state);
-    return;
-  }
   const record = createLocalRecord(section, id, name);
   (workspace[section] as unknown as Array<Record<string, unknown>>).push(record);
   workspace.selectedType = SECTION_SINGULAR[section];
   workspace.selectedKey = String(record.key);
   saveScratchWorkspace(workspace);
-  await openEditor(container, state, { workspace: SCRATCH_WORKSPACE, section, index: (workspace[section] as unknown as unknown[]).length - 1, key: String(record.key), label: name });
+  await openEditor(container, state, {
+    workspace: SCRATCH_WORKSPACE, section,
+    index: (workspace[section] as unknown as unknown[]).length - 1,
+    key: String(record.key), label: name, forceMode: "guided"
+  });
 }
 
 async function openLocal(container: HTMLElement, state: AppState, input: { section: DetailSection; key: string }): Promise<void> {
@@ -536,6 +549,7 @@ interface EditorTarget {
   index: number;
   key: string;
   label: string;
+  forceMode?: "guided" | "full";
 }
 
 async function openEditor(container: HTMLElement, state: AppState, target: EditorTarget): Promise<void> {
@@ -549,6 +563,7 @@ async function openEditor(container: HTMLElement, state: AppState, target: Edito
       draft: scratch ? undefined : state.draft,
       capabilities: state.capabilities,
       selected: { section: target.section, index: target.index },
+      forceMode: target.forceMode,
       onSave: () => saveDraft(state),
       onDraftChange: () => {
         if (!scratch) {

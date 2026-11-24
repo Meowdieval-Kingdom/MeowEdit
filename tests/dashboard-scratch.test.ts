@@ -40,13 +40,13 @@ describe("dashboard and scratch content", () => {
   });
 
   it("creates a local army, assigns it to a set and uploads immediately", async () => {
-    vi.stubGlobal("prompt", vi.fn((_message: string, fallback?: string) => fallback ?? "local-army"));
+    vi.stubGlobal("prompt", vi.fn((_message: string, fallback?: string) => fallback ?? "army-1"));
     localStorage.setItem("meowedit.v2.sets.dash-user", JSON.stringify({
       "target-set": { draft: valid, draftVersion: 2, publishedPackageId: "pkg" }
     }));
     container.querySelector<HTMLElement>('[data-create="armies"]')!.click();
     await vi.waitFor(() => expect(container.querySelector('[data-action="assign-to-set"]')).not.toBeNull(), { timeout: 10000 });
-    expect(loadScratchWorkspace().armies[0].id).toBe("local-army");
+    expect(loadScratchWorkspace().armies[0].id).toBe("army-1");
     expect(container.querySelector('[data-action="save-package"]')?.textContent).toContain("Save locally");
     container.querySelector<HTMLElement>('[data-action="assign-to-set"]')!.click();
     await vi.waitFor(() => expect(document.querySelector(".assign-overlay")).not.toBeNull());
@@ -57,7 +57,7 @@ describe("dashboard and scratch content", () => {
     expect(loadScratchWorkspace().armies).toHaveLength(0);
     const stored = JSON.parse(localStorage.getItem("meowedit.v2.sets.dash-user") ?? "{}");
     expect(stored["target-set"].draftVersion).toBe(3);
-    expect(stored["target-set"].draft.armies.some((army: { id: string }) => army.id === "local-army")).toBe(true);
+    expect(stored["target-set"].draft.armies.some((army: { id: string }) => army.id === "army-1")).toBe(true);
   }, 20000);
 
   it("shows a replace summary when the target set already has the same id", async () => {
@@ -95,5 +95,6 @@ describe("dashboard and scratch content", () => {
     await vi.waitFor(() => expect(container.textContent).toContain("Imported"));
     expect(loadScratchWorkspace().armies.some(a => a.id === "imported-army")).toBe(true);
   });
+
 
 });

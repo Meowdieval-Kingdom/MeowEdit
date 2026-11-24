@@ -62,7 +62,7 @@ describe("set manager and single editor", () => {
   });
 
   it("lists sets with status badges and no examples section", () => {
-    expect(container.textContent).toContain("Your sets");
+    expect(container.textContent).toContain("Sets");
     expect(container.querySelector(".set-badge.published")).not.toBeNull();
     expect(container.querySelector(".set-badge.local")).not.toBeNull();
     expect(container.textContent).not.toContain("Import examples");

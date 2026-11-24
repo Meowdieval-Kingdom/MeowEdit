@@ -62,6 +62,7 @@ export interface LegacyMountOptions {
   draft?: ContentSetDocument;
   capabilities: GameCapabilities;
   selected?: { section: string; index: number };
+  forceMode?: "guided" | "full";
   onSave(): Promise<string>;
   onDraftChange(): void;
   onBack(): void;
@@ -112,6 +113,7 @@ export function reconcileCatalogIds(workspaceToRepair: typeof workspace, catalog
 export function mountLegacyEditor(options: LegacyMountOptions): void {
   const generation = ++mountGeneration;
   mountOptions = options;
+  if (options.forceMode) editorMode = options.forceMode;
   workspace = options.setId && options.draft
     ? loadWorkspace(options.setId, options.draft, options.capabilities, options.selected)
     : loadScratchWorkspace();

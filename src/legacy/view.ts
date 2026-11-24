@@ -63,7 +63,7 @@ function inputField(
   label: string,
   path: string,
   value: unknown,
-  options: { type?: string; hint?: string; min?: number; max?: number; step?: number; placeholder?: string; rerender?: boolean } = {}
+  options: { type?: string; hint?: string; min?: number; max?: number; step?: number; placeholder?: string; rerender?: boolean; readOnly?: boolean } = {}
 ): string {
   const type = options.type ?? "text";
   const numericAttrs = type === "number"
@@ -74,6 +74,7 @@ function inputField(
   return '<label class="field">' +
     '<span class="field-label">' + escapeHtml(label) + '</span>' +
     '<input type="' + type + '" data-bind="' + escapeHtml(path) + '"' +
+    (options.readOnly ? ' readonly' : '') +
     numericAttrs +
     (options.rerender ? ' data-rerender="true"' : "") +
     (options.placeholder ? ' placeholder="' + escapeHtml(options.placeholder) + '"' : "") +
@@ -387,7 +388,7 @@ function renderDialogueNodeEditor(
     return '<div class="form-block" id="dialogue-sequence">' +
       '<div class="section-heading"><div><h2>Set up this conversation</h2></div></div>' +
       '<div class="form-grid two">' +
-      inputField("Dialogue ID", "sequenceId", record.sequence.sequenceId, { placeholder: "village-elder-intro" }) +
+      inputField("Dialogue ID (system managed)", "sequenceId", record.sequence.sequenceId, { readOnly: true, hint: "Generated automatically; cannot be changed." }) +
       selectField("Dialogue opens at", "startNodeId", record.sequence.startNodeId, record.sequence.nodes.map(candidate => [candidate.id, candidate.id === record.sequence.startNodeId ? "Start · " + dialogueMomentName(record.sequence, candidate) : dialogueMomentName(record.sequence, candidate)] as [string, string]), "Playback begins here. Start is a role, not a reserved node ID.", true) +
       selectField("Gameplay", "pauseMode", record.sequence.pauseMode, [["pause", "Pause while dialogue plays"], ["continue", "Continue during dialogue"]]) +
       inputField("Default text speed", "defaultCharactersPerSecond", record.sequence.defaultCharactersPerSecond, { type: "number", min: 1, max: 200, hint: "Characters per second." }) +
@@ -1186,7 +1187,7 @@ function renderArmyEditor(record: ArmyRecord, catalog: ArmyCatalog, roster: Unit
   ];
   return '<main class="workspace-main army-editor full-army-editor"><div class="workspace-heading"><div><h1>' + escapeHtml(record.name || record.id || "Untitled army") + '</h1><p class="help-copy">Edit the complete lineup and loadout here, or switch to Guided flow to build it in focused steps.</p></div><div class="heading-status">' + actionButton("open-guided-editor", "✦ Guided flow", "button button-mode-guided") + '</div></div>' +
     renderAdvancedSectionNav(advancedSections) +
-    '<section class="army-identity" id="army-identity"><label class="field"><span class="field-label">Army name</span><input data-bind="name" value="' + escapeHtml(record.name) + '" placeholder="Bridge guards"></label>' + inputField("Army ID", "id", record.id, { placeholder: "bridge-guards", hint: "Quest battle nodes reference this stable ID." }) + '</section>' +
+    '<section class="army-identity" id="army-identity"><label class="field"><span class="field-label">Army name</span><input data-bind="name" value="' + escapeHtml(record.name) + '" placeholder="Bridge guards"></label>' + inputField("Army ID (system managed)", "id", record.id, { readOnly: true, hint: "Generated automatically; referenced by quest nodes." }) + '</section>' +
     '<section class="army-layout" id="army-placement">' + board + '<aside class="army-pickers">' + picker + unitSpellPanel + '</aside></section>' +
     armyAbilities + '<section class="army-roster-section" id="army-lineup"><div class="section-heading"><div><h2>Lineup</h2><p class="help-copy">Select a row to preview it in the formation and edit its spells.</p></div></div>' + list + '</section>' +
     '<section class="army-data-note help-copy"><strong>Game loading pending</strong><p>Authored Armies are included in exports; the game does not load them yet.</p></section></main>' + cellFocusOverlay;
@@ -1495,7 +1496,7 @@ function renderCampaignEditor(
     (workspace.quests.length ? '<div class="campaign-quest-pool-list">' + poolRows + '</div>' : '<p class="section-note help-copy">Create a quest to add it to this campaign.</p>') + '</details>';
   const identity = '<section class="campaign-identity" id="campaign-basics">' + inputField("Campaign name", "name", campaign.name, { placeholder: "The Willow Road" }) +
     textAreaField("Short description", "description", campaign.description, "Shown in the game campaign picker once that screen is connected.", 2) +
-    (mode === "full" ? inputField("Campaign ID", "id", campaign.id, { placeholder: "willow-road" }) : '<details class="advanced-rule-disclosure"><summary>Advanced · stable ID</summary>' + inputField("Campaign ID", "id", campaign.id, { placeholder: "willow-road", hint: "Generated from the campaign name; referenced by game saves." }) + '</details>') +
+    (mode === "full" ? inputField("Campaign ID (system managed)", "id", campaign.id, { readOnly: true }) : '<details class="advanced-rule-disclosure"><summary>Advanced · stable ID</summary>' + inputField("Campaign ID (system managed)", "id", campaign.id, { readOnly: true, hint: "Generated automatically; referenced by game saves." }) + '</details>') +
     '</section>';
   const guidedNameField = inputField("Campaign name", "name", campaign.name, { placeholder: "The Willow Road" })
     .replace('data-bind="name"', 'data-bind="name" data-guided-autofocus');
@@ -1753,7 +1754,7 @@ function renderQuestEditor(
     if (sectionStep === 0) {
       screen = '<div class="form-block"><div class="section-heading"><div><h2>Give the quest an identity</h2></div></div>' +
       '<div class="form-grid two">' +
-      inputField("Stable quest ID", "definition.id", quest.id, { placeholder: "repair-the-bridge" }) +
+      inputField("Quest ID (system managed)", "definition.id", quest.id, { readOnly: true, hint: "Generated automatically; cannot be changed." }) +
       inputField("Quest title", "definition.title", quest.title, { placeholder: "A clear, short title" }) +
       textAreaField("Quest Log description", "definition.description", quest.description, "Shown while the player tracks the objective.", 3) +
       '</div></div><div class="form-block"><div class="section-heading"><div><h2>Where and when it appears</h2></div></div>' +
