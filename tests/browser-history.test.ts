@@ -3,6 +3,7 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resetBridgeFetch, resetBridgeState, setBridgeFetch, setBridgeState } from "../src/bridge-context";
 import { mountApp } from "../src/content/app";
+import { emptyContentSet } from "../src/content/factory";
 import type { GameCapabilities } from "../src/content/types";
 
 const capabilities = JSON.parse(readFileSync(path.resolve(process.cwd(), "public/game-capabilities.json"), "utf8")) as GameCapabilities;
@@ -60,6 +61,31 @@ describe("browser history routing", () => {
     window.dispatchEvent(new PopStateEvent("popstate"));
     await vi.waitFor(() => expect(JSON.parse(localStorage.getItem(sessionKey)!).activeEditorStep).toBe(0));
     expect(document.querySelector(".guided-step-heading")?.textContent).toContain("Speaker");
+  });
+
+  it("returns to the dashboard when browser Back is pressed from a set dashboard", async () => {
+    setBridgeFetch(async requestPath => {
+      if (requestPath === "/v1/editor/capabilities")
+        return new Response(JSON.stringify(capabilities), { status: 200, headers: { "content-type": "application/json" } });
+      if (requestPath === "/v1/editor/campaign-sets")
+        return new Response(JSON.stringify({ sets: [{ setId: "published-set", draftVersion: 0 }] }),
+          { status: 200, headers: { "content-type": "application/json" } });
+      if (requestPath.includes("/v1/editor/campaign-sets/"))
+        return new Response(JSON.stringify({ setId: "published-set", draftVersion: 0,
+          draft: emptyContentSet("published-set", "Published Set") }),
+          { status: 200, headers: { "content-type": "application/json" } });
+      return new Response("{}", { status: 200 });
+    });
+    await mountApp(container);
+    expect(container.textContent).toContain("Your dashboard");
+
+    container.querySelector<HTMLElement>('[data-open="published-set"]')!.click();
+    await vi.waitFor(() => expect(container.querySelector("[data-open-editor]")).not.toBeNull());
+    expect(location.hash).toBe("#/set/published-set");
+
+    history.back();
+    await vi.waitFor(() => expect(location.hash).toBe("#/"));
+    await vi.waitFor(() => expect(container.textContent).toContain("Your dashboard"));
   });
 
   it("returns to the dashboard when the editor's back link is followed by browser Back", async () => {
