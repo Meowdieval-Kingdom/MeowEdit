@@ -478,7 +478,8 @@ describe("editor rendering", () => {
     workspace.selectedKey = campaign.key;
 
     const html = renderApp(workspace, rosterFixture, catalog, [], 1, "guided");
-    expect(html).toContain("campaign-randomizer-focus");
+    expect(html).toContain('class="campaign-floor-tabs"');
+    expect(html).toContain('class="campaign-mode-switch"');
     expect(html).toContain('class="campaign-random-settings"');
     expect(html).toContain("Total nodes");
   });

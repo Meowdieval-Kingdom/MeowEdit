@@ -45,9 +45,12 @@ describe("dashboard and scratch content", () => {
       "target-set": { draft: valid, draftVersion: 2, publishedPackageId: "pkg" }
     }));
     container.querySelector<HTMLElement>('[data-create="armies"]')!.click();
-    await vi.waitFor(() => expect(container.querySelector('[data-action="assign-to-set"]')).not.toBeNull(), { timeout: 10000 });
+    await vi.waitFor(() => expect(container.querySelector(".app-shell")).not.toBeNull(), { timeout: 10000 });
     expect(loadScratchWorkspace().armies[0].id).toBe("army-1");
     expect(container.querySelector('[data-action="save-package"]')?.textContent).toContain("Save locally");
+    for (let i = 0; i < 10 && !container.querySelector('[data-action="assign-to-set"]'); i++)
+      container.querySelector<HTMLElement>('[data-action="editor-next"]')?.click();
+    await vi.waitFor(() => expect(container.querySelector('[data-action="assign-to-set"]')).not.toBeNull());
     container.querySelector<HTMLElement>('[data-action="assign-to-set"]')!.click();
     await vi.waitFor(() => expect(document.querySelector(".assign-overlay")).not.toBeNull());
     const overlay = document.querySelector<HTMLElement>(".assign-overlay")!;

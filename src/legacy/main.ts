@@ -40,7 +40,7 @@ import {
 } from "./export";
 import { readStoredZip } from "./zip";
 import { normalizeArmy, normalizeCampaign, normalizeQuest } from "./import-normalizers";
-import { escapeHtml, renderApp, renderLivePreview, renderValidationSummary, renderArmyEntityPreview, renderArmyAbilityPreview, setScratchMode, type ArmyAbilityFilters, type ArmyAbilityKind, type ArmyAbilitySelections, type EditorMode } from "./view";
+import { escapeHtml, renderApp, renderLivePreview, renderValidationSummary, renderArmyEntityPreview, renderArmyAbilityPreview, setScratchMode, setGuidedContextUnmuted, type ArmyAbilityFilters, type ArmyAbilityKind, type ArmyAbilitySelections, type EditorMode } from "./view";
 
 const initialEditorSession = (() => {
   try { return loadEditorSession(localStorage); }
@@ -74,6 +74,8 @@ export interface LegacyMountOptions {
 
 let mountOptions: LegacyMountOptions | null = null;
 let mountGeneration = 0;
+let guidedContextUnlocked = false;
+let lastFocusSignature = "";
 const isScratch = () => !mountOptions?.setId;
 
 /**
@@ -267,6 +269,12 @@ function render(): void {
   const issues = validateWorkspace(workspace, armyCatalog);
   const returnContext = relatedReturnContexts.current();
   setScratchMode(isScratch());
+  const focusSignature = editorMode + "|" + activeEditorStep + "|" + (workspace.selectedKey ?? "") + "|" + renderVersion;
+  if (focusSignature !== lastFocusSignature) {
+    lastFocusSignature = focusSignature;
+    guidedContextUnlocked = false;
+    setGuidedContextUnmuted(false);
+  } else setGuidedContextUnmuted(guidedContextUnlocked);
   root!.innerHTML = renderApp(workspace, roster, armyCatalog, issues, activeEditorStep, editorMode, selectedArmyPlacementId, {
     selectedFloorId: selectedCampaignFloorId,
     selectedNodeId: selectedCampaignNodeId,
@@ -2024,7 +2032,7 @@ function onAction(button: HTMLButtonElement): void {
       return;
     case "editor-next":
       if (currentCampaign() && root!.querySelector(".campaign-event-focus")) selectedCampaignEventId = null;
-      activeEditorStep = currentArmy() ? Math.min(activeEditorStep + 1, 5) : activeEditorStep + 1;
+      activeEditorStep = currentArmy() ? Math.min(activeEditorStep + 1, 6) : activeEditorStep + 1;
       render();
       return;
     case "open-full-editor":
@@ -2415,6 +2423,15 @@ root.addEventListener("click", event => {
     suppressArmyClick = false;
     event.preventDefault();
     return;
+  }
+  if (editorMode === "guided" && !guidedContextUnlocked && target instanceof Element) {
+    const focusArea = target.closest(".campaign-node-focus, .campaign-random-settings, .guided-step-screen, .army-focus-panel, .army-guided-position, .army-guided-units, .guided-title-content, .editor-transfer-bar");
+    if (!focusArea) {
+      guidedContextUnlocked = true;
+      setGuidedContextUnmuted(true);
+      const guided = root!.querySelector<HTMLElement>(".guided-editor") ?? root!.querySelector<HTMLElement>(".app-shell");
+      guided?.classList.add("guided-context-unmuted");
+    }
   }
   const button = target.closest<HTMLButtonElement>("[data-action]");
   if (button) { onAction(button); return; }

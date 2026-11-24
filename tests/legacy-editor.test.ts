@@ -97,12 +97,12 @@ describe("restored v1 editor", () => {
     await vi.waitFor(() => expect(document.querySelector(".campaign-floor-tab")).not.toBeNull());
   });
 
-  it("offers JSON transfer once inside each content editor, not in the topbar", async () => {
+  it("offers JSON transfer in the full editor and not in the topbar", async () => {
     const fullSet = JSON.parse(readFileSync(path.resolve(process.cwd(), "contract/content/fixtures/valid-set.fixture.json"), "utf8")) as ContentSetDocument;
     const { mountLegacyEditor } = await import("../src/legacy/main");
     const mount = (section: string, index: number) => mountLegacyEditor({
       setId: "transfer-set", draft: fullSet, capabilities,
-      selected: { section, index }, onSave: vi.fn(async () => "saved"), onDraftChange: vi.fn(), onBack: vi.fn()
+      selected: { section, index }, forceMode: "full", onSave: vi.fn(async () => "saved"), onDraftChange: vi.fn(), onBack: vi.fn()
     });
     for (const section of ["dialogues", "quests", "armies", "campaigns"]) {
       mount(section, 0);
@@ -232,6 +232,20 @@ describe("restored v1 editor", () => {
     expect(other.dialogues[0].sequence.nodes[0].editorPosition).toBeUndefined();
     expect(other.armies[0].units[0].id).toBe("placement-0");
   });
+
+  it("restores dimmed guided context when clicking outside the focus area", async () => {
+    const fullSet = JSON.parse(readFileSync(path.resolve(process.cwd(), "contract/content/fixtures/valid-set.fixture.json"), "utf8")) as ContentSetDocument;
+    const { mountLegacyEditor } = await import("../src/legacy/main");
+    mountLegacyEditor({
+      setId: "focus-set", draft: fullSet, capabilities, selected: { section: "campaigns", index: 0 }, forceMode: "guided",
+      onSave: vi.fn(async () => "saved"), onDraftChange: vi.fn(), onBack: vi.fn()
+    });
+    await vi.waitFor(() => expect(document.querySelector(".campaign-guided-progress")).not.toBeNull());
+    expect(document.querySelector(".guided-context-unmuted")).toBeNull();
+    document.querySelector<HTMLElement>(".campaign-guided-step-heading")!.click();
+    expect(document.querySelector(".guided-context-unmuted")).not.toBeNull();
+  });
+
 });
 
 

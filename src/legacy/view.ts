@@ -595,6 +595,7 @@ function renderGuidedDialogueEditor(
 ): string {
   const steps = ["Name (optional)", "Speaker", "Lines", "Choices", "Preview"];
   const step = Math.max(0, Math.min(steps.length - 1, activeStep));
+  guidedFinalStepActive = step === steps.length - 1;
   const nodeIndex = Math.max(0, record.sequence.nodes.findIndex(node => node.id === workspace.activeNodeId));
   const node = record.sequence.nodes[nodeIndex];
   const isStartNode = node?.id === record.sequence.startNodeId;
@@ -1165,6 +1166,7 @@ function renderArmyEditor(record: ArmyRecord, catalog: ArmyCatalog, roster: Unit
   const steps = ["Name", "Choose units", "Arrange grid", "Army spells", "Blessings", "Curses", "Review"];
   if (mode === "guided") {
     const step = Math.max(0, Math.min(steps.length - 1, activeStep));
+    guidedFinalStepActive = step === steps.length - 1;
     let screen = "";
     if (step === 0) screen = '<div class="army-name-focus"><label class="field"><span class="field-label">Army name</span><input data-bind="name" value="' + escapeHtml(record.name) + '" placeholder="Bridge guards" autocomplete="off"></label></div>';
     else if (step === 1) screen = '<div class="army-guided-units"><section class="army-focus-panel"><p class="section-note help-copy">Choose the lineup now; arrange the positions next.</p>' + picker + '</section><aside class="army-secondary-panel">' + list + (selected ? unitSpellPanel : '') + '</aside></div>';
@@ -1175,7 +1177,7 @@ function renderArmyEditor(record: ArmyRecord, catalog: ArmyCatalog, roster: Unit
       screen = '<div class="army-guided-loadout"><section class="army-focus-panel">' + renderArmyAbilityPicker(catalog, abilityKind, entries, abilityKind === "spells" ? entries : record.blessingIds, abilityFilters[abilityKind], abilitySelections[abilityKind]) +
         '</section><div class="army-context-muted"><strong>Army setup</strong><span>' + record.units.length + ' lineup entries</span></div></div>';
     } else screen = '<section class="army-review"><dl><div><dt>Name</dt><dd>' + escapeHtml(record.name || "Untitled army") + '</dd></div><div><dt>Board</dt><dd>Floor ' + floor + ' · ' + size.width + ' × ' + size.height + '</dd></div><div><dt>Lineup</dt><dd>' + record.units.length + ' units and buildings</dd></div><div><dt>Army spells</dt><dd>' + record.spellIds.length + '</dd></div><div><dt>Blessings and curses</dt><dd>' + record.blessingIds.length + '</dd></div></dl>' + list + '<div class="army-review-effects"><span>Spells</span><div class="army-chips">' + (spells || "<small>None</small>") + '</div><span>Blessings / curses</span><div class="army-chips">' + (blessings || "<small>None</small>") + '</div></div>' + reviewList("Spells by lineup entry", perEntrySpellReview) + '</section>';
-    return '<main class="workspace-main army-editor guided-editor army-guided-step-' + step + '">' + renderGuidedEditorHeader("Army", record.name || "New army", returnState, helpVisible) + '<div class="army-guided-progress" role="progressbar" aria-label="Army setup" aria-valuemin="1" aria-valuemax="' + steps.length + '" aria-valuenow="' + (step + 1) + '"><span style="width:' + ((step + 1) / steps.length * 100) + '%"></span></div><section class="army-guided-screen"><div class="army-guided-heading"><span>Step ' + (step + 1) + ' of ' + steps.length + '</span><h1>' + steps[step] + '</h1></div>' + screen + '</section>' + renderWorkflowFooter(steps, step, "Ready to export") + '</main>' + cellFocusOverlay;
+    return '<main class="workspace-main army-editor guided-editor' + (guidedContextUnmuted ? ' guided-context-unmuted' : '') + ' army-guided-step-' + step + '">' + renderGuidedEditorHeader("Army", record.name || "New army", returnState, helpVisible) + '<div class="army-guided-progress" role="progressbar" aria-label="Army setup" aria-valuemin="1" aria-valuemax="' + steps.length + '" aria-valuenow="' + (step + 1) + '"><span style="width:' + ((step + 1) / steps.length * 100) + '%"></span></div><section class="army-guided-screen"><div class="army-guided-heading"><span>Step ' + (step + 1) + ' of ' + steps.length + '</span><h1>' + steps[step] + '</h1></div>' + screen + '</section>' + renderWorkflowFooter(steps, step, "Ready to export") + '</main>' + cellFocusOverlay;
   }
   const activeAbilityIds = abilityCategory === "spells" ? record.spellIds : record.blessingIds;
   const armyAbilities = '<section class="army-wide-abilities" id="army-loadout"><div class="army-loadout-heading"><div><span class="eyebrow">LOADOUT</span><h2>Army abilities</h2></div>' +
@@ -1516,7 +1518,7 @@ function renderCampaignEditor(
   const hasFloorPoolChoices = campaign.questIds.length > 0 && campaign.floors.some(item => (item.mode === "random" || item.mode === "mixed") && item.randomSettings.questNodeCount > 0);
   const hasShopContent = campaign.settings.shopNodeCountPerRandomFloor > 0 || campaign.floors.some(item => item.nodes.some(node => node.kind === "Shop") || (item.mode !== "authored" && item.randomSettings.shopNodeCount > 0));
   const hasAuthoredBoards = campaign.floors.some(item => item.mode !== "random");
-  const floorSetup = '<section class="campaign-floor-section campaign-floor-setup' + (mode === "guided" && floor?.mode !== "authored" ? " campaign-randomizer-focus" : "") + '"><div class="campaign-floor-heading"><div><h2>' + (isSettingsOnly ? "Set generated floor rules" : "Choose the boards") + '</h2><p class="help-copy">' + (isSettingsOnly ? "Every floor is generated from these settings. Switch a floor to Hand placed to author its map." : "Each floor can be hand placed, generated, or mixed.") + '</p></div><div class="campaign-floor-actions">' +
+  const floorSetup = '<section class="campaign-floor-section campaign-floor-setup' + "" + '"><div class="campaign-floor-heading"><div><h2>' + (isSettingsOnly ? "Set generated floor rules" : "Choose the boards") + '</h2><p class="help-copy">' + (isSettingsOnly ? "Every floor is generated from these settings. Switch a floor to Hand placed to author its map." : "Each floor can be hand placed, generated, or mixed.") + '</p></div><div class="campaign-floor-actions">' +
     actionButton("campaign-remove-floor", "Remove floor", "text-button danger-text", campaign.floors.length > 1 ? "" : " disabled") +
     actionButton("campaign-add-floor", "＋ Add floor", "button button-outline") + '</div></div>' +
     '<div class="campaign-floor-tabs">' + (floorTabs || "") + '</div>' +
@@ -1546,6 +1548,7 @@ function renderCampaignEditor(
     : ["Name", "Floors", ...(hasAuthoredBoards ? ["Map", "Node"] : []), "Quests", ...(hasFloorPoolChoices ? ["Floor pools"] : []), ...(hasShopContent ? ["Shop pools", "Shop unlocks"] : []), "Starting run", "Generated floors", ...(campaign.events.length ? ["Events"] : []), "Review"];
   const step = Math.max(0, Math.min(steps.length - 1, activeStep));
   const stepName = steps[step];
+  guidedFinalStepActive = step === steps.length - 1;
   const focusedNodeStep = stepName === "Node";
   const progress = '<div class="campaign-guided-progress" role="progressbar" aria-label="Campaign setup" aria-valuemin="1" aria-valuemax="' + steps.length + '" aria-valuenow="' + (step + 1) + '"><span style="width:' + ((step + 1) / steps.length * 100) + '%"></span></div>';
   const campaignQuestNames = campaign.questIds.map(id => {
@@ -1591,12 +1594,14 @@ function renderCampaignEditor(
   } else if (stepName === "Name") {
     screen = '<section class="campaign-setup-step"><p class="campaign-step-prompt help-copy">Name the campaign so your team can find it.</p>' + guidedIdentity + '</section>';
   } else if (stepName === "Floors" || stepName === "Randomizer settings") {
-    screen = floorSetup;
+    screen = floorSetup + (floor?.mode === "mixed" ? board : "");
     if (isSettingsOnly && campaign.questIds.length === 0) {
       screen += '<details class="campaign-optional-quest-content"><summary>Add optional authored quests</summary><p class="help-copy">Only needed if generated floors should include campaign quests.</p>' + actionButton("create-campaign-pool-quest", "＋ Create a quest", "text-button related-create") + '</details>';
     }
   } else if (stepName === "Map") {
-    screen = mapBoard;
+    screen = '<div class="campaign-floor-tabs">' + (floorTabs || "") + '</div>' +
+      (floor ? '<div class="campaign-floor-mode-row"><span>Floor ' + floor.number + ' layout</span>' + floorModes + '</div>' : "") +
+      (floor?.mode === "mixed" ? randomControls : "") + mapBoard;
   } else if (stepName === "Node") {
     screen = selectedNode && floor
       ? (floor.mode === "random" ? "" : mapBoard.replace('class="campaign-map-step"', 'class="campaign-map-step campaign-context-map"')) +
@@ -1624,9 +1629,9 @@ function renderCampaignEditor(
   } else {
     screen = review;
   }
-  return '<main class="workspace-main campaign-editor guided-editor' + (focusedNodeStep ? ' campaign-node-focus-mode' : '') + ((stepName === "Shop pools" || stepName === "Shop unlocks") ? ' campaign-shop-focus-mode' : '') + '">' + heading + (focusedNodeStep ? '' : progress) +
+  return '<main class="workspace-main campaign-editor guided-editor' + (guidedContextUnmuted ? ' guided-context-unmuted' : '') + (focusedNodeStep ? ' campaign-node-focus-mode' : '') + ((stepName === "Shop pools" || stepName === "Shop unlocks") ? ' campaign-shop-focus-mode' : '') + '">' + heading + (focusedNodeStep ? '' : progress) +
     '<section class="campaign-guided-screen" aria-labelledby="campaign-step-title"><div class="campaign-guided-step-heading"><span>' + (stepName === "Approach" ? "Campaign setup" : "Step " + (step + 1) + " of " + steps.length + " · Campaign") + '</span><h1 id="campaign-step-title">' + stepName + '</h1></div>' +
-    screen + '</section>' + (stepName === "Approach" ? "" : focusedNodeStep ? '<footer class="campaign-focus-footer"><span>Changes save as you type</span>' + actionButton("editor-next", "Next · Quests →", "button button-primary") + '</footer>' : renderWorkflowFooter(steps, step, "Campaign ready · export when you are ready")) +
+    screen + '</section>' + (stepName === "Approach" ? "" : focusedNodeStep ? '<footer class="campaign-focus-footer"><span>Changes save as you type</span>' + actionButton("editor-next", steps[step + 1] ? "Next · " + steps[step + 1] + " →" : "Next", "button button-primary") + '</footer>' : renderWorkflowFooter(steps, step, "Campaign ready · export when you are ready")) +
     '</main>';
 }
 
@@ -1643,6 +1648,7 @@ function renderGuidedQuestEditor(
   const timerMode = record.extension.logicKind === "timer-project";
   const steps = ["Basics", "Objective", "Quest giver", "Offer", "In progress", "Reward", "Review"];
   const step = Math.max(0, Math.min(steps.length - 1, activeStep));
+  guidedFinalStepActive = step === steps.length - 1;
   const issues = validateQuest(record, workspace, catalog);
   const targetOptions: Array<[string, string]> = [
     ["Battle", "Battle"], ["Reward", "Reward"], ["Boss", "Boss"], ["Shop", "Shop"], ["Custom", "Custom event"]
@@ -1871,6 +1877,9 @@ export function renderValidationSummary(issues: ValidationIssue[]): string {
 }
 
 let scratchMode = false;
+let guidedContextUnmuted = false;
+export function setGuidedContextUnmuted(value: boolean): void { guidedContextUnmuted = value; }
+let guidedFinalStepActive = true;
 export function setScratchMode(value: boolean): void { scratchMode = value; }
 
 export function renderApp(
@@ -1892,6 +1901,7 @@ export function renderApp(
   selectedCampaignEventId: string | null = null,
   publishAllowed = true
 ): string {
+  guidedFinalStepActive = editorMode === "full";
   const item = selectedItem(workspace);
   const guidedCompact = editorMode === "guided" && item !== null;
   const focusedDialogueTitle = editorMode === "guided" && item !== null && "sequence" in item && activeEditorStep === 0;
@@ -1938,7 +1948,7 @@ export function renderApp(
     renderSidebar() +
     '<button type="button" class="sidebar-backdrop" data-action="close-sidebar" aria-label="Close navigation menu" tabindex="-1"></button>' +
     '<div class="stage-wrap">' + content +
-    (item ? '<div class="editor-transfer-bar">' +
+    (item && (editorMode === "full" || guidedFinalStepActive) ? '<div class="editor-transfer-bar">' +
       (scratchMode ? actionButton("assign-to-set", "Assign to set", "button button-primary") : "") +
       actionButton("open-transfer", "Import / export JSON", "text-button transfer-button") + '</div>' : '') +
     '</div>' +
