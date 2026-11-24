@@ -73,6 +73,10 @@ const questTimerSchema = z.object({
   paymentResource: z.string(),
   paymentAmount: z.number().int().nonnegative(),
   paymentCompletesImmediately: z.boolean(),
+  payChoiceLabel: localizedTextSchema.optional(),
+  waitChoiceLabel: localizedTextSchema.optional(),
+  payTerminalText: localizedTextSchema.optional(),
+  waitTerminalText: localizedTextSchema.optional(),
   completionEffects: z.array(completionEffectSchema)
 }).strict();
 

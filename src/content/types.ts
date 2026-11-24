@@ -70,6 +70,10 @@ export interface QuestTimer {
   paymentResource: string;
   paymentAmount: number;
   paymentCompletesImmediately: boolean;
+  payChoiceLabel?: LocalizedText;
+  waitChoiceLabel?: LocalizedText;
+  payTerminalText?: LocalizedText;
+  waitTerminalText?: LocalizedText;
   completionEffects: CompletionEffect[];
 }
 

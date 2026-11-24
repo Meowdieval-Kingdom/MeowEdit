@@ -149,6 +149,10 @@
         "paymentResource": { "type": "string" },
         "paymentAmount": { "type": "integer", "minimum": 0 },
         "paymentCompletesImmediately": { "type": "boolean" },
+        "payChoiceLabel": { "$ref": "#/$defs/localizedText" },
+        "waitChoiceLabel": { "$ref": "#/$defs/localizedText" },
+        "payTerminalText": { "$ref": "#/$defs/localizedText" },
+        "waitTerminalText": { "$ref": "#/$defs/localizedText" },
         "completionEffects": { "type": "array", "items": { "$ref": "#/$defs/completionEffect" } }
       }
     },
