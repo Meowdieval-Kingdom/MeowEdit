@@ -7,6 +7,7 @@ import {
 import { escapeHtml } from "./content/html";
 import { NETWORK_TIMEOUT_MS, withDeadline } from "./request-timeout";
 import { APP_VERSION } from "./content/version";
+import { clearStaleChunkReload, reloadForStaleChunk } from "./stale-chunk";
 
 type AuthUser = { id: string };
 type AuthResult<T> = { data?: T | null; error?: { message?: string } | null };
@@ -202,8 +203,10 @@ if (!isBridgeConfigured()) {
       const editor = await withTimeout(import("./content/app"), 15_000, "The editor bundle could not be loaded in time.");
       if (generation !== authGeneration) return;
       await withTimeout(editor.mountApp(app!), 20_000, "The editor did not finish loading in time.");
+      clearStaleChunkReload();
     } catch (error) {
       if (generation !== authGeneration) return;
+      if (reloadForStaleChunk(error)) return;
       resetBridgeFetch();
       resetBridgeState();
       showGateError(error instanceof Error ? error.message : "The editor could not be loaded.");

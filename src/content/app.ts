@@ -24,6 +24,7 @@ import {
   parseImportedJson, decodeZipText
 } from "../editor/export";
 import { readStoredZip } from "../editor/zip";
+import { reloadForStaleChunk } from "../stale-chunk";
 import type { Workspace } from "../editor/model";
 
 interface SetSummary {
@@ -697,6 +698,7 @@ async function openEditor(container: HTMLElement, state: AppState, target: Edito
       }
     });
   } catch (error) {
+    if (reloadForStaleChunk(error)) return;
     state.status = error instanceof Error ? error.message : "The editor could not be opened.";
     renderBrowser(container, state);
   }
@@ -1114,6 +1116,7 @@ async function openClassicEditor(container: HTMLElement, state: AppState, select
       canPublishEditor: () => state.validation.valid && canPublish()
     });
   } catch (error) {
+    if (reloadForStaleChunk(error)) return;
     state.status = error instanceof Error ? error.message : "The editor could not be opened.";
     renderSetView(container, state);
   }
