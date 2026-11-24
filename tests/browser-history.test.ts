@@ -3,7 +3,7 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resetBridgeFetch, resetBridgeState, setBridgeFetch, setBridgeState } from "../src/bridge-context";
 import { mountApp } from "../src/content/app";
-import { emptyContentSet } from "../src/content/factory";
+import { emptyContentSet, localized, namedRef } from "../src/content/factory";
 import type { GameCapabilities } from "../src/content/types";
 import { saveScratchWorkspace, SCRATCH_WORKSPACE } from "../src/editor/workspace-store";
 
@@ -84,6 +84,69 @@ describe("browser history routing", () => {
     expect(edit).not.toBeNull();
     edit!.click();
     await vi.waitFor(() => expect(document.querySelector(".campaign-editor")).not.toBeNull(), { timeout: 10000 });
+  });
+
+  it("opens the set record that was clicked after returning to the set dashboard", async () => {
+    const draft = emptyContentSet("published-set", "Published Set");
+    for (const [id, name] of [["campaign-a", "First Mission"], ["campaign-b", "Second Mission"]]) {
+      draft.campaigns.push({
+        schemaVersion: 2, id, name: localized(name), description: localized(""),
+        boardPreviewUnitId: namedRef(capabilities.ids.units[0]), questIds: [],
+        floors: [{ id: id + "-floor", number: 1, mode: "authored", questPoolMode: "campaign",
+          questPoolIds: [], shopPoolMode: "campaign", shopPoolKinds: ["Unit"], shopLevel: 1,
+          randomSettings: { nodeCount: 12, questNodeCount: 2, shopNodeCount: 3 }, nodes: [], routes: [] }],
+        events: [],
+        settings: { startingLives: 3, startingSardines: 10, startingNodeCount: 12,
+          playerFactionId: namedRef(capabilities.ids.factions[0]), factionSelectionEnabled: true,
+          battleShopEnabled: true, shopPoolKinds: ["Unit"], questNodeCountPerRandomFloor: 2,
+          shopNodeCountPerRandomFloor: 3, nodeGrowthPerFloor: 2, continueWithGeneratedFloors: false }
+      } as never);
+    }
+    setBridgeFetch(async requestPath => {
+      if (requestPath === "/v1/editor/capabilities")
+        return new Response(JSON.stringify(capabilities), { status: 200, headers: { "content-type": "application/json" } });
+      if (requestPath === "/v1/editor/campaign-sets")
+        return new Response(JSON.stringify({ sets: [{ setId: "published-set", draftVersion: 1 }] }),
+          { status: 200, headers: { "content-type": "application/json" } });
+      if (requestPath.includes("/v1/editor/campaign-sets/"))
+        return new Response(JSON.stringify({ setId: "published-set", draftVersion: 1, draft }),
+          { status: 200, headers: { "content-type": "application/json" } });
+      return new Response("{}", { status: 200 });
+    });
+    await mountApp(container);
+
+    container.querySelector<HTMLElement>('[data-open="published-set"]')!.click();
+    await vi.waitFor(() => expect(container.querySelector('[data-edit="campaigns:0"]')).not.toBeNull());
+    container.querySelector<HTMLElement>('[data-edit="campaigns:0"]')!.click();
+    await vi.waitFor(() => expect(document.querySelector('[data-bind="name"]')).not.toBeNull());
+    expect(document.querySelector<HTMLInputElement>('[data-bind="name"]')!.value).toBe("First Mission");
+
+    document.querySelector<HTMLElement>('[data-action="open-content-editor"]')!.click();
+    await vi.waitFor(() => expect(container.querySelector('[data-edit="campaigns:1"]')).not.toBeNull());
+    container.querySelector<HTMLElement>('[data-edit="campaigns:1"]')!.click();
+    await vi.waitFor(() => expect(document.querySelector<HTMLInputElement>('[data-bind="name"]')?.value).toBe("Second Mission"));
+  });
+
+  it("opens the record that was clicked after returning to the dashboard", async () => {
+    const scratch = {
+      schemaVersion: 1, dialogues: [], quests: [], armies: [], campaigns: [],
+      selectedType: null, selectedKey: null, activeNodeId: null
+    };
+    (scratch.armies as unknown[]).push(
+      { key: "local-a", id: "army-a", idAuto: true, name: "First Army", units: [], spellIds: [], blessingIds: [] },
+      { key: "local-b", id: "army-b", idAuto: true, name: "Second Army", units: [], spellIds: [], blessingIds: [] }
+    );
+    saveScratchWorkspace(scratch as never);
+    await mountApp(container);
+
+    container.querySelector<HTMLElement>('[data-edit-local="armies|local-a"]')!.click();
+    await vi.waitFor(() => expect(document.querySelector('[data-bind="name"]')).not.toBeNull());
+    expect(document.querySelector<HTMLInputElement>('[data-bind="name"]')!.value).toBe("First Army");
+
+    document.querySelector<HTMLElement>('[data-action="open-content-editor"]')!.click();
+    await vi.waitFor(() => expect(container.textContent).toContain("Your dashboard"));
+    container.querySelector<HTMLElement>('[data-edit-local="armies|local-b"]')!.click();
+    await vi.waitFor(() => expect(document.querySelector<HTMLInputElement>('[data-bind="name"]')?.value).toBe("Second Army"));
   });
 
   it("drops older local drafts that have no editor key", async () => {

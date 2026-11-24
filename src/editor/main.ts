@@ -19,7 +19,8 @@ import {
   type DialogueRecord,
   type FaceMood,
   type QuestRecord,
-  type UnitRoster
+  type UnitRoster,
+  type Workspace
 } from "./model";
 import { createSeedWorkspace } from "./seed";
 import { validateWorkspace } from "./validation";
@@ -124,6 +125,29 @@ export function setEditorNavigation(step: number, mode: "guided" | "full"): void
   render();
 }
 
+/** Applies the clicked record to a restored workspace, which keeps its own saved selection. */
+function applyMountSelection(options: EditorMountOptions): void {
+  const selected = options.selected;
+  if (!selected) return;
+  const types: Record<string, Workspace["selectedType"]> = {
+    dialogues: "dialogue", quests: "quest", armies: "army", campaigns: "campaign"
+  };
+  const type = types[selected.section];
+  if (!type) return;
+  const collection = workspace[selected.section as "dialogues" | "quests" | "armies" | "campaigns"] as unknown as Array<Record<string, unknown>>;
+  const item = collection[selected.index];
+  if (!item) return;
+  workspace.selectedType = type;
+  workspace.selectedKey = String(item.key ?? item.id ?? (item.sequence as { sequenceId?: string } | undefined)?.sequenceId ?? "");
+  workspace.activeNodeId = type === "dialogue"
+    ? String((item.sequence as { nodes?: Array<{ id: string }> } | undefined)?.nodes?.[0]?.id ?? "") || null
+    : null;
+  selectedCampaignFloorId = type === "campaign"
+    ? String((item.floors as Array<{ id: string }> | undefined)?.[0]?.id ?? "") || null
+    : null;
+  selectedCampaignNodeId = null;
+}
+
 /** Mounts the editor on its native, per-set workspace. */
 export function mountEditor(options: EditorMountOptions): void {
   const generation = ++mountGeneration;
@@ -147,6 +171,7 @@ export function mountEditor(options: EditorMountOptions): void {
   workspace = options.setId && options.draft
     ? loadWorkspace(options.setId, options.draft, options.capabilities, options.selected)
     : loadScratchWorkspace();
+  applyMountSelection(options);
   void Promise.all([loadRoster(), loadArmyCatalog()]).then(([loadedRoster, loadedCatalog]) => {
     if (generation !== mountGeneration) return;
     armyCatalog = loadedCatalog;
