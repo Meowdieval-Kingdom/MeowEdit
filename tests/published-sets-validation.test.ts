@@ -30,9 +30,26 @@ describe("published-set validation rules", () => {
     expect(issues.map(issue => issue.message)).toEqual([]);
   });
 
-  it("accepts level-2 unit ids from the army catalog", () => {
-    expect(caps.ids.units).toContain("Peasants/Fighter/2");
-    expect(caps.ids.units).toContain("Peasants/Tomeowto Thrower/2");
+  it("accepts level-2 unit ids from the army catalog but still rejects unknown ids", () => {
+    const draft: ContentSetDocument = {
+      schemaVersion: 2,
+      set: { schemaVersion: 2, setId: "unit-missions", name: localized("Unit Missions"),
+        description: localized(""), displayOrder: 0, campaignOrder: [] },
+      quests: [], campaigns: [],
+      armies: [{ schemaVersion: 2, id: "guarded", name: localized("Guarded Formation"),
+        units: [{ unitId: namedRef("Peasants/Tomeowto Thrower/2"), x: 0, y: 0, spellIds: [] }],
+        spellIds: [], blessingIds: [], CellBlessingPicks: [] } as never],
+      dialogues: [{ schemaVersion: 2, sequenceId: "fighter-training", startNodeId: "opening", pauseMode: "pause",
+        defaultCharactersPerSecond: 30, nodes: [{ id: "opening", headline: localized("Fighter"), textSpeed: 30,
+          speakers: [{ id: "fighter", unitId: namedRef("Peasants/Fighter/2"), displayName: localized("Fighter"), side: "left", mood: "Normal" }],
+          segments: [{ speakerIds: ["fighter"], text: localized("Ready.") }], actions: [] }] }]
+    };
+    const unresolved = validateContentSet(draft, caps).issues.filter(issue => issue.code === "unresolved-reference");
+    expect(unresolved.map(issue => issue.message)).toEqual([]);
+
+    draft.dialogues[0].nodes[0].speakers[0].unitId = namedRef("Peasants/Fighter/9");
+    const broken = validateContentSet(draft, caps).issues.filter(issue => issue.code === "unresolved-reference");
+    expect(broken.some(issue => issue.message.includes("Peasants/Fighter/9"))).toBe(true);
   });
 
   it("does not require a dialogue headline when a speaker supplies it", () => {

@@ -64,6 +64,77 @@ const SECTION_SINGULAR: Record<DetailSection, "campaign" | "quest" | "army" | "d
 };
 const SECTIONS = Object.keys(SECTION_LABELS) as DetailSection[];
 
+/** Hash routes keep screens, records and guided steps usable with browser Back/Forward. */
+type AppRoute =
+  | { kind: "browser" }
+  | { kind: "set"; setId: string }
+  | { kind: "editor"; workspace: string; section?: DetailSection; key?: string; step?: number; mode?: "guided" | "full" };
+
+let routeHash = "#/";
+let restoringRoute = false;
+let popStateBound = false;
+let appContainer: HTMLElement | null = null;
+let appState: AppState | null = null;
+let activeEditorRoute: Extract<AppRoute, { kind: "editor" }> | null = null;
+let editorMountPending = false;
+
+function routeHashOf(route: AppRoute): string {
+  if (route.kind === "browser") return "#/";
+  if (route.kind === "set") return "#/set/" + encodeURIComponent(route.setId);
+  const base = "#/edit/" + encodeURIComponent(route.workspace) +
+    (route.section && route.key ? "/" + encodeURIComponent(route.section) + "/" + encodeURIComponent(route.key) : "");
+  const query = new URLSearchParams();
+  if (route.step !== undefined) query.set("step", String(route.step));
+  if (route.mode) query.set("mode", route.mode);
+  return query.toString() ? base + "?" + query.toString() : base;
+}
+
+function parseRouteHash(hash: string): AppRoute | null {
+  const [path, queryString] = hash.replace(/^#\/?/, "").split("?");
+  const parts = path.split("/").filter(Boolean);
+  let decoded: string[];
+  try { decoded = parts.map(decodeURIComponent); } catch { return null; }
+  const query = new URLSearchParams(queryString ?? "");
+  const step = query.has("step") ? Number(query.get("step")) : undefined;
+  const mode = query.get("mode");
+  if (decoded.length === 0) return { kind: "browser" };
+  if (decoded[0] === "set" && decoded[1]) return { kind: "set", setId: decoded[1] };
+  if (decoded[0] === "edit" && decoded[1]) return {
+    kind: "editor", workspace: decoded[1],
+    section: decoded[2] as DetailSection | undefined,
+    key: decoded[3],
+    step: step !== undefined && Number.isFinite(step) ? Math.max(0, step) : undefined,
+    mode: mode === "guided" || mode === "full" ? mode : undefined
+  };
+  return null;
+}
+
+/** Records a navigation. Restoration from popstate never pushes. */
+function pushRoute(route: AppRoute): void {
+  if (restoringRoute) return;
+  const hash = routeHashOf(route);
+  if (hash === routeHash) return;
+  routeHash = hash;
+  history.pushState(null, "", hash);
+}
+
+/** Adds step/mode to the entry just created for a freshly mounted editor. */
+function replaceRoute(route: AppRoute): void {
+  if (restoringRoute) return;
+  const hash = routeHashOf(route);
+  if (hash === routeHash) return;
+  routeHash = hash;
+  history.replaceState(null, "", hash);
+}
+
+function editorNavigation(route: Extract<AppRoute, { kind: "editor" }>, navigation: { step: number; mode: "guided" | "full" }): void {
+  const withNav = { ...route, step: navigation.step, mode: navigation.mode };
+  if (editorMountPending) {
+    editorMountPending = false;
+    replaceRoute(withNav);
+  } else pushRoute(withNav);
+}
+
 function localKey(): string {
   return "meowedit.v2.sets." + (getBridgeUserId() ?? "local");
 }
@@ -142,9 +213,11 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
 
 async function loadCapabilities(): Promise<GameCapabilities> {
   let raw: unknown;
+  let fromBridge = true;
   try {
     raw = await requestJson<unknown>("/v1/editor/capabilities");
   } catch {
+    fromBridge = false;
     const response = await withDeadline(signal =>
       fetch("./game-capabilities.json", { cache: "no-cache", signal }), 10_000);
     if (!response.ok) throw new Error("No capability manifest is available.");
@@ -153,7 +226,27 @@ async function loadCapabilities(): Promise<GameCapabilities> {
   const parsed = gameCapabilitiesSchema.safeParse(raw);
   if (!parsed.success)
     throw new Error("The capability manifest is invalid: " + (parsed.error.issues[0]?.message ?? "unknown shape"));
-  return parsed.data;
+  const capabilities = parsed.data;
+  if (fromBridge) {
+    // The Bridge can serve an older manifest that predates level-2 unit ids.
+    // Union in the bundled catalog's ids so valid authored refs still resolve;
+    // genuinely unknown ids are still rejected by validation.
+    try {
+      const bundledResponse = await withDeadline(signal =>
+        fetch("./game-capabilities.json", { cache: "no-cache", signal }), 10_000);
+      if (bundledResponse.ok) {
+        const bundled = gameCapabilitiesSchema.safeParse(await bundledResponse.json());
+        if (bundled.success) {
+          const keys: Array<keyof GameCapabilities["ids"]> = ["units", "blessings", "curses", "spells", "factions"];
+          for (const key of keys)
+            capabilities.ids[key] = [...new Set([...capabilities.ids[key], ...bundled.data.ids[key]])];
+        }
+      }
+    } catch {
+      // Keep the authoritative Bridge ids when the bundled copy is unavailable.
+    }
+  }
+  return capabilities;
 }
 
 function newCampaign(id: string, name: string, capabilities: GameCapabilities): ContentSetDocument["campaigns"][number] {
@@ -238,6 +331,8 @@ function continueCard(state: AppState): string {
 }
 
 function renderBrowser(container: HTMLElement, state: AppState): void {
+  pushRoute({ kind: "browser" });
+  activeEditorRoute = null;
   state.view = "browser";
   const records = storage();
   const sets = [...state.sets];
@@ -475,6 +570,10 @@ async function createLocal(container: HTMLElement, state: AppState, section: Det
   (workspace[section] as unknown as Array<Record<string, unknown>>).push(record);
   workspace.selectedType = SECTION_SINGULAR[section];
   workspace.selectedKey = String(record.key);
+  if (section === "dialogues") {
+    const sequence = record.sequence as { nodes?: Array<{ id: string }> };
+    workspace.activeNodeId = sequence.nodes?.[0]?.id ?? null;
+  }
   saveScratchWorkspace(workspace);
   await openEditor(container, state, {
     workspace: SCRATCH_WORKSPACE, section,
@@ -483,7 +582,7 @@ async function createLocal(container: HTMLElement, state: AppState, section: Det
   });
 }
 
-async function openLocal(container: HTMLElement, state: AppState, input: { section: DetailSection; key: string }, forceMode?: "guided" | "full"): Promise<void> {
+async function openLocal(container: HTMLElement, state: AppState, input: { section: DetailSection; key: string; step?: number; mode?: "guided" | "full" }, forceMode?: "guided" | "full"): Promise<void> {
   const workspace = loadScratchWorkspace();
   const index = (workspace[input.section] as unknown as Array<Record<string, unknown>>)
     .findIndex(item => item.key === input.key);
@@ -492,13 +591,16 @@ async function openLocal(container: HTMLElement, state: AppState, input: { secti
   workspace.selectedType = SECTION_SINGULAR[input.section];
   workspace.selectedKey = input.key;
   saveScratchWorkspace(workspace);
-  await openEditor(container, state, { workspace: SCRATCH_WORKSPACE, section: input.section, index, key: input.key, label: recordLabel(input.section, item), forceMode });
+  await openEditor(container, state, { workspace: SCRATCH_WORKSPACE, section: input.section, index, key: input.key, label: recordLabel(input.section, item), forceMode, step: input.step, mode: input.mode });
 }
 
-async function continueEditing(container: HTMLElement, state: AppState, input: { workspace: string; section: DetailSection; key: string }): Promise<void> {
+async function continueEditing(container: HTMLElement, state: AppState, input: { workspace: string; section: DetailSection; key: string; step?: number; mode?: "guided" | "full" }): Promise<boolean> {
   if (input.workspace === SCRATCH_WORKSPACE) {
-    await openLocal(container, state, { section: input.section, key: input.key });
-    return;
+    const workspace = loadScratchWorkspace();
+    const index = (workspace[input.section] as unknown as Array<{ key?: string }>).findIndex(item => item.key === input.key);
+    if (index < 0) return false;
+    await openLocal(container, state, { section: input.section, key: input.key, step: input.step, mode: input.mode });
+    return true;
   }
   let draft = storage()[input.workspace]?.draft;
   if (!draft) {
@@ -506,15 +608,16 @@ async function continueEditing(container: HTMLElement, state: AppState, input: {
       const loaded = await requestJson<{ draft: ContentSetDocument; draftVersion: number }>(
         "/v1/editor/campaign-sets/" + encodeURIComponent(input.workspace));
       draft = loaded.draft;
-    } catch { return; }
+    } catch { return false; }
   }
   const items = draft[input.section] as unknown as Array<{ id?: string; sequenceId?: string }>;
   const index = items.findIndex(item => (item.id ?? item.sequenceId) === input.key);
-  if (index < 0) return;
+  if (index < 0) return false;
   state.setId = input.workspace;
   state.draft = draft;
   state.draftVersion = storage()[input.workspace]?.draftVersion ?? 1;
-  await openEditor(container, state, { workspace: input.workspace, section: input.section, index, key: input.key, label: entryLabel(draft, input.section, index) });
+  await openEditor(container, state, { workspace: input.workspace, section: input.section, index, key: input.key, label: entryLabel(draft, input.section, index), step: input.step, mode: input.mode });
+  return true;
 }
 
 async function importLocalFile(file: File): Promise<void> {
@@ -550,9 +653,18 @@ interface EditorTarget {
   key: string;
   label: string;
   forceMode?: "guided" | "full";
+  step?: number;
+  mode?: "guided" | "full";
 }
 
 async function openEditor(container: HTMLElement, state: AppState, target: EditorTarget): Promise<void> {
+  const route: Extract<AppRoute, { kind: "editor" }> = {
+    kind: "editor", workspace: target.workspace, section: target.section, key: target.key,
+    step: target.step, mode: target.mode
+  };
+  pushRoute(route);
+  activeEditorRoute = route;
+  editorMountPending = true;
   try {
     const { mountEditor } = await import("../editor/main");
     state.lastEdited = { workspace: target.workspace, section: target.section, key: target.key, label: target.label };
@@ -564,6 +676,9 @@ async function openEditor(container: HTMLElement, state: AppState, target: Edito
       capabilities: state.capabilities,
       selected: { section: target.section, index: target.index },
       forceMode: target.forceMode,
+      initialStep: target.step,
+      initialMode: target.mode,
+      onNavigation: navigation => editorNavigation(route, navigation),
       onSave: () => saveDraft(state),
       onDraftChange: () => {
         if (!scratch) {
@@ -899,6 +1014,8 @@ async function openSet(container: HTMLElement, state: AppState, setId: string): 
 }
 
 function renderSetView(container: HTMLElement, state: AppState): void {
+  pushRoute({ kind: "set", setId: state.setId });
+  activeEditorRoute = null;
   const draft = state.draft;
   const tabs = SECTIONS.map(section =>
     '<button type="button" class="button button-outline" data-section="' + section + '">' +
@@ -966,6 +1083,16 @@ function flashStatus(container: HTMLElement, state: AppState): void {
 
 /** Opens the single classic editor, which owns both Guided and Full modes per category. */
 async function openClassicEditor(container: HTMLElement, state: AppState, selected?: { section: string; index: number }, forceMode?: "guided" | "full"): Promise<void> {
+  const route: Extract<AppRoute, { kind: "editor" }> = { kind: "editor", workspace: state.setId };
+  if (selected) {
+    const items = state.draft[selected.section as DetailSection] as unknown as Array<{ id?: string; sequenceId?: string }>;
+    const record = items[selected.index];
+    route.section = selected.section as DetailSection;
+    route.key = record?.id ?? record?.sequenceId;
+  }
+  pushRoute(route);
+  activeEditorRoute = route;
+  editorMountPending = true;
   try {
     const { mountEditor } = await import("../editor/main");
     mountEditor({
@@ -974,6 +1101,7 @@ async function openClassicEditor(container: HTMLElement, state: AppState, select
       capabilities: state.capabilities,
       selected,
       forceMode,
+      onNavigation: navigation => editorNavigation(route, navigation),
       onSave: () => saveDraft(state),
       onDraftChange: () => {
         state.validation = validateContentSet(state.draft, state.capabilities);
@@ -1065,6 +1193,42 @@ async function refreshSets(state: AppState): Promise<void> {
   }
 }
 
+/** Replays a hash route after the user presses browser Back/Forward. */
+async function restoreRoute(route: AppRoute): Promise<void> {
+  const container = appContainer;
+  const state = appState;
+  if (!container || !state) return;
+  restoringRoute = true;
+  try {
+    if (route.kind === "browser") {
+      state.setId = "";
+      state.view = "browser";
+      renderBrowser(container, state);
+    } else if (route.kind === "set") {
+      await openSet(container, state, route.setId);
+    } else if (activeEditorRoute && activeEditorRoute.workspace === route.workspace &&
+      activeEditorRoute.section === route.section && activeEditorRoute.key === route.key) {
+      // Same record: replay just the guided step/mode, keeping unsaved editor state.
+      const { setEditorNavigation } = await import("../editor/main");
+      setEditorNavigation(route.step ?? 0, route.mode ?? "guided");
+    } else if (route.section && route.key) {
+      const restored = await continueEditing(container, state, {
+        workspace: route.workspace, section: route.section, key: route.key,
+        step: route.step, mode: route.mode
+      });
+      if (!restored) {
+        state.status = "That content is no longer available.";
+        renderBrowser(container, state);
+      }
+    } else {
+      if (state.setId !== route.workspace) await openSet(container, state, route.workspace);
+      await openClassicEditor(container, state);
+    }
+  } finally {
+    restoringRoute = false;
+  }
+}
+
 /** Mounts the set manager into the app root after authentication. */
 export async function mountApp(container: HTMLElement): Promise<void> {
   const capabilities = await loadCapabilities();
@@ -1074,6 +1238,18 @@ export async function mountApp(container: HTMLElement): Promise<void> {
     draftVersion: 0, status: "", validation: { valid: false, issues: [] },
     help: session.help, savedAt: session.savedAt, lastEdited: session.lastEdited
   };
+  appContainer = container;
+  appState = state;
+  history.replaceState(null, "", "#/");
+  routeHash = "#/";
+  if (!popStateBound) {
+    popStateBound = true;
+    window.addEventListener("popstate", () => {
+      routeHash = location.hash || "#/";
+      const route = parseRouteHash(location.hash) ?? { kind: "browser" as const };
+      void restoreRoute(route);
+    });
+  }
   await refreshSets(state);
   renderBrowser(container, state);
 }

@@ -98,6 +98,29 @@ describe("set manager and single editor", () => {
     expect(container.textContent).toContain("Your dashboard");
   });
 
+  it("replays dashboard, set and editor screens on browser Back/Forward", async () => {
+    container.querySelector<HTMLElement>('[data-open="published-set"]')!.click();
+    await vi.waitFor(() => expect(container.querySelector("[data-open-editor]")).not.toBeNull());
+    expect(location.hash).toBe("#/set/published-set");
+
+    container.querySelector<HTMLElement>("[data-edit='campaigns:0']")!.click();
+    const sessionKey = "meowedit.editor-session.v1.author-1.published-set";
+    await vi.waitFor(() => expect(localStorage.getItem(sessionKey)).not.toBeNull());
+    expect(location.hash).toContain("#/edit/published-set/campaigns/");
+
+    history.pushState(null, "", "#/set/published-set");
+    window.dispatchEvent(new PopStateEvent("popstate"));
+    await vi.waitFor(() => expect(container.querySelector("[data-open-editor]")).not.toBeNull());
+
+    history.pushState(null, "", "#/");
+    window.dispatchEvent(new PopStateEvent("popstate"));
+    await vi.waitFor(() => expect(container.textContent).toContain("Your dashboard"));
+
+    history.pushState(null, "", "#/set/published-set");
+    window.dispatchEvent(new PopStateEvent("popstate"));
+    await vi.waitFor(() => expect(container.querySelector("[data-open-editor]")).not.toBeNull());
+  });
+
   it("opens Edit on a dialogue in the Advanced editor", async () => {
     const validSet = JSON.parse(readFileSync(path.resolve(process.cwd(), "contract/content/fixtures/valid-set.fixture.json"), "utf8"));
     setBridgeFetch(async (requestPath, init) => respond(requestPath, init, validSet));
@@ -107,6 +130,29 @@ describe("set manager and single editor", () => {
     const key = "meowedit.editor-session.v1.author-1.published-set";
     await vi.waitFor(() => expect(localStorage.getItem(key)).not.toBeNull());
     expect(JSON.parse(localStorage.getItem(key)!).editorMode).toBe("full");
+  });
+
+  it("accepts level-2 catalog ids when the Bridge serves a stale manifest", async () => {
+    const stale = JSON.parse(JSON.stringify(capabilities));
+    stale.ids.units = stale.ids.units.filter((id: string) => !id.endsWith("/2") && !id.endsWith("/3"));
+    const draft = makeValidDraft();
+    draft.armies.push({
+      schemaVersion: 2, id: "guarded", name: localized("Guarded Formation"),
+      units: [{ unitId: namedRef("Peasants/Tomeowto Thrower/2"), x: 0, y: 0, spellIds: [] }],
+      spellIds: [], blessingIds: [], CellBlessingPicks: []
+    } as never);
+    setBridgeFetch(async (requestPath, init) => {
+      if (requestPath === "/v1/editor/capabilities")
+        return new Response(JSON.stringify(stale), { status: 200, headers: { "content-type": "application/json" } });
+      return respond(requestPath, init, draft);
+    });
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(capabilities), {
+      status: 200, headers: { "content-type": "application/json" }
+    })));
+    await mountApp(container);
+    container.querySelector<HTMLElement>('[data-open="published-set"]')!.click();
+    await vi.waitFor(() => expect(container.querySelector("[data-open-editor]")).not.toBeNull());
+    expect(container.textContent).not.toContain("unresolved reference");
   });
 
   it("reports a hash mismatch when publishing", async () => {

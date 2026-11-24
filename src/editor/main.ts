@@ -63,6 +63,10 @@ export interface EditorMountOptions {
   capabilities: GameCapabilities;
   selected?: { section: string; index: number };
   forceMode?: "guided" | "full";
+  /** Restores a browser-history entry without mounting a fresh editor. */
+  initialStep?: number;
+  initialMode?: "guided" | "full";
+  onNavigation?(navigation: { step: number; mode: "guided" | "full" }): void;
   onSave(): Promise<string>;
   onDraftChange(): void;
   onBack(): void;
@@ -76,6 +80,8 @@ let mountOptions: EditorMountOptions | null = null;
 let mountGeneration = 0;
 let guidedContextUnlocked = false;
 let lastFocusSignature = "";
+let lastNotifiedStep = -1;
+let lastNotifiedMode: "guided" | "full" | null = null;
 const isScratch = () => !mountOptions?.setId;
 
 /**
@@ -111,6 +117,13 @@ export function reconcileCatalogIds(workspaceToRepair: typeof workspace, catalog
   return changed;
 }
 
+/** Replays a guided step / mode from browser history without remounting the editor. */
+export function setEditorNavigation(step: number, mode: "guided" | "full"): void {
+  activeEditorStep = Math.max(0, step);
+  editorMode = mode;
+  render();
+}
+
 /** Mounts the editor on its native, per-set workspace. */
 export function mountEditor(options: EditorMountOptions): void {
   const generation = ++mountGeneration;
@@ -118,11 +131,13 @@ export function mountEditor(options: EditorMountOptions): void {
   // Entering the editor from the dashboard or a set is a fresh navigation. Restore
   // that destination's saved preferences, but never resume a stale guided step.
   const session = loadEditorSession(localStorage, options.setId);
-  editorMode = options.forceMode ?? session.editorMode;
+  editorMode = options.initialMode ?? options.forceMode ?? session.editorMode;
   helpVisible = session.helpVisible;
   sidebarCollapsed = session.sidebarCollapsed;
   armyCatalogKind = session.armyCatalogKind;
-  activeEditorStep = 0;
+  activeEditorStep = options.initialStep ?? 0;
+  lastNotifiedStep = -1;
+  lastNotifiedMode = null;
   selectedArmyPlacementId = null;
   selectedCampaignFloorId = null;
   selectedCampaignNodeId = null;
@@ -262,6 +277,11 @@ function persistEditorSession(): void {
 }
 
 function render(): void {
+  if (mountOptions?.onNavigation && (activeEditorStep !== lastNotifiedStep || editorMode !== lastNotifiedMode)) {
+    lastNotifiedStep = activeEditorStep;
+    lastNotifiedMode = editorMode;
+    mountOptions.onNavigation({ step: activeEditorStep, mode: editorMode });
+  }
   const campaign = currentCampaign();
   if (campaign) {
     if (!campaign.floors.some(item => item.id === selectedCampaignFloorId)) selectedCampaignFloorId = campaign.floors[0]?.id ?? null;

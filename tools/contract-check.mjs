@@ -96,6 +96,15 @@ const capabilities = loadJson(path.join(projectDirectory, "public", "game-capabi
 if (capabilities.schemaVersions?.[0] !== 2)
   throw new Error("public/game-capabilities.json does not declare schema version 2.");
 
+const armyCatalog = loadJson(path.join(projectDirectory, "public", "army-catalog.json"));
+const levelIds = (armyCatalog.units ?? [])
+  .flatMap(entity => (entity.levels ?? []).map(level => level.id));
+const capabilityUnitIds = new Set(capabilities.ids?.units ?? []);
+const missingLevelIds = levelIds.filter(id => id && !capabilityUnitIds.has(id));
+if (missingLevelIds.length)
+  throw new Error("public/game-capabilities.json is missing " + missingLevelIds.length +
+    " catalog level ids, e.g. " + missingLevelIds.slice(0, 3).join(", ") + ".");
+
 console.log("Contract check OK: " + schemas.length + " schemas (sha256 " + schemaHash.slice(0, 12) + "), "
   + fixtureFiles.length + " fixtures, " + registries.triggers.length + " triggers, "
   + registries.conditions.length + " conditions, " + registries.actions.length + " actions.");
