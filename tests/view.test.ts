@@ -355,12 +355,12 @@ describe("editor rendering", () => {
     expect(advanced).toContain('details class="mission-advanced-node" open');
     expect(advanced).toContain('class="mission-floor-pool" open');
     const nameStep = renderApp(workspace, rosterFixture, catalog, [], 0, "guided", null, view);
-    expect(nameStep).toContain("Step 1 of 9");
+    expect(nameStep).toContain("Step 1 of 8");
     expect(nameStep).toContain('data-bind="name"');
     expect(nameStep).not.toContain('data-mission-canvas');
     expect(nameStep).not.toContain('class="mission-settings-panel"');
     const floorStep = renderApp(workspace, rosterFixture, catalog, [], 1, "guided", null, view);
-    expect(floorStep).toContain("Step 2 of 9");
+    expect(floorStep).toContain("Step 2 of 8");
     expect(floorStep).toContain("Choose the boards");
     expect(floorStep).toContain("Place nodes and connect routes");
     expect(floorStep).toContain('data-mission-port="output"');
@@ -370,12 +370,12 @@ describe("editor rendering", () => {
     expect(floorStep).toContain("grid cell 0, 0");
     expect(floorStep).not.toContain('data-action="mission-connect-mode"');
     const nodeStep = renderApp(workspace, rosterFixture, catalog, [], 2, "guided", null, view);
-    expect(nodeStep).toContain("Step 3 of 9");
+    expect(nodeStep).toContain("Step 3 of 8");
     expect(nodeStep).toContain('data-action="mission-back-to-map"');
     expect(nodeStep).toContain('class="mission-map-step mission-context-map"');
     expect(nodeStep).toContain('data-mission-canvas');
     expect(renderApp(workspace, rosterFixture, catalog, [], 3, "guided", null, view)).toContain("Find a quest");
-    expect(renderApp(workspace, rosterFixture, catalog, [], 8, "guided", null, view)).toContain("Review your mission");
+    expect(renderApp(workspace, rosterFixture, catalog, [], 7, "guided", null, view)).toContain("Review your mission");
     workspace.missions[0].floors[0].mode = "random";
     expect(renderApp(workspace, rosterFixture, catalog, [], 0, "full", null, view)).toContain("GENERATED BOARD");
   });
@@ -398,15 +398,38 @@ describe("editor rendering", () => {
     expect(advanced).toContain("Create army");
     expect(advanced).toContain("Edit linked army");
 
-    const eventStep = renderApp(workspace, rosterFixture, catalog, [], 8, "guided", null, view, undefined, "units", false, undefined, undefined, undefined, undefined, "event-battle");
-    expect(eventStep).toContain("Step 9 of 10 · Mission");
+    const eventStep = renderApp(workspace, rosterFixture, catalog, [], 7, "guided", null, view, undefined, "units", false, undefined, undefined, undefined, undefined, "event-battle");
+    expect(eventStep).toContain("Step 8 of 9 · Mission");
     expect(eventStep).toContain('class="mission-event-editor mission-event-focus"');
     expect(eventStep).toContain('data-bind="events.0.floorNumber"');
     expect(eventStep).toContain('<option value="battle-a-1" selected>Battle 1 · Battle</option>');
 
-    const review = renderApp(workspace, rosterFixture, catalog, [], 9, "guided", null, view);
+    const review = renderApp(workspace, rosterFixture, catalog, [], 8, "guided", null, view);
     expect(review).toContain("Review your mission");
     expect(review).toContain("Before a battle · Floor 1 · Battle 1");
+  });
+
+  it("keeps generated-floor rules inside the Mission settings step and offers a quest library", () => {
+    const workspace = workspaceFixture();
+    workspace.selectedType = "mission";
+    workspace.selectedKey = workspace.missions[0].key;
+    const view = { selectedFloorId: workspace.missions[0].floors[0].id, selectedNodeId: "start", interactionMode: "select" as const, nodeKind: "Battle" as const, addMenuOpen: false, pendingPlugFromId: null, selectedRouteId: null };
+    let settingsStep = -1;
+    for (let step = 0; step < 9; step++) {
+      const html = renderApp(workspace, rosterFixture, catalog, [], step, "guided", null, view);
+      if (html.includes("Continue with generated floors")) {
+        settingsStep = step;
+        expect(html).toContain("Starting Sardines");
+        expect(html).toContain("Mission settings");
+      }
+    }
+    expect(settingsStep).toBeGreaterThanOrEqual(0);
+
+    const quests = renderApp(workspace, rosterFixture, catalog, [], 3, "guided", null, view, undefined, "units", false, undefined, undefined, undefined, undefined, undefined, true,
+      [{ setId: "other-set", id: "existing-quest", title: "Existing quest" }]);
+    expect(quests).toContain("Find a quest");
+    expect(quests).toContain('data-action="import-set-quest"');
+    expect(quests).toContain("Existing quest");
   });
 
   it("reviews every Mission floor, authored reference, quest pool, and run setting", () => {
@@ -548,4 +571,5 @@ describe("editor rendering", () => {
     expect(renderDialoguePreview(record, { ...workspaceFixture(), activeNodeId: null }, roster)).toContain("Add a node to see the dialogue preview");
   });
 });
+
 

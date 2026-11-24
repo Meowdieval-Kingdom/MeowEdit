@@ -1293,6 +1293,12 @@ function renderMissionEventsList(mission: MissionRecord, workspace: Workspace): 
     (rows || '<p class="mission-event-empty">No mission events yet.</p>') + '</section>';
 }
 
+export interface QuestLibraryEntry {
+  setId: string;
+  id: string;
+  title: string;
+}
+
 function renderMissionEditor(
   mission: MissionRecord,
   workspace: Workspace,
@@ -1302,7 +1308,8 @@ function renderMissionEditor(
   activeStep: number,
   helpVisible: boolean,
   returnState?: RelatedEditorReturnState,
-  selectedMissionEventId: string | null = null
+  selectedMissionEventId: string | null = null,
+  questLibrary: QuestLibraryEntry[] = []
 ): string {
   const floor = mission.floors.find(item => item.id === viewState.selectedFloorId) ?? mission.floors[0];
   const floorIndex = floor ? mission.floors.findIndex(item => item.id === floor.id) : -1;
@@ -1397,7 +1404,7 @@ function renderMissionEditor(
       const distanceText = String(mapSteps);
       const labelX = (x1 + 3 * control1X + 3 * control2X + x2) / 8;
       const labelY = (y1 + 3 * y1 + 3 * y2 + y2) / 8 - 5;
-      return '<g class="mission-route-group"><path class="mission-route-line' + (route.oneWay ? " is-one-way" : "") + (viewState.selectedRouteId === route.id ? " is-selected" : "") + '" data-mission-route-id="' + escapeHtml(route.id) + '" role="button" tabindex="0" aria-label="Connection: ' + escapeHtml(fromName + (route.oneWay ? " to " : " with ") + toName + "; map distance " + distanceText + (mapSteps === 1 ? " step" : " steps")) + '" d="M ' + x1 + ' ' + y1 + ' C ' + control1X + ' ' + y1 + ', ' + control2X + ' ' + y2 + ', ' + x2 + ' ' + y2 + '"' + (route.oneWay ? ' marker-end="url(#mission-arrow)"' : "") + '/><text class="mission-route-distance" x="' + labelX + '" y="' + labelY + '" aria-hidden="true">' + distanceText + '</text></g>';
+      return '<g class="mission-route-group"><path class="mission-route-line' + (route.oneWay ? " is-one-way" : "") + (viewState.selectedRouteId === route.id ? " is-selected" : "") + '" data-mission-route-id="' + escapeHtml(route.id) + '" role="button" tabindex="0" aria-label="Connection: ' + escapeHtml(fromName + (route.oneWay ? " to " : " with ") + toName + "; map distance " + distanceText + (mapSteps === 1 ? " step" : " steps")) + '" d="M ' + x1 + ' ' + y1 + ' L ' + x2 + ' ' + y2 + '"' + (route.oneWay ? ' marker-end="url(#mission-arrow)"' : "") + '/><text class="mission-route-distance" x="' + labelX + '" y="' + labelY + '" aria-hidden="true">' + distanceText + '</text></g>';
     }).join("");
     const selectedRoute = floor.routes.find(route => route.id === viewState.selectedRouteId);
     const selectedRouteFrom = selectedRoute && floor.nodes.find(node => node.id === selectedRoute.fromNodeId);
@@ -1496,9 +1503,19 @@ function renderMissionEditor(
     return '<div class="mission-quest-row"><button type="button" class="mission-quest-chip' + (active ? " is-active" : "") + '" data-action="mission-toggle-quest" data-quest-id="' + escapeHtml(id) + '"><i>' + (active ? "✓" : "+") + '</i><span><strong>' + escapeHtml(quest.definition.title || id) + '</strong><small>' + escapeHtml(quest.definition.objectiveKind) + '</small></span></button>' +
       actionButton("open-mission-pool-quest", "Edit", "text-button related-open", ' data-quest-id="' + escapeHtml(id) + '"') + '</div>';
   }).join("");
+  const libraryRows = questLibrary.length
+    ? questLibrary.map(entry => {
+      const already = workspace.quests.some(quest => quest.definition.id === entry.id);
+      return '<button type="button" class="mission-quest-chip' + (already ? " is-active" : "") + '"' +
+        (already ? " disabled" : ' data-action="import-set-quest" data-set-id="' + escapeHtml(entry.setId) + '" data-quest-id="' + escapeHtml(entry.id) + '"') +
+        '><i>' + (already ? "✓" : "+") + '</i><span><strong>' + escapeHtml(entry.title || entry.id) + '</strong><small>' + escapeHtml(entry.setId) + '</small></span></button>';
+    }).join("")
+    : '<p class="section-note help-copy">No quests in other sets yet.</p>';
   const poolDisclosure = '<details class="mission-pool-panel" open><summary>Quest pool <span>' + mission.questIds.length + ' selected · ' + workspace.quests.length + ' available</span></summary>' +
     '<div class="mission-pool-actions">' + actionButton("create-mission-pool-quest", "＋ Create quest", "text-button related-create") + '</div>' +
-    (workspace.quests.length ? '<div class="mission-quest-pool-list">' + poolRows + '</div>' : '<p class="section-note help-copy">Create a quest to add it to this mission.</p>') + '</details>';
+    (workspace.quests.length ? '<div class="mission-quest-pool-list">' + poolRows + '</div>' : '<p class="section-note help-copy">Create a quest to add it to this mission.</p>') +
+    '<details class="mission-quest-library"><summary>Add existing quests from other sets</summary><div class="mission-quest-pool-list">' + libraryRows + '</div></details>' +
+    '</details>';
   const identity = '<section class="mission-identity" id="mission-basics">' + inputField("Mission name", "name", mission.name, { placeholder: "The Willow Road" }) +
     textAreaField("Short description", "description", mission.description, "Shown in the game mission picker once that screen is connected.", 2) +
     (mode === "full" ? inputField("Mission ID (system managed)", "id", mission.id, { readOnly: true }) : '<details class="advanced-rule-disclosure"><summary>Advanced · stable ID</summary>' + inputField("Mission ID (system managed)", "id", mission.id, { readOnly: true, hint: "Generated automatically; referenced by game saves." }) + '</details>') +
@@ -1547,8 +1564,8 @@ function renderMissionEditor(
   }
 
   const steps = mission.designMode === "choose" ? ["Approach"] : isSettingsOnly
-    ? ["Name", "Randomizer settings", ...(hasQuestContent ? ["Quests"] : []), ...(hasFloorPoolChoices ? ["Floor pools"] : []), ...(hasShopContent ? ["Shop pools", "Shop unlocks"] : []), "Starting run", "Progression", ...(mission.events.length ? ["Events"] : []), "Review"]
-    : ["Name", "Floors", ...(hasAuthoredBoards ? ["Node"] : []), "Quests", ...(hasFloorPoolChoices ? ["Floor pools"] : []), ...(hasShopContent ? ["Shop pools", "Shop unlocks"] : []), "Starting run", "Generated floors", ...(mission.events.length ? ["Events"] : []), "Review"];
+    ? ["Name", "Randomizer settings", ...(hasQuestContent ? ["Quests"] : []), ...(hasFloorPoolChoices ? ["Floor pools"] : []), ...(hasShopContent ? ["Shop pools", "Shop unlocks"] : []), "Mission settings", ...(mission.events.length ? ["Events"] : []), "Review"]
+    : ["Name", "Floors", ...(hasAuthoredBoards ? ["Node"] : []), "Quests", ...(hasFloorPoolChoices ? ["Floor pools"] : []), ...(hasShopContent ? ["Shop pools", "Shop unlocks"] : []), "Mission settings", ...(mission.events.length ? ["Events"] : []), "Review"];
   const step = Math.max(0, Math.min(steps.length - 1, activeStep));
   const stepName = steps[step];
   guidedFinalStepActive = step === steps.length - 1;
@@ -1617,10 +1634,8 @@ function renderMissionEditor(
     screen = '<section class="mission-settings-step mission-shop-pools-step"><p class="mission-step-prompt help-copy">Choose what generated map shops can offer.</p>' + missionShopSettings + '</section>';
   } else if (stepName === "Shop unlocks") {
     screen = '<section class="mission-settings-step mission-shop-unlocks-step"><p class="mission-step-prompt help-copy">Set the shop tier and offer pools available on each floor.</p>' + floorShopSettings + '</section>';
-  } else if (stepName === "Starting run") {
-    screen = '<section class="mission-settings-step"><p class="mission-step-prompt help-copy">Choose the board character, starting resources, and faction.</p>' + startingSettings + '</section>';
-  } else if (stepName === "Progression" || stepName === "Generated floors") {
-    screen = '<section class="mission-settings-step"><p class="mission-step-prompt help-copy">' + (isSettingsOnly ? "Choose whether the generated run continues and how later floors grow." : "Choose whether to continue beyond these boards and how later floors grow.") + '</p>' + generatedFloorSettings + '</section>';
+  } else if (stepName === "Mission settings") {
+    screen = '<section class="mission-settings-step"><p class="mission-step-prompt help-copy">Choose the board character, starting resources, faction, and what happens after these boards.</p>' + settings + '</section>';
   } else if (stepName === "Events") {
     const selectedEventIndex = mission.events.findIndex(event => event.id === selectedMissionEventId);
     screen = selectedEventIndex >= 0
@@ -1899,7 +1914,8 @@ export function renderApp(
   abilityCategory: ArmyAbilityKind = "spells",
   abilitySelections: ArmyAbilitySelections = defaultArmyAbilitySelections,
   selectedMissionEventId: string | null = null,
-  publishAllowed = true
+  publishAllowed = true,
+  questLibrary: QuestLibraryEntry[] = []
 ): string {
   guidedFinalStepActive = editorMode === "full";
   const item = selectedItem(workspace);
@@ -1930,7 +1946,7 @@ export function renderApp(
   } else if ("definition" in item) {
     content = renderQuestEditor(item, workspace, roster, catalog, activeEditorStep, editorMode, helpVisible, relatedReturnState);
   } else if ("floors" in item) {
-    content = renderMissionEditor(item, workspace, catalog, editorMode, missionViewState, activeEditorStep, helpVisible, relatedReturnState, selectedMissionEventId);
+    content = renderMissionEditor(item, workspace, catalog, editorMode, missionViewState, activeEditorStep, helpVisible, relatedReturnState, selectedMissionEventId, questLibrary);
   } else {
     content = renderArmyEditor(item, catalog, roster, editorMode, selectedArmyPlacementId, activeEditorStep, armyCatalogKind, helpVisible, relatedReturnState, cellFocus, abilityFilters, abilityCategory, abilitySelections);
   }

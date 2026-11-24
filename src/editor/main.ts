@@ -31,7 +31,7 @@ import { addMissionNode, connectMissionNodes, createMissionFloor, moveMissionNod
 import { EditorNavigationHistory, type RelatedEditorReturnContext } from "./editor-navigation";
 import { defaultEditorSession, loadEditorSession, saveEditorSession } from "./editor-session";
 import { includeArmyUnitsInRoster } from "./roster";
-import { getBridgeActions } from "../bridge-context";
+import { getBridgeActions, getBridgeUserId } from "../bridge-context";
 import type { ContentSetDocument, GameCapabilities } from "../content/types";
 import { workspaceToDraft } from "./convert";
 import { loadScratchWorkspace, loadWorkspace, markWorkspaceDirty, saveScratchWorkspace, saveWorkspace as persistWorkspace } from "./workspace-store";
@@ -41,7 +41,8 @@ import {
 } from "./export";
 import { readStoredZip } from "./zip";
 import { normalizeArmy, normalizeMission, normalizeQuest } from "./import-normalizers";
-import { escapeHtml, renderApp, renderLivePreview, renderValidationSummary, renderArmyEntityPreview, renderArmyAbilityPreview, setScratchMode, setGuidedContextUnmuted, type ArmyAbilityFilters, type ArmyAbilityKind, type ArmyAbilitySelections, type EditorMode } from "./view";
+import { escapeHtml, renderApp, renderLivePreview, renderValidationSummary, renderArmyEntityPreview, renderArmyAbilityPreview, setScratchMode, setGuidedContextUnmuted, type ArmyAbilityFilters, type ArmyAbilityKind, type ArmyAbilitySelections, type EditorMode, type QuestLibraryEntry } from "./view";
+import { SCRATCH_WORKSPACE } from "./workspace-store";
 
 const initialEditorSession = (() => {
   try { return loadEditorSession(localStorage); }
@@ -301,6 +302,26 @@ function persistEditorSession(): void {
   }
 }
 
+/** Quests authored in the author's other sets, available to copy into this mission. */
+function questLibrary(): QuestLibraryEntry[] {
+  const entries: QuestLibraryEntry[] = [];
+  let records: Record<string, { draft?: ContentSetDocument }> = {};
+  try {
+    records = JSON.parse(localStorage.getItem("meowedit.v2.sets." + (getBridgeUserId() ?? "local")) ?? "{}");
+  } catch { return entries; }
+  const current = mountOptions?.setId ?? SCRATCH_WORKSPACE;
+  for (const [setId, record] of Object.entries(records)) {
+    if (setId === current || !record?.draft) continue;
+    for (const quest of record.draft.quests ?? []) {
+      const id = typeof quest.id === "string" ? quest.id : "";
+      if (!id) continue;
+      const title = (quest as { title?: { default?: string } }).title;
+      entries.push({ setId, id, title: title?.default ?? id });
+    }
+  }
+  return entries;
+}
+
 function render(): void {
   if (mountOptions?.onNavigation && (activeEditorStep !== lastNotifiedStep || editorMode !== lastNotifiedMode)) {
     lastNotifiedStep = activeEditorStep;
@@ -345,7 +366,7 @@ function render(): void {
     parent: returnContext.parentType === "mission" ? "Mission" : "Quest",
     label: returnContext.returnLabel
   } : undefined, armyCatalogKind, helpVisible, { abilityId: selectedArmyBattlefieldEffectId, region: selectedArmyCellRegion }, armyAbilityFilters, armyAbilityCategory, armyAbilitySelections, selectedMissionEventId,
-    (mountOptions?.canPublishEditor?.() ?? true) && !isScratch());
+    (mountOptions?.canPublishEditor?.() ?? true) && !isScratch(), questLibrary());
   const appLayout = root!.querySelector<HTMLElement>(".app-layout");
   appLayout?.classList.toggle("is-sidebar-collapsed", sidebarCollapsed);
   appLayout?.classList.toggle("is-sidebar-open", root!.querySelector<HTMLElement>(".sidebar")?.classList.contains("is-open") ?? false);
@@ -2085,6 +2106,25 @@ function onAction(button: HTMLButtonElement): void {
       floor.routes = floor.routes.filter(route => route.id !== button.dataset.routeId);
       selectedMissionRouteId = null;
       saveWorkspace(); render(); return;
+    }
+    case "import-set-quest": {
+      const mission = currentMission();
+      const setId = button.dataset.setId ?? "";
+      const questId = button.dataset.questId ?? "";
+      if (!mission || !questId) return;
+      if (workspace.quests.some(quest => quest.definition.id === questId)) {
+        if (!mission.questIds.includes(questId)) mission.questIds.push(questId);
+        saveWorkspace(); render(); return;
+      }
+      let records: Record<string, { draft?: ContentSetDocument }> = {};
+      try { records = JSON.parse(localStorage.getItem("meowedit.v2.sets." + (getBridgeUserId() ?? "local")) ?? "{}"); } catch { /* no library */ }
+      const quest = records[setId]?.draft?.quests.find(item => item.id === questId);
+      if (!quest) { showToast("That quest is no longer available.", "warning"); return; }
+      workspace.quests.push({ ...structuredClone(quest), key: createKey("quest") } as never);
+      mission.questIds.push(questId);
+      saveWorkspace(); render();
+      showToast("Quest added from " + setId + ".");
+      return;
     }
     case "mission-toggle-quest": {
       const mission = currentMission();

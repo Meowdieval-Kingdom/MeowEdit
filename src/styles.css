@@ -1656,6 +1656,7 @@ body { color: var(--ink); background: var(--canvas); }
 .dialogue-graph-kicker b { color: #60764f; font-size: 8px; }
 .dialogue-graph-title { color: #30352d; font-size: 12px; font-weight: 700; line-height: 1.25; overflow-wrap: anywhere; }
 .dialogue-graph-card-head small { color: #858a80; font-size: 9px; line-height: 1; }
+.dialogue-graph-preview { display: block; max-width: 190px; overflow: hidden; color: #697262 !important; font-size: 10px !important; line-height: 1.3 !important; text-overflow: ellipsis; white-space: nowrap; }
 .dialogue-graph-routes { padding: 0 9px 7px 11px; }
 .dialogue-graph-route { height: 32px; display: flex; align-items: center; gap: 7px; min-width: 0; border-top: 1px solid #efefe9; }
 .dialogue-graph-route-mark { flex: 0 0 auto; width: 6px; height: 6px; background: #a1a894; border-radius: 50%; }
@@ -1835,12 +1836,12 @@ body { color: var(--ink); background: var(--canvas); }
 .mission-route-draft { stroke: #748661; stroke-width: 2.5; stroke-dasharray: 5 4; vector-effect: non-scaling-stroke; pointer-events: none; }
 .mission-route-remove-float { position: absolute; z-index: 4; display: grid; width: 23px; height: 23px; padding: 0; place-items: center; color: #765f58; font-size: 16px; line-height: 1; background: #fffefa; border: 1px solid #cec8be; border-radius: 50%; box-shadow: 0 2px 7px #22291b26; transform: translate(-50%, -50%); cursor: pointer; }
 .mission-route-remove-float:hover { color: #fff; background: #8d685f; border-color: #8d685f; }
-.mission-node { position: absolute; z-index: 2; width: 124px; height: 68px; transform: translate(-50%, -50%); }
-.mission-node-select { display: grid; grid-template-columns: 28px 1fr; grid-template-rows: 1fr 1fr; align-items: center; width: 100%; height: 100%; padding: 8px 9px; color: #4b5147; text-align: left; background: #fffefa; border: 1px solid #d3d6cd; border-radius: 9px; box-shadow: 0 3px 10px #22291b12; cursor: grab; }
+.mission-node { position: absolute; z-index: 2; width: 86px; height: 86px; transform: translate(-50%, -50%); }
+.mission-node-select { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; width: 100%; height: 100%; padding: 6px; color: #4b5147; text-align: center; background: #fffefa; border: 1px solid #d3d6cd; border-radius: 50%; box-shadow: 0 3px 10px #22291b12; cursor: grab; }
 .mission-node-select:active { cursor: grabbing; }
 .mission-node-select strong { overflow: hidden; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
-.mission-node-select small { grid-column: 2; color: #858a80; font-size: 8px; font-variant-numeric: tabular-nums; }
-.mission-node-symbol { grid-row: 1 / 3; display: grid; place-items: center; width: 23px; height: 23px; color: #647453; font-size: 12px; background: #eef1e9; border-radius: 7px; }
+.mission-node-select small { color: #858a80; font-size: 8px; font-variant-numeric: tabular-nums; }
+.mission-node-symbol { display: grid; place-items: center; width: 21px; height: 21px; color: #647453; font-size: 11px; background: #eef1e9; border-radius: 50%; }
 .mission-node-start .mission-node-symbol, .mission-node-boss .mission-node-symbol { color: #72583c; background: #f4eee4; }
 .mission-node-reward .mission-node-symbol { color: #92703e; background: #f7f0e1; }
 .mission-node-quest .mission-node-symbol { color: #526d81; background: #edf2f5; }
