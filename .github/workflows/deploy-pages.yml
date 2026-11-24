@@ -30,16 +30,18 @@ jobs:
         run: npm ci
       - name: Fetch the canonical contract doc
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.MEOWEDIT_AUTHORITY_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p .authority
-          curl -fsSL -H "Authorization: Bearer $GH_TOKEN" \
+          if curl -fsSL -H "Authorization: Bearer $GH_TOKEN" \
             -H "Accept: application/vnd.github.raw+json" \
             "https://api.github.com/repos/Meowdieval-Kingdom/MeowdievalKingdom/contents/Docs/MeowEdit-Content-Contract.md?ref=feature/adventure-map-content" \
-            -o .authority/MeowEdit-Content-Contract.md
+            -o .authority/MeowEdit-Content-Contract.md; then
+            echo "MEOWEDIT_AUTHORITY_DOC=${{ github.workspace }}/.authority/MeowEdit-Content-Contract.md" >> "$GITHUB_ENV"
+          else
+            echo "::warning::Canonical contract doc is not readable with this token; the checked-in schema.sha256 gate still applies."
+          fi
       - name: Verify the content contract
-        env:
-          MEOWEDIT_AUTHORITY_DOC: ${{ github.workspace }}/.authority/MeowEdit-Content-Contract.md
         run: npm run contract:check
       - name: Run tests with coverage
         run: npm run test:coverage
