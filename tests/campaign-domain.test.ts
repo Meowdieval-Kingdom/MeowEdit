@@ -42,8 +42,9 @@ describe("campaign board operations", () => {
     expect(moveCampaignNode(floor, "battle-a-1", 31, 0)).toContain("30 map steps");
     expect(moveCampaignNode(floor, "battle-a-1", 1, 1)).toContain("occupied");
     expect(moveCampaignNode(floor, "start", 1, 0)).toContain("Start stays");
-    expect(moveCampaignNode(floor, "battle-a-1", -2, 0)).toBeNull();
-    expect(floor.nodes.find(node => node.id === "battle-a-1")?.x).toBe(-2);
+    expect(moveCampaignNode(floor, "battle-a-1", -2, 0)).toContain("stretch a route");
+    expect(moveCampaignNode(floor, "battle-a-1", 0, 1)).toBeNull();
+    expect(floor.nodes.find(node => node.id === "battle-a-1")?.y).toBe(1);
   });
 
   it("connects neighboring nodes and avoids duplicate routes", () => {

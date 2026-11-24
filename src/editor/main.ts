@@ -899,7 +899,10 @@ function connectCampaignPlugs(fromNodeId: string, toNodeId: string): void {
   if (!floor || fromNodeId === toNodeId) return;
   const result = connectCampaignNodes(floor, fromNodeId, toNodeId, false);
   if (result === "not-neighbors") {
-    showToast("Drop on a neighboring node. Diagonal connections are allowed.", "warning");
+    const from = floor.nodes.find(node => node.id === fromNodeId);
+    const to = floor.nodes.find(node => node.id === toNodeId);
+    const steps = from && to ? Math.max(Math.abs(from.x - to.x), Math.abs(from.y - to.y)) : 0;
+    showToast("These nodes are " + steps + " grid steps apart. Routes join neighboring cells only (including diagonals); move them closer first.", "warning");
     return;
   }
   if (result === "exists") {

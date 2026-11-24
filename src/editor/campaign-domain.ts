@@ -63,6 +63,15 @@ export function moveCampaignNode(floor: CampaignFloor, nodeId: string, x: number
   if (Math.abs(x) > 30 || Math.abs(y) > 30) return "Place nodes within 30 map steps of the Start.";
   if (floor.nodes.some(item => item.id !== nodeId && item.x === x && item.y === y)) return "That map coordinate is occupied.";
   if (node.kind === "Start" && (x !== 0 || y !== 0)) return "Start stays at the game map origin (0, 0).";
+  // Routes can only join neighboring cells, so dragging a connected node must not
+  // create a gap that the connection UI would refuse.
+  const stretched = floor.routes.some(route => {
+    if (route.fromNodeId !== nodeId && route.toNodeId !== nodeId) return false;
+    const otherId = route.fromNodeId === nodeId ? route.toNodeId : route.fromNodeId;
+    const other = floor.nodes.find(item => item.id === otherId);
+    return !other || Math.max(Math.abs(x - other.x), Math.abs(y - other.y)) !== 1;
+  });
+  if (stretched) return "That move would stretch a route beyond neighboring grid cells; remove the route first.";
   node.x = x;
   node.y = y;
   return null;
