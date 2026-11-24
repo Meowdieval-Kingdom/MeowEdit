@@ -312,7 +312,7 @@ function renderBrowser(container: HTMLElement, state: AppState): void {
     void createLocal(container, state, button.dataset.create as DetailSection);
   }));
   container.querySelectorAll<HTMLElement>("[data-edit-local]").forEach(button => button.addEventListener("click", () => {
-    void openLocal(container, state, buttonData(button.dataset.editLocal));
+    void openLocal(container, state, buttonData(button.dataset.editLocal), "full");
   }));
   container.querySelectorAll<HTMLElement>("[data-export-local]").forEach(button => button.addEventListener("click", () => {
     exportLocal(buttonData(button.dataset.exportLocal));
@@ -483,7 +483,7 @@ async function createLocal(container: HTMLElement, state: AppState, section: Det
   });
 }
 
-async function openLocal(container: HTMLElement, state: AppState, input: { section: DetailSection; key: string }): Promise<void> {
+async function openLocal(container: HTMLElement, state: AppState, input: { section: DetailSection; key: string }, forceMode?: "guided" | "full"): Promise<void> {
   const workspace = loadScratchWorkspace();
   const index = (workspace[input.section] as unknown as Array<Record<string, unknown>>)
     .findIndex(item => item.key === input.key);
@@ -492,7 +492,7 @@ async function openLocal(container: HTMLElement, state: AppState, input: { secti
   workspace.selectedType = SECTION_SINGULAR[input.section];
   workspace.selectedKey = input.key;
   saveScratchWorkspace(workspace);
-  await openEditor(container, state, { workspace: SCRATCH_WORKSPACE, section: input.section, index, key: input.key, label: recordLabel(input.section, item) });
+  await openEditor(container, state, { workspace: SCRATCH_WORKSPACE, section: input.section, index, key: input.key, label: recordLabel(input.section, item), forceMode });
 }
 
 async function continueEditing(container: HTMLElement, state: AppState, input: { workspace: string; section: DetailSection; key: string }): Promise<void> {
@@ -953,7 +953,7 @@ function renderSetView(container: HTMLElement, state: AppState): void {
   });
   container.querySelectorAll<HTMLElement>("[data-edit]").forEach(button => button.addEventListener("click", () => {
     const [section, index] = button.dataset.edit!.split(":");
-    void openClassicEditor(container, state, { section: section as DetailSection, index: Number(index) });
+    void openClassicEditor(container, state, { section: section as DetailSection, index: Number(index) }, "full");
   }));
   container.querySelector<HTMLElement>("[data-save]")?.addEventListener("click", () => { void saveDraft(state).then(() => flashStatus(container, state)); });
   container.querySelector<HTMLElement>("[data-publish]")?.addEventListener("click", () => { void publishDraft(state).then(() => flashStatus(container, state)); });
@@ -965,7 +965,7 @@ function flashStatus(container: HTMLElement, state: AppState): void {
 }
 
 /** Opens the single classic editor, which owns both Guided and Full modes per category. */
-async function openClassicEditor(container: HTMLElement, state: AppState, selected?: { section: string; index: number }): Promise<void> {
+async function openClassicEditor(container: HTMLElement, state: AppState, selected?: { section: string; index: number }, forceMode?: "guided" | "full"): Promise<void> {
   try {
     const { mountEditor } = await import("../editor/main");
     mountEditor({
@@ -973,6 +973,7 @@ async function openClassicEditor(container: HTMLElement, state: AppState, select
       draft: state.draft,
       capabilities: state.capabilities,
       selected,
+      forceMode,
       onSave: () => saveDraft(state),
       onDraftChange: () => {
         state.validation = validateContentSet(state.draft, state.capabilities);

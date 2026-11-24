@@ -9,6 +9,7 @@ import type {
   Workspace
 } from "./model";
 import { armyFootprintsOverlap, armyGridSize, canPlaceArmyLevel, resolveArmyLevel } from "./army-catalog";
+import { findAction, isKnownTrigger } from "../content/registries";
 
 export interface ValidationIssue {
   level: "error" | "warning";
@@ -81,9 +82,8 @@ export function validateDialogue(record: DialogueRecord): ValidationIssue[] {
     }
   }
 
-  if (nodes.length > 0 && !nodes.some(node => (node.actions?.length ?? 0) > 1)) {
-    issues.push({ level: "warning", message: "No branching choices yet. Add another choice to create a branch." });
-  }
+  // Linear sequences are a supported runtime shape: the player synthesizes a
+  // Continue action and advances to the next node, so no branch warning here.
   return issues;
 }
 
@@ -233,7 +233,8 @@ export function validateWorkspace(workspace: Workspace, catalog: ArmyCatalog = {
 
 const CAMPAIGN_NODE_KINDS = new Set(["Start", "Battle", "Reward", "Boss", "Quest", "Shop"]);
 const CAMPAIGN_REWARD_KINDS = new Set(["Sardines", "ExtraLife", "Blessing", "UnitUnlock", "ShopLevelUnlock", "SpellUnlock"]);
-const CAMPAIGN_EVENT_TRIGGERS = new Set(["campaign-start", "before-battle", "after-battle", "node-cleared"]);
+// Use the canonical registry vocabulary instead of a stale local whitelist; the
+// runtime and publisher accept every trigger listed there (for example battle-won).
 
 export function validateCampaign(
   campaign: CampaignRecord,
@@ -248,7 +249,8 @@ export function validateCampaign(
   if (!campaign.settings.factionSelectionEnabled && !campaign.settings.playerFactionId) {
     issues.push({ level: "error", message: "Choose a player faction when faction selection is disabled." });
   }
-  if (!Number.isInteger(campaign.settings.startingSardines) || campaign.settings.startingSardines < 10 || campaign.settings.startingSardines > 50) issues.push({ level: "error", message: "Starting Sardines must be a whole number between 10 and 50, matching Adventure settings." });
+  // 0 is a legitimate "start broke" value at runtime (AdventureRunFactory clamps at 0).
+  if (!Number.isInteger(campaign.settings.startingSardines) || campaign.settings.startingSardines < 0 || campaign.settings.startingSardines > 50) issues.push({ level: "error", message: "Starting Sardines must be a whole number between 0 and 50, matching Adventure settings." });
   if (!Number.isInteger(campaign.settings.startingNodeCount) || campaign.settings.startingNodeCount < 12 || campaign.settings.startingNodeCount > 30 || campaign.settings.startingNodeCount % 2 !== 0) issues.push({ level: "error", message: "Starting random floor node count must be an even number between 12 and 30." });
   if (!Number.isInteger(campaign.settings.questNodeCountPerRandomFloor) || campaign.settings.questNodeCountPerRandomFloor < 0 || campaign.settings.questNodeCountPerRandomFloor > 4) issues.push({ level: "error", message: "Generated Quest nodes per floor must be a whole number between 0 and 4." });
   if (!Number.isInteger(campaign.settings.shopNodeCountPerRandomFloor) || campaign.settings.shopNodeCountPerRandomFloor < 0 || campaign.settings.shopNodeCountPerRandomFloor > 7) issues.push({ level: "error", message: "Generated Shop nodes per floor must be a whole number between 0 and 7." });
@@ -272,14 +274,17 @@ export function validateCampaign(
   for (const event of events) {
     const label = "Campaign event “" + (event.id || "(missing ID)") + "”: ";
     if (!nonEmpty(event.id)) issues.push({ level: "error", message: label + "ID is required." });
-    if (!CAMPAIGN_EVENT_TRIGGERS.has(event.trigger)) {
+    if (!isKnownTrigger(event.trigger)) {
       issues.push({ level: "error", message: label + "choose a supported trigger." });
       continue;
     }
-    if (event.trigger === "campaign-start" && (event.floorNumber !== undefined || event.nodeId)) {
+    // floorNumber 0 plus a blank nodeId is the runtime sentinel for "no floor"
+    // on campaign-start events (AdventureContentPackageCatalog).
+    const floorNumber = event.floorNumber ?? 0;
+    if (event.trigger === "campaign-start" && (floorNumber !== 0 || event.nodeId)) {
       issues.push({ level: "error", message: label + "Campaign start events cannot target a floor or node." });
     }
-    if (event.floorNumber !== undefined && (!Number.isInteger(event.floorNumber) || !campaign.floors.some(floor => floor.number === event.floorNumber))) {
+    if (floorNumber !== 0 && (!Number.isInteger(floorNumber) || !campaign.floors.some(floor => floor.number === floorNumber))) {
       issues.push({ level: "error", message: label + "choose a floor that exists in this campaign." });
     }
     if (event.nodeId) {
@@ -304,7 +309,9 @@ export function validateCampaign(
         if (typeof armyId !== "string" || !workspace.armies.some(army => army.id === armyId)) {
           issues.push({ level: "error", message: label + "replace-player-army must reference an Army Editor army." });
         }
-      } else {
+      } else if (!findAction(action.kind)) {
+        // Registered actions round-trip through parameters unchanged; only warn
+        // about genuinely unknown kinds that the runtime would not understand.
         issues.push({ level: "warning", message: label + "action “" + (action.kind || "(missing kind)") + "” is not currently editable; it will be preserved in export." });
       }
     }
@@ -412,10 +419,11 @@ function validateCampaignFloor(
     if (!Number.isInteger(node.x) || Math.abs(node.x) > 30 || !Number.isInteger(node.y) || Math.abs(node.y) > 30) {
       issues.push({ level: "error", message: prefix + "nodes use integer Adventure-map grid coordinates within 30 steps of the origin." });
     }
-    if (node.armyId && !workspace.armies.some(army => army.id === node.armyId)) {
+    // "none" is the runtime sentinel for no army/faction on non-battle nodes.
+    if (node.armyId && node.armyId !== "none" && !workspace.armies.some(army => army.id === node.armyId)) {
       issues.push({ level: "error", message: prefix + "node “" + node.label + "” refers to a missing Army configuration." });
     }
-    if (node.enemyFactionId && !catalog.factions.some(faction => faction.id === node.enemyFactionId)) {
+    if (node.enemyFactionId && node.enemyFactionId !== "none" && !catalog.factions.some(faction => faction.id === node.enemyFactionId)) {
       issues.push({ level: "error", message: prefix + "node “" + node.label + "” refers to a missing faction." });
     }
     if (node.kind === "Quest" && node.questId) {
@@ -504,12 +512,6 @@ function validateCampaignFloor(
     }
     if (bosses.length === 1 && !reachable.has(bosses[0].id)) {
       issues.push({ level: "error", message: prefix + "Boss must be reachable from Start." });
-    }
-    if (bosses.length === 1) {
-      const longestBattlePath = Math.max(0, ...floor.nodes.filter(node => node.kind === "Battle").map(node => distances.get(node.id) ?? 0));
-      if (bosses[0].y <= longestBattlePath) {
-        issues.push({ level: "error", message: prefix + "Boss must sit beyond the Battle nodes at the far end of the route, as in the game map." });
-      }
     }
   }
   return issues;

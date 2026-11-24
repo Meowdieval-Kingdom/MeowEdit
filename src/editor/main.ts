@@ -1128,12 +1128,25 @@ function addNode(): void {
   if (!record) return;
   const ids = record.sequence.nodes.map(node => node.id);
   const id = uniqueId("node-" + (ids.length + 1), ids, "node");
+  // Reuse the previous moment's speaker and delivery defaults so several moments
+  // can be added in a row. Text and branching always start fresh.
+  const previous = record.sequence.nodes[record.sequence.nodes.length - 1];
+  const speakers = (previous?.speakers ?? []).map((speaker, index) => ({
+    ...speaker,
+    id: uniqueId("speaker-" + (index + 1), [], "speaker")
+  }));
+  const speakerIds = new Map((previous?.speakers ?? []).map((speaker, index) => [speaker.id, speakers[index].id]));
   const node: DialogueNode = {
     id,
     headline: "",
-    textSpeed: "default",
-    speakers: [],
-    segments: [{ speakerIds: [], text: "" }],
+    textSpeed: previous?.textSpeed ?? "default",
+    ...(previous?.originalTextSpeed === undefined ? {} : { originalTextSpeed: previous.originalTextSpeed }),
+    ...(previous?.continueLabel ? { continueLabel: previous.continueLabel } : {}),
+    speakers,
+    segments: [{
+      speakerIds: (previous?.segments[0]?.speakerIds ?? []).map(speakerId => speakerIds.get(speakerId) ?? speakerId),
+      text: ""
+    }],
     actions: []
   };
   record.sequence.nodes.push(node);

@@ -138,9 +138,9 @@ describe("content validation", () => {
     expect(messages.some(message => message.includes("shop tier must be a whole number from 1 to 4"))).toBe(true);
   });
 
-  it("reports invalid dialogue targets and warns when a dialogue has no branch", () => {
+  it("reports invalid dialogue targets without warning about linear dialogues", () => {
     const dialogue = dialogueFixture();
-    expect(validateDialogue(dialogue).some(issue => issue.level === "warning")).toBe(true);
+    expect(validateDialogue(dialogue).some(issue => issue.level === "warning")).toBe(false);
     dialogue.sequence.nodes[0].actions = [{ label: "Continue", targetNodeId: "missing" }];
     expect(validateDialogue(dialogue).some(issue => issue.message.includes("missing node"))).toBe(true);
   });
@@ -171,7 +171,40 @@ describe("content validation", () => {
     expect(messages).toContain("A text segment refers to a speaker that is not in this node.");
     expect(messages).toContain("A dialogue choice points to a missing node.");
     expect(messages).toContain("A saved decision needs both a decision ID and an outcome ID.");
-    expect(messages).toContain("No branching choices yet. Add another choice to create a branch.");
+    expect(messages).not.toContain("No branching choices yet. Add another choice to create a branch.");
+  });
+
+  it("accepts the published character-mission campaign shapes that work in game", () => {
+    const campaign = campaignFixture();
+    campaign.settings.startingSardines = 0;
+    campaign.events = [
+      { id: "intro-lineup", trigger: "campaign-start", floorNumber: 0, nodeId: "", actions: [{ kind: "dialogue" }] } as never,
+      { id: "add-units", trigger: "battle-won", actions: [{ kind: "grant-blessings" }, { kind: "restart-battle" }] } as never
+    ];
+    const startNode = campaign.floors[0].nodes.find(node => node.kind === "Start")!;
+    startNode.armyId = "none";
+    startNode.enemyFactionId = "none";
+    const boss = campaign.floors[0].nodes.find(node => node.kind === "Boss")!;
+    boss.y = 1;
+
+    const issues = validateCampaign(campaign, workspaceFixture(), catalog);
+    expect(issues.map(issue => issue.message)).toEqual([]);
+  });
+
+  it("still flags genuinely broken campaign data", () => {
+    const campaign = campaignFixture();
+    campaign.settings.startingSardines = -1;
+    campaign.events = [{
+      id: "bad", trigger: "campaign-start", floorNumber: 1, nodeId: "missing", actions: [{ kind: "dialogue" }]
+    } as never];
+    const messages = validateCampaign(campaign, workspaceFixture(), catalog).map(issue => issue.message);
+    expect(messages.some(message => message.includes("Starting Sardines"))).toBe(true);
+    expect(messages.some(message => message.includes("cannot target a floor or node"))).toBe(true);
+    expect(messages.some(message => message.includes("choose a supported trigger"))).toBe(false);
+
+    const broken = campaignFixture();
+    broken.events = [{ id: "bad-trigger", trigger: "not-a-trigger", actions: [] } as never];
+    expect(validateCampaign(broken, workspaceFixture(), catalog).some(issue => issue.message.includes("choose a supported trigger"))).toBe(true);
   });
 
   it("validates battle targets and multiple fetch item extension entries", () => {

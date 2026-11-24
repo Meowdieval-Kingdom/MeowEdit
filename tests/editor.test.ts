@@ -246,6 +246,26 @@ describe("editor", () => {
     expect(other.armies[0].units[0].id).toBe("placement-0");
   });
 
+  it("copies the previous moment's speaker defaults into a new guided moment", async () => {
+    const draft = draftWithArmy();
+    const node = draft.dialogues[0].nodes[0];
+    node.speakers = [{ id: "speaker-1", unitId: namedRef(capabilities.ids.units[0]), displayName: localized("Elder"), side: "left", mood: "neutral" }] as never;
+    node.segments[0].speakerIds = ["speaker-1"];
+    const { mountEditor } = await import("../src/editor/main");
+    mountEditor({
+      setId: "editor-set", draft, capabilities, selected: { section: "dialogues", index: 0 }, forceMode: "guided",
+      onSave: vi.fn(async () => "saved"), onDraftChange: vi.fn(), onBack: vi.fn()
+    });
+    await vi.waitFor(() => expect(document.querySelector('[data-action="editor-next"]')).not.toBeNull());
+    for (let i = 0; i < 3; i++) document.querySelector<HTMLElement>('[data-action="editor-next"]')!.click();
+    await vi.waitFor(() => expect(document.querySelector('[data-action="guided-add-node"]')).not.toBeNull());
+    document.querySelector<HTMLElement>('[data-action="guided-add-node"]')!.click();
+    await vi.waitFor(() => expect(document.querySelector('[data-bind="nodes.1.speakers.0.unitId"]')).not.toBeNull());
+    expect(document.querySelector<HTMLSelectElement>('[data-bind="nodes.1.speakers.0.unitId"]')!.value).toBe(capabilities.ids.units[0]);
+    expect(document.querySelector(".guided-moment-name")?.hasAttribute("open")).toBe(false);
+    expect(document.querySelector('[data-bind="nodes.1.editorLabel"]')?.hasAttribute("data-guided-autofocus")).toBe(false);
+  });
+
   it("restores dimmed guided context when clicking outside the focus area", async () => {
     const fullSet = JSON.parse(readFileSync(path.resolve(process.cwd(), "contract/content/fixtures/valid-set.fixture.json"), "utf8")) as ContentSetDocument;
     const { mountEditor } = await import("../src/editor/main");

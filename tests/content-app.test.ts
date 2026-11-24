@@ -98,6 +98,17 @@ describe("set manager and single editor", () => {
     expect(container.textContent).toContain("Your dashboard");
   });
 
+  it("opens Edit on a dialogue in the Advanced editor", async () => {
+    const validSet = JSON.parse(readFileSync(path.resolve(process.cwd(), "contract/content/fixtures/valid-set.fixture.json"), "utf8"));
+    setBridgeFetch(async (requestPath, init) => respond(requestPath, init, validSet));
+    container.querySelector<HTMLElement>('[data-open="published-set"]')!.click();
+    await vi.waitFor(() => expect(container.querySelector("[data-edit='dialogues:0']")).not.toBeNull());
+    container.querySelector<HTMLElement>("[data-edit='dialogues:0']")!.click();
+    const key = "meowedit.editor-session.v1.author-1.published-set";
+    await vi.waitFor(() => expect(localStorage.getItem(key)).not.toBeNull());
+    expect(JSON.parse(localStorage.getItem(key)!).editorMode).toBe("full");
+  });
+
   it("reports a hash mismatch when publishing", async () => {
     const validSet = JSON.parse(readFileSync(path.resolve(process.cwd(), "contract/content/fixtures/valid-set.fixture.json"), "utf8"));
     setBridgeFetch(async (requestPath, init) => respond(requestPath, init, validSet));

@@ -1697,6 +1697,9 @@ body { color: var(--ink); background: var(--canvas); }
 .guided-speaker-options { width: fit-content; color: #646b5d; font-size: 11px; }
 .guided-speaker-options summary { cursor: pointer; font-weight: 650; }
 .guided-speaker-options .field { margin-top: 12px; }
+.guided-moment-name { width: fit-content; margin-top: 20px; color: #646b5d; font-size: 11px; }
+.guided-moment-name summary { cursor: pointer; font-weight: 650; }
+.guided-moment-name .field { margin-top: 12px; max-width: 460px; }
 .guided-editor.is-writing .guided-moment-map,
 .guided-title-main.is-writing .guided-moment-map { opacity: .24; filter: saturate(.55); pointer-events: none; }
 .guided-editor.is-writing .guided-step-screen {

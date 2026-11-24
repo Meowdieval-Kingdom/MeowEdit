@@ -180,10 +180,16 @@ describe("editor rendering", () => {
     const workspace = workspaceFixture();
     workspace.selectedType = "dialogue";
     workspace.selectedKey = workspace.dialogues[0].key;
-    for (let step = 0; step < 5; step++) {
+    for (let step = 0; step < 4; step++) {
       const guided = renderApp(workspace, rosterFixture, catalog, [], step, "guided");
       expect(guided).toContain("Dialogue map");
     }
+    const firstGuided = renderApp(workspace, rosterFixture, catalog, [], 0, "guided");
+    expect(firstGuided).toContain("Step 1 of 4");
+    expect(firstGuided).toContain("Pick one character, or leave this as narration.");
+    expect(firstGuided).not.toContain("Custom moment name (optional)");
+    expect(firstGuided).toContain("Moment name (optional)");
+    expect(firstGuided).not.toContain('data-guided-autofocus data-bind="nodes.0.editorLabel"');
     const advanced = renderApp(workspace, rosterFixture, catalog, [], 0, "full");
     for (const section of ["dialogue-sequence", "dialogue-moment", "dialogue-speakers", "dialogue-lines", "dialogue-choices", "dialogue-preview"]) {
       expect(advanced).toContain('id="' + section + '"');

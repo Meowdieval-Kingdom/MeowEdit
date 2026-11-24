@@ -593,7 +593,7 @@ function renderGuidedDialogueEditor(
   returnState?: RelatedEditorReturnState,
   helpVisible = false
 ): string {
-  const steps = ["Name (optional)", "Speaker", "Lines", "Choices", "Preview"];
+  const steps = ["Speaker", "Lines", "Choices", "Preview"];
   const step = Math.max(0, Math.min(steps.length - 1, activeStep));
   guidedFinalStepActive = step === steps.length - 1;
   const nodeIndex = Math.max(0, record.sequence.nodes.findIndex(node => node.id === workspace.activeNodeId));
@@ -605,29 +605,28 @@ function renderGuidedDialogueEditor(
   let screen = "";
 
   if (node && step === 0) {
-    const titleField = '<label class="field guided-title-field"><span class="field-label">Custom moment name (optional)</span><input type="text" data-guided-autofocus data-bind="nodes.' + nodeIndex +
-      '.editorLabel" value="' + escapeHtml(node.editorLabel ?? "") + '" placeholder="' + escapeHtml(dialogueMomentName(record.sequence, node)) + '"></label>';
-    return '<main class="workspace-main guided-editor guided-title-main is-writing">' +
-      renderGuidedEditorHeader("Dialogue", "", returnState, helpVisible) +
-      '<section class="guided-title-content" aria-labelledby="guided-title-heading">' +
-      '<h1 id="guided-title-heading">' + escapeHtml(dialogueMomentName(record.sequence, node)) + '</h1>' +
-      titleField +
-      renderDialogueMap(node.id) +
-      '<footer class="guided-title-footer">' + actionButton("editor-next", "Continue to Speaker →", "button button-primary") + '</footer>' +
-      '</section></main>';
-  } else if (node && step === 1) {
     const speaker = node.speakers[0];
+    const speakerPath = "nodes." + nodeIndex + ".speakers.0.unitId";
+    const speakerFields = speaker
+      ? '<div class="guided-speaker-fields">' +
+        unitPicker("Character", speakerPath, speaker.unitId, roster, "Choose by character name.") +
+        speakerNameField("Display name", "nodes." + nodeIndex + ".speakers.0.displayName", speaker.displayName, speaker.unitId, roster) +
+        '<details class="guided-speaker-options"><summary>Speaker options</summary>' +
+        selectField("Portrait side", "nodes." + nodeIndex + ".speakers.0.side", speaker.side, [["left", "Left"], ["right", "Right"]], "") +
+        '</details>' +
+        '</div>'
+      : "";
     screen = '<div class="guided-intro help-copy"><p>Pick one character, or leave this as narration.</p></div>' +
       (speaker
-        ? '<div class="guided-speaker-fields">' +
-          unitPicker("Character", "nodes." + nodeIndex + ".speakers.0.unitId", speaker.unitId, roster, "Choose by character name.") +
-          speakerNameField("Display name", "nodes." + nodeIndex + ".speakers.0.displayName", speaker.displayName, speaker.unitId, roster) +
-          '<details class="guided-speaker-options"><summary>Speaker options</summary>' +
-          selectField("Portrait side", "nodes." + nodeIndex + ".speakers.0.side", speaker.side, [["left", "Left"], ["right", "Right"]], "") +
-          '</details>' +
-          '</div>' + (node.speakers.length > 1 ? '<p class="guided-note help-copy">A second speaker is already set up. Edit multiple speakers in the full editor.</p>' : "")
-        : '<div class="guided-empty"><p class="help-copy">No character portrait is needed for this moment.</p>' + actionButton("add-speaker", "＋ Add a speaker", "button button-outline", ' data-node-index="' + nodeIndex + '"') + '</div>');
-  } else if (node && step === 2) {
+        ? speakerFields.replace('data-bind="' + speakerPath + '"', 'data-bind="' + speakerPath + '" data-guided-autofocus') +
+          (node.speakers.length > 1 ? '<p class="guided-note help-copy">A second speaker is already set up. Edit multiple speakers in the full editor.</p>' : "")
+        : '<div class="guided-empty"><p class="help-copy">No character portrait is needed for this moment.</p>' + actionButton("add-speaker", "＋ Add a speaker", "button button-outline", ' data-node-index="' + nodeIndex + '"') + '</div>') +
+      '<details class="guided-moment-name"><summary>Moment name (optional)</summary>' +
+      inputField("Moment name", "nodes." + nodeIndex + ".editorLabel", node.editorLabel ?? "", {
+        placeholder: dialogueMomentName(record.sequence, node),
+        hint: "Leave empty to use the automatic Moment 1, Moment 2, and so on."
+      }) + '</details>';
+  } else if (node && step === 1) {
     const lines = node.segments.map((segment, index) =>
       '<div class="guided-line"><div class="guided-item-heading"><span>Line ' + (index + 1) + '</span>' +
       (index > 0 ? actionButton("remove-segment", "Remove", "text-button danger-text", ' data-node-index="' + nodeIndex + '" data-index="' + index + '" aria-label="Remove line"') : "") +
@@ -636,7 +635,7 @@ function renderGuidedDialogueEditor(
     screen = '<div class="guided-intro help-copy"><p>Write the words for this moment. Add another line if the thought needs a pause.</p></div>' +
       (lines || '<div class="guided-empty"><p class="help-copy">Add a line to start.</p></div>') +
       actionButton("add-segment", "＋ Add another line", "text-button guided-add", ' data-node-index="' + nodeIndex + '"');
-  } else if (node && step === 3) {
+  } else if (node && step === 2) {
     const choices = node.actions.map((action, index) => {
       const path = "nodes." + nodeIndex + ".actions." + index;
       return '<div class="guided-choice"><div class="guided-item-heading"><span>Choice ' + (index + 1) + '</span>' +
@@ -649,7 +648,7 @@ function renderGuidedDialogueEditor(
     screen = '<div class="guided-intro help-copy"><p>Every moment keeps a Continue button. Add choices when the player should pick a branch.</p></div>' +
       (choices || renderDefaultContinue(node, nodeIndex, record)) +
       actionButton("add-action", node.actions.length ? "＋ Add another choice" : "＋ Replace Continue with choices", "text-button guided-add", ' data-node-index="' + nodeIndex + '"');
-  } else if (node && step === 4) {
+  } else if (node && step === 3) {
     screen = '<div class="guided-intro help-copy"><p>Try each choice to check where the conversation goes.</p></div>' +
       renderDialoguePreview(record, workspace, roster) +
       '<div class="review-validation">' + renderIssues(issues) + '</div>' +
@@ -660,7 +659,7 @@ function renderGuidedDialogueEditor(
     screen = '<div class="guided-empty"><p class="help-copy">Add a moment to start the conversation.</p>' + actionButton("guided-add-node", "＋ Add a moment", "button button-outline") + '</div>';
   }
 
-  return '<main class="workspace-main guided-editor' + ([1, 2, 3].includes(step) ? ' is-writing' : '') + '">' +
+  return '<main class="workspace-main guided-editor' + ([0, 1, 2].includes(step) ? ' is-writing' : '') + '">' +
     renderGuidedEditorHeader("Dialogue", displayTitle, returnState, helpVisible) +
     renderDialogueMap(node?.id ?? "") +
     '<section class="guided-step-screen" aria-labelledby="workflow-screen-title">' +
@@ -1904,7 +1903,6 @@ export function renderApp(
   guidedFinalStepActive = editorMode === "full";
   const item = selectedItem(workspace);
   const guidedCompact = editorMode === "guided" && item !== null;
-  const focusedDialogueTitle = editorMode === "guided" && item !== null && "sequence" in item && activeEditorStep === 0;
   const hasErrors = allIssues.some(issue => issue.level === "error");
   const bridgeUserId = getBridgeUserId();
   const toolbar = '<div class="topbar-actions">' +
@@ -1936,7 +1934,7 @@ export function renderApp(
     content = renderArmyEditor(item, catalog, roster, editorMode, selectedArmyPlacementId, activeEditorStep, armyCatalogKind, helpVisible, relatedReturnState, cellFocus, abilityFilters, abilityCategory, abilitySelections);
   }
 
-  return '<div class="app-shell' + (guidedCompact ? ' guided-shell' : '') + (focusedDialogueTitle ? ' guided-title-shell' : '') + (helpVisible ? ' help-visible' : '') + '">' +
+  return '<div class="app-shell' + (guidedCompact ? ' guided-shell' : '') + (helpVisible ? ' help-visible' : '') + '">' +
     '<header class="topbar">' +
     '<button type="button" class="sidebar-collapse-button" data-action="toggle-sidebar" aria-expanded="true" aria-label="Collapse sidebar" title="Collapse sidebar">‹</button>' +
     '<button type="button" class="mobile-brand" data-action="toggle-sidebar" aria-expanded="false" aria-label="Open navigation menu" title="Open navigation menu"><span class="brand-mark">M</span><strong>MEOWEDIT</strong><span class="mobile-menu-chevron" aria-hidden="true">›</span></button>' +
@@ -1962,7 +1960,7 @@ export function renderApp(
     '<button type="button" class="button button-primary" data-action="export-package">Export ZIP</button></div></form></dialog>' +
     renderContentPicker(workspace) +
     '<dialog class="confirm-dialog" id="confirm-dialog"><form method="dialog"><h2>Remove this item?</h2><p>This only removes the local draft. Downloaded files are unchanged.</p><div class="dialog-actions"><button value="cancel" class="button button-outline">Keep it</button><button value="confirm" class="button button-danger" id="confirm-delete">Remove</button></div></form></dialog>' +
-    (hasErrors && !focusedDialogueTitle ? '<div class="global-error-dot" title="Fix validation errors before treating this content as ready"></div>' : "") +
+    (hasErrors ? '<div class="global-error-dot" title="Fix validation errors before treating this content as ready"></div>' : "") +
     '</div>';
 }
 
