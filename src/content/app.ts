@@ -1388,7 +1388,12 @@ async function restoreRoute(route: AppRoute): Promise<void> {
 }
 
 /** Mounts the set manager into the app root after authentication. */
+let appMounted = false;
+
 export async function mountApp(container: HTMLElement): Promise<void> {
+  // A fresh page load with an editor/set hash restores that screen. Re-mounts in
+  // the same document (tests, sign-in rerenders) return to the dashboard.
+  const initialRoute = appMounted ? null : parseRouteHash(location.hash);
   pruneStaleDrafts();
   const capabilities = await loadCapabilities();
   const session = loadSession();
@@ -1400,8 +1405,8 @@ export async function mountApp(container: HTMLElement): Promise<void> {
   };
   appContainer = container;
   appState = state;
-  history.replaceState(null, "", "#/");
-  routeHash = "#/";
+  history.replaceState(null, "", location.hash || "#/");
+  routeHash = location.hash || "#/";
   if (!popStateBound) {
     popStateBound = true;
     window.addEventListener("popstate", () => {
@@ -1411,7 +1416,9 @@ export async function mountApp(container: HTMLElement): Promise<void> {
     });
   }
   await refreshSets(state);
-  renderBrowser(container, state);
+  if (initialRoute && initialRoute.kind !== "browser") await restoreRoute(initialRoute);
+  else renderBrowser(container, state);
+  appMounted = true;
 }
 
 
