@@ -176,6 +176,21 @@ describe("editor rendering", () => {
     expect(renderApp(armyWorkspace, rosterFixture, catalog, [], 0, "full")).toContain('class="army-data-note help-copy"');
   });
 
+  it("only offers a random quest pool when the floor actually generates quest nodes", () => {
+    const workspace = workspaceFixture();
+    workspace.selectedType = "mission";
+    workspace.selectedKey = workspace.missions[0].key;
+    const mission = workspace.missions[0];
+    mission.questIds = ["test-quest"];
+    mission.floors[0].mode = "authored";
+    mission.floors[0].randomSettings.questNodeCount = 0;
+    expect(renderApp(workspace, rosterFixture, catalog, [], 0, "full")).not.toContain("Random quest pool");
+
+    mission.floors[0].mode = "mixed";
+    mission.floors[0].randomSettings.questNodeCount = 2;
+    expect(renderApp(workspace, rosterFixture, catalog, [], 0, "full")).toContain("Random quest pool");
+  });
+
   it("shows granted blessing details for spells and lays out army panels side by side", () => {
     const workspace = workspaceFixture();
     workspace.selectedType = "army";
@@ -366,7 +381,7 @@ describe("editor rendering", () => {
     }
     expect(advanced).not.toContain("MISSION · ADVANCED");
     expect(advanced).toContain('details class="mission-advanced-node" open');
-    expect(advanced).toContain('class="mission-floor-pool" open');
+    expect(advanced).not.toContain("Random quest pool");
     const nameStep = renderApp(workspace, rosterFixture, catalog, [], 0, "guided", null, view);
     expect(nameStep).toContain("Step 1 of 8");
     expect(nameStep).toContain('data-bind="name"');
