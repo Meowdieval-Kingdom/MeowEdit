@@ -278,7 +278,7 @@ function saveWorkspace(): void {
   } else saveScratchWorkspace(workspace);
   persistEditorSession();
   const status = document.querySelector<HTMLElement>("#save-status");
-  if (status) status.textContent = "All changes saved";
+  if (status) status.textContent = "Saved locally · not published";
 }
 
 /** The only structured conversion: at the cloud boundary, never during editing. */
@@ -2446,6 +2446,9 @@ function onAction(button: HTMLButtonElement): void {
       void Promise.resolve(mountOptions?.onSave()).then(message => {
         const status = document.querySelector<HTMLElement>("#save-status");
         if (status && message) status.textContent = message;
+      }).catch(error => {
+        const status = document.querySelector<HTMLElement>("#save-status");
+        if (status) status.textContent = error instanceof Error ? error.message : "Save failed.";
       });
       return;
     case "publish-package":

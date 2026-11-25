@@ -210,24 +210,6 @@ function renderDocList(workspace: Workspace, type: "dialogue" | "quest"): string
   }).join("");
 }
 
-function renderSidebar(): string {
-  return '<aside class="sidebar">' +
-    '<div class="sidebar-brand"><span class="brand-mark">M</span><span><strong>MEOWEDIT</strong></span>' + actionButton("open-content-picker", "Browse", "sidebar-browse-button", ' aria-haspopup="dialog"') + '</div>' +
-    '<div class="sidebar-section">' +
-    '<div class="sidebar-section-title"><span>Dialogues</span><button type="button" aria-label="New dialogue" data-action="new-dialogue">+</button></div>' +
-    '</div>' +
-    '<div class="sidebar-section">' +
-    '<div class="sidebar-section-title"><span>Quests</span><button type="button" aria-label="New quest" data-action="new-quest">+</button></div>' +
-    '</div>' +
-    '<div class="sidebar-section">' +
-    '<div class="sidebar-section-title"><span>Armies</span><button type="button" aria-label="New army" data-action="new-army">+</button></div>' +
-    '</div>' +
-    '<div class="sidebar-section">' +
-    '<div class="sidebar-section-title"><span>Missions</span><button type="button" aria-label="New mission" data-action="new-mission">+</button></div>' +
-    '</div>' +
-    '<div class="sidebar-footer"><span class="status-dot"></span><span>Saved in this browser</span></div>' +
-    '</aside>';
-}
 
 function renderContentPicker(workspace: Workspace): string {
   return '<dialog class="content-picker-dialog" id="content-picker-dialog"><header><div><h2>Open a draft</h2></div><button type="button" class="icon-button" data-action="close-content-picker" aria-label="Close draft picker">×</button></header>' +
@@ -1974,6 +1956,7 @@ export function renderApp(
   const hasErrors = allIssues.some(issue => issue.level === "error");
   const bridgeUserId = getBridgeUserId();
   const toolbar = '<div class="topbar-actions">' +
+    actionButton("open-content-picker", "Browse", "text-button", ' aria-haspopup="dialog"') +
     (relatedReturnState ? actionButton("return-to-parent", "← " + escapeHtml(relatedReturnState.label), "text-button return-to-parent", ' aria-label="Return to ' + escapeHtml(relatedReturnState.parent) + '" title="Return to ' + escapeHtml(relatedReturnState.parent) + '"') : "") +
     (bridgeUserId && publishAllowed && canPublish() ? actionButton("publish-package", "Publish", "button button-primary", publishAllowed ? "" : " disabled") : "") +
     (bridgeUserId ? actionButton("save-package", scratchMode ? "Save locally" : "Save to cloud", "button button-outline") : "") +
@@ -2004,15 +1987,11 @@ export function renderApp(
 
   return '<div class="app-shell' + (guidedCompact ? ' guided-shell' : '') + (helpVisible ? ' help-visible' : '') + '">' +
     '<header class="topbar">' +
-    '<button type="button" class="sidebar-collapse-button" data-action="toggle-sidebar" aria-expanded="true" aria-label="Collapse sidebar" title="Collapse sidebar">‹</button>' +
-    '<button type="button" class="mobile-brand" data-action="toggle-sidebar" aria-expanded="false" aria-label="Open navigation menu" title="Open navigation menu"><span class="brand-mark">M</span><strong>MEOWEDIT</strong><span class="mobile-menu-chevron" aria-hidden="true">›</span></button>' +
     '<div class="topbar-context"><span>' + (item && "sequence" in item ? "Dialogue" : item && "definition" in item ? "Quest" : item && "floors" in item ? "Mission" : item ? "Army" : "Start") + '</span>' +
     '<span class="save-indicator"><i></i><span id="save-status">All changes saved</span></span></div>' +
     toolbar +
     '</header>' +
     '<div class="app-layout">' +
-    renderSidebar() +
-    '<button type="button" class="sidebar-backdrop" data-action="close-sidebar" aria-label="Close navigation menu" tabindex="-1"></button>' +
     '<div class="stage-wrap">' + content +
     (item && (editorMode === "full" || guidedFinalStepActive) ? '<div class="editor-transfer-bar">' +
       (scratchMode ? actionButton("assign-to-set", "Assign to set", "button button-primary") : "") +

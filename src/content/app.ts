@@ -1224,13 +1224,20 @@ function renderSetView(container: HTMLElement, state: AppState): void {
   }));
   container.querySelector<HTMLElement>("[data-save]")?.addEventListener("click", () => {
     void saveDraft(state).then(() => {
-      state.dirty = false;
-      state.baseline = structuredClone(state.draft);
       renderSetView(container, state);
       flashStatus(container, state);
     });
   });
-  container.querySelector<HTMLElement>("[data-publish]")?.addEventListener("click", () => { void publishDraft(state).then(() => flashStatus(container, state)); });
+  container.querySelector<HTMLElement>("[data-publish]")?.addEventListener("click", () => {
+    void publishDraft(state).then(() => {
+      if (state.publishedPackageId) {
+        state.dirty = false;
+        state.baseline = structuredClone(state.draft);
+      }
+      renderSetView(container, state);
+      flashStatus(container, state);
+    });
+  });
 }
 
 function flashStatus(container: HTMLElement, state: AppState): void {
@@ -1262,6 +1269,7 @@ async function openClassicEditor(container: HTMLElement, state: AppState, select
       onSave: () => saveDraft(state),
       onDraftChange: () => {
         state.validation = validateContentSet(state.draft, state.capabilities);
+        state.dirty = true;
         persistLocal(state);
       },
       onBack: () => renderSetView(container, state),
@@ -1294,7 +1302,7 @@ async function saveDraft(state: AppState): Promise<string> {
       return state.status;
     }
     state.draftVersion = result.draftVersion;
-    state.status = "Saved as private draft v" + result.draftVersion + ".";
+    state.status = "Saved changes to " + state.setId + " (v" + result.draftVersion + "). Publish to make them live for players.";
     markWorkspaceSynced(state.setId, state.draftVersion);
     persistLocal(state);
     await refreshSets(state);
