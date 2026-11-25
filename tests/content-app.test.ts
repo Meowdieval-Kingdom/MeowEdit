@@ -131,6 +131,36 @@ describe("set manager and single editor", () => {
     expect(container.querySelector('[data-bulk-publish]')).not.toBeNull();
   });
 
+  it("handles bulk dashboard actions and the set discard dialog", async () => {
+    container.querySelector<HTMLElement>("[data-bulk-save]")!.click();
+    container.querySelector<HTMLElement>("[data-bulk-discard]")!.click();
+    container.querySelector<HTMLElement>("[data-bulk-publish]")!.click();
+    container.querySelector<HTMLElement>('[data-open="published-set"]')!.click();
+    await vi.waitFor(() => expect(container.querySelector("[data-discard-all]")).not.toBeNull());
+    container.querySelector<HTMLElement>("[data-discard-all]")!.click();
+    const dialog = document.querySelector<HTMLDialogElement>("#discard-dialog")!;
+    expect(dialog).not.toBeNull();
+    dialog.returnValue = "cancel";
+    dialog.dispatchEvent(new Event("close"));
+  });
+
+  it("discards pending edits from the dashboard", async () => {
+    const validDraft = JSON.parse(readFileSync(path.resolve(process.cwd(), "contract/content/fixtures/valid-set.fixture.json"), "utf8"));
+    localStorage.setItem("meowedit.v2.sets.author-1", JSON.stringify({
+      "published-set": { draft: validDraft, draftVersion: 1 }
+    }));
+    localStorage.setItem("meowedit.content.session.author-1", JSON.stringify({
+      help: false, savedAt: null, setId: null, lastEdited: null, recent: [],
+      pending: [{ setId: "published-set", workspace: "published-set", section: "missions", key: "first-mission", label: "First Mission" }],
+      unpublished: [], tabs: {}
+    }));
+    await mountApp(container);
+    container.querySelector<HTMLElement>("[data-discard-pending]")!.click();
+    const session = JSON.parse(localStorage.getItem("meowedit.content.session.author-1")!);
+    expect(session.pending).toHaveLength(0);
+    expect(container.querySelector("[data-save-pending]")).toBeNull();
+  });
+
   it("switches dashboard tabs between recent, local and cloud panels", () => {
     const cloud = container.querySelector<HTMLElement>('[data-dashboard-tab="cloud"]')!;
     const local = container.querySelector<HTMLElement>('[data-dashboard-tab="local"]')!;

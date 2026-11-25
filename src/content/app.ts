@@ -1385,7 +1385,10 @@ function renderSetView(container: HTMLElement, state: AppState): void {
   writeSession(state);
 
   container.querySelector<HTMLElement>("[data-discard-all]")?.addEventListener("click", () => {
-    document.querySelector<HTMLDialogElement>("#discard-dialog")?.showModal();
+    const dialog = document.querySelector<HTMLDialogElement>("#discard-dialog");
+    if (!dialog) return;
+    if (typeof dialog.showModal === "function") dialog.showModal();
+    else dialog.setAttribute("open", "");
   });
   document.querySelector<HTMLDialogElement>("#discard-dialog")?.addEventListener("close", () => {
     void (async () => {
