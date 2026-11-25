@@ -2480,6 +2480,18 @@ function onAction(button: HTMLButtonElement): void {
     case "toggle-context":
       root!.querySelector(".app-layout")?.classList.toggle("context-collapsed");
       return;
+    case "context-toggle": {
+      const id = button.dataset.group ?? "";
+      const children = root!.querySelector<HTMLElement>('[data-context-group="' + id + '"]');
+      if (!children) return;
+      children.hidden = !children.hidden;
+      const toggle = button;
+      toggle.classList.toggle("is-open", !children.hidden);
+      toggle.setAttribute("aria-expanded", String(!children.hidden));
+      const caret = toggle.querySelector<HTMLElement>(".context-caret");
+      if (caret) caret.textContent = children.hidden ? "▸" : "▾";
+      return;
+    }
     case "editor-switch-tab": {
       const key = button.dataset.key ?? "";
       const tab = mountOptions?.tabs?.find(item => item.key === key);
