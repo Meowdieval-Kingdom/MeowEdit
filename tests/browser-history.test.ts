@@ -5,7 +5,7 @@ import { resetBridgeFetch, resetBridgeState, setBridgeFetch, setBridgeState } fr
 import { mountApp } from "../src/content/app";
 import { emptyContentSet, localized, namedRef } from "../src/content/factory";
 import type { GameCapabilities } from "../src/content/types";
-import { saveScratchWorkspace, SCRATCH_WORKSPACE } from "../src/editor/workspace-store";
+import { loadScratchWorkspace, saveScratchWorkspace, SCRATCH_WORKSPACE } from "../src/editor/workspace-store";
 
 const capabilities = JSON.parse(readFileSync(path.resolve(process.cwd(), "public/game-capabilities.json"), "utf8")) as GameCapabilities;
 const roster = JSON.parse(readFileSync(path.resolve(process.cwd(), "public/unit-roster.json"), "utf8"));
@@ -95,7 +95,13 @@ describe("browser history routing", () => {
     container.querySelector<HTMLElement>('[data-create="missions"]')!.click();
     await vi.waitFor(() => expect(document.querySelector(".mission-editor")).not.toBeNull(), { timeout: 10000 });
     expect(location.hash).toContain("#/edit/__scratch__/missions/");
-  });
+
+    document.querySelector<HTMLElement>('[data-action="open-content-editor"]')!.click();
+    await vi.waitFor(() => expect(container.textContent).toContain("Your dashboard"));
+    container.querySelector<HTMLElement>('[data-dashboard-tab="local"]')!.click();
+    expect(container.querySelector('[data-edit-local^="missions|"]')).not.toBeNull();
+    expect(loadScratchWorkspace().missions[0].id).toBe("mission-1");
+  }, 20000);
 
   it("opens a local mission from the Local drafts Edit button", async () => {
     container.querySelector<HTMLElement>('[data-create="missions"]')!.click();

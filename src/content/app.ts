@@ -19,6 +19,7 @@ import {
   saveScratchWorkspace, SCRATCH_WORKSPACE
 } from "../editor/workspace-store";
 import { workspaceToDraft } from "../editor/convert";
+import { createMissionFloor } from "../editor/mission-domain";
 import {
   activeArmyJson, activeMissionJson, activeDialogueJson, activeQuestJson,
   parseImportedJson, decodeZipText
@@ -583,7 +584,7 @@ function createLocalRecord(section: DetailSection, id: string, name: string): Re
   if (section === "armies") return { key, id, idAuto: true, name, previewFloor: 1, units: [], spellIds: [], blessingIds: [] };
   return {
     key, id, idAuto: true, name, description: "", designMode: "custom", boardPreviewUnitId: "", questIds: [],
-    floors: [], events: [], settings: {
+    floors: [createMissionFloor(1, "authored")], events: [], settings: {
       startingLives: 3, startingSardines: 10, startingNodeCount: 12, playerFactionId: "",
       factionSelectionEnabled: true, battleShopEnabled: true, shopPoolKinds: ["Unit"],
       questNodeCountPerRandomFloor: 2, shopNodeCountPerRandomFloor: 3, nodeGrowthPerFloor: 2,
@@ -614,6 +615,16 @@ function nextSystemId(section: DetailSection): string {
 }
 
 async function createLocal(container: HTMLElement, state: AppState, section: DetailSection): Promise<void> {
+  try {
+    await createLocalDraft(container, state, section);
+  } catch (error) {
+    state.status = error instanceof Error ? error.message : "The new content could not be created.";
+    showToast(state.status, "error");
+    renderBrowser(container, state);
+  }
+}
+
+async function createLocalDraft(container: HTMLElement, state: AppState, section: DetailSection): Promise<void> {
   const id = nextSystemId(section);
   const name = SECTION_LABELS[section] + " " + id.split("-")[1];
   const workspace = loadScratchWorkspace();
