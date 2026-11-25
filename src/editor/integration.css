@@ -23,6 +23,23 @@
 .guided-context-unmuted .mission-context-map .mission-board-tools,
 .guided-context-unmuted .mission-context-map .mission-map-status { opacity: 1; }
 
+/* Set context sidebar: how the open content fits into the current set. */
+.context-sidebar { flex: 0 0 210px; align-self: flex-start; max-height: calc(100vh - 120px); overflow: auto; padding: 12px; background: #f7f8f3; border-right: 1px solid var(--line); }
+.context-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; color: #4f564b; font-size: 11px; }
+.context-list { display: grid; gap: 2px; }
+.context-item { display: block; width: 100%; padding: 5px 6px; color: #3f453b; text-align: left; background: transparent; border: 0; border-radius: 4px; font-size: 11px; cursor: pointer; }
+.context-item:hover { background: #ecefe7; }
+.context-depth-2 { padding-left: 16px; font-size: 10px; }
+.context-depth-3 { padding-left: 28px; font-size: 10px; }
+.context-divider { margin: 10px 0 4px; padding-top: 8px; color: #858a80; border-top: 1px solid var(--line); font-size: 9px; text-transform: uppercase; }
+.app-layout.context-collapsed .context-sidebar { display: none; }
+
+/* Open-content tabs in the editor chrome. */
+.editor-tabs { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; max-width: 1040px; margin: 8px auto 0; padding: 0 24px; }
+.editor-tab { min-height: 28px; padding: 0 10px; color: #62685e; background: #f1f2ec; border: 1px solid #dedfd7; border-radius: 5px; font-size: 11px; cursor: pointer; }
+.editor-tab.is-active { color: #fff; background: #6f7f63; border-color: #6f7f63; }
+.editor-tab-close { width: 22px; height: 22px; padding: 0; color: #6b7265; font-size: 14px; line-height: 1; background: transparent; border: 0; cursor: pointer; }
+
 /* Unknown catalog IDs must look broken, not like a valid unit. */
 .army-grid-placement.is-invalid { border-color: #bd6658; background: #fbefeb; }
 .army-grid-placement.is-invalid .army-unit-initial { color: #bd6658; }

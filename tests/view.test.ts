@@ -189,6 +189,33 @@ describe("editor rendering", () => {
     expect(html).toContain('id="mission-event-dialog"');
   });
 
+  it("shows the set context hierarchy in the editor", () => {
+    const workspace = workspaceFixture();
+    workspace.selectedType = "mission";
+    workspace.selectedKey = workspace.missions[0].key;
+    workspace.missions[0].questIds = ["test-quest"];
+    const html = renderApp(workspace, rosterFixture, catalog, [], 0, "full");
+    expect(html).toContain('class="context-sidebar"');
+    expect(html).toContain('data-action="toggle-context"');
+    expect(html).toContain('data-action="editor-switch-tab"');
+    expect(html).toContain("Test Quest");
+  });
+
+  it("renders open-content tabs when more than one record is open", () => {
+    const workspace = workspaceFixture();
+    workspace.selectedType = "quest";
+    workspace.selectedKey = workspace.quests[0].key;
+    const html = renderApp(workspace, rosterFixture, catalog, [], 0, "full", null, undefined, undefined, "units", false,
+      undefined, undefined, undefined, undefined, undefined, true, [], [
+        { section: "quests", key: "quest-key", label: "Test Quest" },
+        { section: "missions", key: "mission-key", label: "Test Mission" }
+      ], "quest-key");
+    expect(html).toContain('class="editor-tabs"');
+    expect(html).toContain('data-action="editor-switch-tab"');
+    expect(html).toContain('data-action="editor-close-tab"');
+    expect(html).toContain("Test Mission");
+  });
+
   it("only offers a random quest pool when the floor actually generates quest nodes", () => {
     const workspace = workspaceFixture();
     workspace.selectedType = "mission";

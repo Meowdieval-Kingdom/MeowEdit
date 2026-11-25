@@ -10,7 +10,7 @@ import { escapeHtml } from "./html";
 import { withDeadline } from "../request-timeout";
 import { APP_VERSION } from "./version";
 import { packContentSet } from "./packer";
-import { loadSession, saveSession, type LastEdited, type PendingEdit } from "./session";
+import { loadSession, saveSession, type EditorTabState, type LastEdited, type PendingEdit } from "./session";
 import { loadPublishedSnapshot, savePublishedSnapshot } from "./snapshots";
 import { gameCapabilitiesSchema } from "./zod";
 import type { ContentSetDocument, GameCapabilities } from "./types";
@@ -61,6 +61,7 @@ interface AppState {
   recent: LastEdited[];
   pending: PendingEdit[];
   unpublished: string[];
+  tabs: Record<string, EditorTabState[]>;
   dashboardTab: "unsaved" | "unpublished" | "local" | "cloud";
   dirty: boolean;
   baseline: ContentSetDocument | null;
@@ -189,7 +190,7 @@ function writeSession(state: AppState): void {
   saveSession({
     help: state.help, savedAt: state.savedAt, setId: state.setId || null,
     lastEdited: state.lastEdited, recent: state.recent,
-    pending: state.pending, unpublished: state.unpublished
+    pending: state.pending, unpublished: state.unpublished, tabs: state.tabs
   });
 }
 
@@ -354,6 +355,41 @@ function recordEdited(state: AppState, entry: LastEdited): void {
   state.lastEdited = entry;
   const id = (item: LastEdited) => item.workspace + "|" + item.section + "|" + item.key;
   state.recent = [entry, ...state.recent.filter(item => id(item) !== id(entry))].slice(0, 5);
+}
+
+function syncEditorTabs(state: AppState, setId: string, tabs: EditorTabState[]): void {
+  state.tabs = { ...state.tabs, [setId]: tabs.slice(-20) };
+  syncSession(state);
+}
+
+async function openTabTarget(container: HTMLElement, state: AppState, setId: string, tab: EditorTabState): Promise<void> {
+  if (setId === SCRATCH_WORKSPACE) {
+    const workspace = loadScratchWorkspace();
+    const index = (workspace[tab.section] as unknown as Array<{ key?: string }>).findIndex(item => item.key === tab.key);
+    if (index < 0) return;
+    await openEditor(container, state, { workspace: setId, section: tab.section, index, key: tab.key, label: tab.label, step: tab.step, mode: tab.mode });
+    return;
+  }
+  const record = storage()[setId];
+  const draft = record?.draft ?? state.draft;
+  const items = draft[tab.section] as unknown as Array<{ id?: string; sequenceId?: string }>;
+  const index = items.findIndex(item => (item.id ?? item.sequenceId) === tab.key);
+  if (index < 0) return;
+  state.setId = setId;
+  state.draft = draft;
+  state.draftVersion = record?.draftVersion ?? state.draftVersion;
+  await openEditor(container, state, { workspace: setId, section: tab.section, index, key: tab.key, label: tab.label, step: tab.step, mode: tab.mode });
+}
+
+function addEditorTab(state: AppState, setId: string, tab: EditorTabState): void {
+  const current = (state.tabs[setId] ?? []).filter(item =>
+    !(item.section === tab.section && item.key === tab.key));
+  syncEditorTabs(state, setId, [...current, tab]);
+}
+
+function updateActiveTab(state: AppState, setId: string, key: string, patch: Partial<EditorTabState>): void {
+  const tabs = (state.tabs[setId] ?? []).map(item => item.key === key ? { ...item, ...patch } : item);
+  syncEditorTabs(state, setId, tabs);
 }
 
 function discardRecord(state: AppState, setId: string, section: string, key: string): void {
@@ -892,6 +928,10 @@ async function openEditor(container: HTMLElement, state: AppState, target: Edito
   pushRoute(route);
   activeEditorRoute = route;
   editorMountPending = true;
+  addEditorTab(state, target.workspace, {
+    workspace: target.workspace, section: target.section, key: target.key, label: target.label,
+    step: target.step, mode: target.mode ?? target.forceMode
+  });
   try {
     const { mountEditor } = await import("../editor/main");
     recordEdited(state, { workspace: target.workspace, section: target.section, key: target.key, label: target.label });
@@ -925,7 +965,23 @@ async function openEditor(container: HTMLElement, state: AppState, target: Edito
         syncSession(state);
       },
       onRecordEdited: (section, key) => markRecordEdited(state, target.workspace, section, key),
-      onDiscardRecord: (section, key) => discardRecord(state, target.workspace, section, key)
+      onDiscardRecord: (section, key) => discardRecord(state, target.workspace, section, key),
+      tabs: state.tabs[target.workspace] ?? [],
+      activeTabKey: target.key,
+      onSwitchTab: (section, key, step, mode) => {
+        updateActiveTab(state, target.workspace, target.key, { step, mode });
+        void openTabTarget(container, state, target.workspace, {
+          workspace: target.workspace, section: section as DetailSection, key, label: key, step, mode
+        });
+      },
+      onCloseTab: key => {
+        const remaining = (state.tabs[target.workspace] ?? []).filter(item => item.key !== key);
+        syncEditorTabs(state, target.workspace, remaining);
+        if (key === target.key && remaining.length) void openTabTarget(container, state, target.workspace, remaining.at(-1)!);
+        else if (key === target.key) renderBrowser(container, state);
+        else renderSetView(container, state);
+      },
+      onTabState: (step, mode) => updateActiveTab(state, target.workspace, target.key, { step, mode })
     });
   } catch (error) {
     if (reloadForStaleChunk(error)) return;
@@ -1452,6 +1508,24 @@ async function openClassicEditor(container: HTMLElement, state: AppState, select
       },
       onRecordEdited: (section, key) => markRecordEdited(state, state.setId, section, key),
       onDiscardRecord: (section, key) => discardRecord(state, state.setId, section, key),
+      tabs: state.tabs[state.setId] ?? [],
+      activeTabKey: selected ? (state.draft[selected.section as DetailSection] as unknown as Array<{ id?: string; sequenceId?: string }>)[selected.index]?.id ?? "" : "",
+      onSwitchTab: (section, key, step, mode) => {
+        updateActiveTab(state, state.setId, key, { step, mode });
+        void openTabTarget(container, state, state.setId, {
+          workspace: state.setId, section: section as DetailSection, key, label: key, step, mode
+        });
+      },
+      onCloseTab: key => {
+        const remaining = (state.tabs[state.setId] ?? []).filter(item => item.key !== key);
+        syncEditorTabs(state, state.setId, remaining);
+        if (remaining.length) void openTabTarget(container, state, state.setId, remaining.at(-1)!);
+        else renderSetView(container, state);
+      },
+      onTabState: (step, mode) => {
+        const active = (state.tabs[state.setId] ?? []).at(-1);
+        if (active) updateActiveTab(state, state.setId, active.key, { step, mode });
+      },
       onBack: () => renderSetView(container, state),
       onPublish: () => publishDraft(state),
       canPublishEditor: () => state.validation.valid && canPublish()
@@ -1596,7 +1670,7 @@ export async function mountApp(container: HTMLElement): Promise<void> {
     capabilities, sets: [], view: "browser", activeSection: "missions", setId: "", draft: emptyContentSet("", ""),
     draftVersion: 0, status: "", validation: { valid: false, issues: [] },
     help: session.help, savedAt: session.savedAt, lastEdited: session.lastEdited,
-    recent: session.recent, pending: session.pending, unpublished: session.unpublished,
+    recent: session.recent, pending: session.pending, unpublished: session.unpublished, tabs: session.tabs,
     dashboardTab: "unsaved", dirty: false, baseline: null
   };
   appContainer = container;

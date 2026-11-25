@@ -211,6 +211,43 @@ function renderDocList(workspace: Workspace, type: "dialogue" | "quest"): string
 }
 
 
+function renderContextSidebar(workspace: Workspace): string {
+  const link = (section: string, key: string, label: string, depth: number) =>
+    '<button type="button" class="context-item context-depth-' + depth + '" data-action="editor-switch-tab" data-section="' +
+    escapeHtml(section) + '" data-key="' + escapeHtml(key) + '">' + escapeHtml(label) + '</button>';
+  const missionItems = workspace.missions.map(mission => {
+    const questLinks = mission.questIds.flatMap(id => {
+      const quest = workspace.quests.find(item => item.definition.id === id);
+      if (!quest) return [];
+      const dialogues = Object.values(quest.extension.dialogueLinks ?? {}).flat().flatMap(ref => {
+        const id = typeof ref === "string" ? ref : (ref as { id?: string })?.id;
+        const dialogue = workspace.dialogues.find(item => item.sequence.sequenceId === id || item.key === id);
+        return dialogue ? [link("dialogues", dialogue.key, dialogue.sequence.sequenceId || dialogue.key, 3)] : [];
+      });
+      return [link("quests", quest.key, quest.definition.title || quest.definition.id, 2), ...dialogues];
+    });
+    const armyIds = [
+      ...mission.floors.flatMap(floor => floor.nodes.map(node => node.armyId).filter(Boolean)),
+      ...mission.events.flatMap(event => event.actions.map(action => String(action.armyId ?? ""))).filter(Boolean)
+    ];
+    const armyLinks = [...new Set(armyIds)].flatMap(id => {
+      const army = workspace.armies.find(item => item.id === id || item.key === id);
+      return army ? [link("armies", army.key, army.name || army.id, 2)] : [];
+    });
+    return link("missions", mission.key, mission.name || mission.id, 1) + questLinks.join("") + armyLinks.join("");
+  }).join("");
+  const standalone = ([
+    ...workspace.quests.filter(quest => !workspace.missions.some(mission => mission.questIds.includes(quest.definition.id)))
+      .map(quest => link("quests", quest.key, quest.definition.title || quest.definition.id, 1)),
+    ...workspace.dialogues.map(dialogue => link("dialogues", dialogue.key, dialogue.sequence.sequenceId || dialogue.key, 1)),
+    ...workspace.armies.map(army => link("armies", army.key, army.name || army.id, 1))
+  ]).join("");
+  return '<aside class="context-sidebar"><div class="context-heading"><strong>Set context</strong>' +
+    '<button type="button" class="icon-button" data-action="toggle-context" aria-label="Collapse context">×</button></div>' +
+    '<div class="context-list">' + (missionItems || '<p class="sidebar-empty">No missions yet.</p>') +
+    (standalone ? '<div class="context-divider">Other content</div>' + standalone : "") + '</div></aside>';
+}
+
 function renderContentPicker(workspace: Workspace): string {
   return '<dialog class="content-picker-dialog" id="content-picker-dialog"><header><div><h2>Open a draft</h2></div><button type="button" class="icon-button" data-action="close-content-picker" aria-label="Close draft picker">×</button></header>' +
     '<div class="content-picker-groups"><section><h3>Dialogues</h3>' + renderDocList(workspace, "dialogue") + '</section>' +
@@ -1948,7 +1985,9 @@ export function renderApp(
   abilitySelections: ArmyAbilitySelections = defaultArmyAbilitySelections,
   selectedMissionEventId: string | null = null,
   publishAllowed = true,
-  questLibrary: QuestLibraryEntry[] = []
+  questLibrary: QuestLibraryEntry[] = [],
+  editorTabs: Array<{ section: string; key: string; label: string }> = [],
+  activeTabKey = ""
 ): string {
   guidedFinalStepActive = editorMode === "full";
   const item = selectedItem(workspace);
@@ -1956,6 +1995,7 @@ export function renderApp(
   const hasErrors = allIssues.some(issue => issue.level === "error");
   const bridgeUserId = getBridgeUserId();
   const toolbar = '<div class="topbar-actions">' +
+    actionButton("toggle-context", "☰ Context", "text-button") +
     actionButton("open-content-picker", "Browse", "text-button", ' aria-haspopup="dialog"') +
     (relatedReturnState ? actionButton("return-to-parent", "← " + escapeHtml(relatedReturnState.label), "text-button return-to-parent", ' aria-label="Return to ' + escapeHtml(relatedReturnState.parent) + '" title="Return to ' + escapeHtml(relatedReturnState.parent) + '"') : "") +
     (bridgeUserId && publishAllowed && canPublish() ? actionButton("publish-package", "Publish", "button button-primary", publishAllowed ? "" : " disabled") : "") +
@@ -1987,13 +2027,23 @@ export function renderApp(
     content = renderArmyEditor(item, catalog, roster, editorMode, selectedArmyPlacementId, activeEditorStep, armyCatalogKind, helpVisible, relatedReturnState, cellFocus, abilityFilters, abilityCategory, abilitySelections);
   }
 
+  const tabStrip = editorTabs.length > 1
+    ? '<div class="editor-tabs">' + editorTabs.map(tab =>
+      '<button type="button" class="editor-tab' + (tab.key === activeTabKey ? " is-active" : "") +
+      '" data-action="editor-switch-tab" data-section="' + escapeHtml(tab.section) + '" data-key="' + escapeHtml(tab.key) + '">' +
+      escapeHtml(tab.label) + '</button>' +
+      '<button type="button" class="editor-tab-close" data-action="editor-close-tab" data-key="' + escapeHtml(tab.key) +
+      '" aria-label="Close ' + escapeHtml(tab.label) + '">×</button>').join("") + '</div>'
+    : "";
   return '<div class="app-shell' + (guidedCompact ? ' guided-shell' : '') + (helpVisible ? ' help-visible' : '') + '">' +
     '<header class="topbar">' +
     '<div class="topbar-context"><span>' + (item && "sequence" in item ? "Dialogue" : item && "definition" in item ? "Quest" : item && "floors" in item ? "Mission" : item ? "Army" : "Start") + '</span>' +
     '<span class="save-indicator"><i></i><span id="save-status">All changes saved</span></span></div>' +
     toolbar +
     '</header>' +
+    tabStrip +
     '<div class="app-layout">' +
+    renderContextSidebar(workspace) +
     '<div class="stage-wrap">' + content +
     (item && (editorMode === "full" || guidedFinalStepActive) ? '<div class="editor-transfer-bar">' +
       (scratchMode ? actionButton("assign-to-set", "Assign to set", "button button-primary") : "") +

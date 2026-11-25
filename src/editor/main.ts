@@ -78,6 +78,11 @@ export interface EditorMountOptions {
   onRecordChange?(section: string, key: string, label: string): void;
   onRecordEdited?(section: string, key: string): void;
   onDiscardRecord?(section: string, key: string): void;
+  tabs?: Array<{ section: string; key: string; label: string; step?: number; mode?: "guided" | "full" }>;
+  activeTabKey?: string;
+  onSwitchTab?(section: string, key: string, step?: number, mode?: "guided" | "full"): void;
+  onCloseTab?(key: string): void;
+  onTabState?(step: number, mode: "guided" | "full"): void;
 }
 
 let mountOptions: EditorMountOptions | null = null;
@@ -333,6 +338,7 @@ function render(): void {
     lastNotifiedStep = activeEditorStep;
     lastNotifiedMode = editorMode;
     mountOptions.onNavigation({ step: activeEditorStep, mode: editorMode });
+    mountOptions.onTabState?.(activeEditorStep, editorMode);
   }
   const mission = currentMission();
   if (mission) {
@@ -373,7 +379,8 @@ function render(): void {
     parent: returnContext.parentType === "mission" ? "Mission" : "Quest",
     label: returnContext.returnLabel
   } : undefined, armyCatalogKind, helpVisible, { abilityId: selectedArmyBattlefieldEffectId, region: selectedArmyCellRegion }, armyAbilityFilters, armyAbilityCategory, armyAbilitySelections, selectedMissionEventId,
-    (mountOptions?.canPublishEditor?.() ?? true) && !isScratch(), questLibrary());
+    (mountOptions?.canPublishEditor?.() ?? true) && !isScratch(), questLibrary(),
+    mountOptions?.tabs ?? [], mountOptions?.activeTabKey ?? "");
   const appLayout = root!.querySelector<HTMLElement>(".app-layout");
   appLayout?.classList.toggle("is-sidebar-collapsed", sidebarCollapsed);
   appLayout?.classList.toggle("is-sidebar-open", root!.querySelector<HTMLElement>(".sidebar")?.classList.contains("is-open") ?? false);
@@ -2462,6 +2469,19 @@ function onAction(button: HTMLButtonElement): void {
         const status = document.querySelector<HTMLElement>("#save-status");
         if (status && message) status.textContent = message;
       });
+      return;
+    case "toggle-context":
+      root!.querySelector(".app-layout")?.classList.toggle("context-collapsed");
+      return;
+    case "editor-switch-tab": {
+      const tab = mountOptions?.tabs?.find(item => item.key === button.dataset.key);
+      if (!tab) return;
+      saveWorkspace();
+      mountOptions?.onSwitchTab?.(tab.section, tab.key, tab.step, tab.mode);
+      return;
+    }
+    case "editor-close-tab":
+      mountOptions?.onCloseTab?.(button.dataset.key ?? "");
       return;
     case "exit-discard": {
       const section = workspace.selectedType;

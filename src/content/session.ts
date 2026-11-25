@@ -11,6 +11,15 @@ export interface PendingEdit extends LastEdited {
   setId: string;
 }
 
+export interface EditorTabState {
+  workspace: string;
+  section: "dialogues" | "quests" | "armies" | "missions";
+  key: string;
+  label: string;
+  step?: number;
+  mode?: "guided" | "full";
+}
+
 export interface ContentSession {
   help: boolean;
   savedAt: string | null;
@@ -19,11 +28,12 @@ export interface ContentSession {
   recent: LastEdited[];
   pending: PendingEdit[];
   unpublished: string[];
+  tabs: Record<string, EditorTabState[]>;
 }
 
 const DEFAULT: ContentSession = {
   help: false, savedAt: null, setId: null, lastEdited: null,
-  recent: [], pending: [], unpublished: []
+  recent: [], pending: [], unpublished: [], tabs: {}
 };
 
 function key(): string {
@@ -53,7 +63,9 @@ export function loadSession(): ContentSession {
       lastEdited: valid(last) ? last : null,
       recent: Array.isArray(loaded.recent) ? loaded.recent.filter(valid).slice(0, 5) : [],
       pending: Array.isArray(loaded.pending) ? loaded.pending.filter(pendingValid) : [],
-      unpublished: Array.isArray(loaded.unpublished) ? loaded.unpublished.filter(id => typeof id === "string") : []
+      unpublished: Array.isArray(loaded.unpublished) ? loaded.unpublished.filter(id => typeof id === "string") : [],
+      tabs: loaded.tabs && typeof loaded.tabs === "object" && !Array.isArray(loaded.tabs)
+        ? loaded.tabs as Record<string, EditorTabState[]> : {}
     };
   } catch {
     return { ...DEFAULT };
