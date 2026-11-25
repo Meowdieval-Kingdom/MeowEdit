@@ -10,7 +10,8 @@ import { escapeHtml } from "./html";
 import { withDeadline } from "../request-timeout";
 import { APP_VERSION } from "./version";
 import { packContentSet } from "./packer";
-import { loadSession, saveSession, type LastEdited } from "./session";
+import { loadSession, saveSession, type LastEdited, type PendingEdit } from "./session";
+import { loadPublishedSnapshot, savePublishedSnapshot } from "./snapshots";
 import { gameCapabilitiesSchema } from "./zod";
 import type { ContentSetDocument, GameCapabilities } from "./types";
 import { validateContentSet, type ValidationResult } from "./validation";
@@ -18,7 +19,7 @@ import {
   hasUnsyncedWorkspace, loadScratchWorkspace, loadWorkspace, markWorkspaceSynced,
   saveScratchWorkspace, SCRATCH_WORKSPACE
 } from "../editor/workspace-store";
-import { workspaceToDraft } from "../editor/convert";
+import { draftToWorkspace, workspaceToDraft } from "../editor/convert";
 import { createMissionFloor } from "../editor/mission-domain";
 import {
   activeArmyJson, activeMissionJson, activeDialogueJson, activeQuestJson,
@@ -58,7 +59,9 @@ interface AppState {
   savedAt: string | null;
   lastEdited: LastEdited | null;
   recent: LastEdited[];
-  dashboardTab: "recent" | "local" | "cloud";
+  pending: PendingEdit[];
+  unpublished: string[];
+  dashboardTab: "unsaved" | "unpublished" | "local" | "cloud";
   dirty: boolean;
   baseline: ContentSetDocument | null;
 }
@@ -185,7 +188,8 @@ function storage(): Record<string, LocalRecord> {
 function writeSession(state: AppState): void {
   saveSession({
     help: state.help, savedAt: state.savedAt, setId: state.setId || null,
-    lastEdited: state.lastEdited, recent: state.recent
+    lastEdited: state.lastEdited, recent: state.recent,
+    pending: state.pending, unpublished: state.unpublished
   });
 }
 
@@ -352,6 +356,68 @@ function recordEdited(state: AppState, entry: LastEdited): void {
   state.recent = [entry, ...state.recent.filter(item => id(item) !== id(entry))].slice(0, 5);
 }
 
+function discardRecord(state: AppState, setId: string, section: string, key: string): void {
+  const draft = storage()[setId]?.draft;
+  if (!draft) return;
+  const sectionKey = section as DetailSection;
+  const workspace = loadWorkspace(setId, draft, state.capabilities);
+  const items = workspace[sectionKey] as unknown as Array<Record<string, unknown>>;
+  const index = items.findIndex(item => item.key === key || item.id === key ||
+    (item.sequence as { sequenceId?: string } | undefined)?.sequenceId === key);
+  const savedRecords = draft[sectionKey] as unknown[];
+  if (index >= 0 && savedRecords[index]) {
+    const savedWorkspace = draftToWorkspace(draft, state.capabilities);
+    items[index] = (savedWorkspace[sectionKey] as unknown[])[index] as never;
+    saveWorkspaceForSet(setId, workspace);
+  }
+  state.pending = state.pending.filter(item =>
+    !(item.setId === setId && item.section === section && item.key === key));
+  syncSession(state);
+}
+
+function pendingKey(entry: PendingEdit): string {
+  return entry.setId + "|" + entry.section + "|" + entry.key;
+}
+
+function markRecordEdited(state: AppState, workspaceId: string, section: string, key: string): void {
+  const draftSection = section as DetailSection;
+  const label = state.recent.find(item =>
+    item.workspace === workspaceId && item.section === draftSection && item.key === key)?.label ?? key;
+  const entry: PendingEdit = { setId: workspaceId, workspace: workspaceId, section: draftSection, key, label };
+  state.pending = [...state.pending.filter(item =>
+    !(item.setId === workspaceId && item.section === section && item.key === key)), entry];
+  state.recent = [entry, ...state.recent.filter(item =>
+    !(item.workspace === workspaceId && item.section === section && item.key === key))].slice(0, 5);
+  state.lastEdited = entry;
+  syncSession(state);
+}
+
+function markSetSaved(state: AppState, setId: string): void {
+  state.pending = state.pending.filter(item => item.setId !== setId);
+  if (!state.unpublished.includes(setId)) state.unpublished = [...state.unpublished, setId];
+  syncSession(state);
+}
+
+function unpublishedCount(setId: string): number {
+  const published = loadPublishedSnapshot(setId);
+  const current = storage()[setId]?.draft;
+  if (!published || !current) return 0;
+  let count = 0;
+  for (const section of SECTIONS) {
+    const before = published[section] as unknown[];
+    const after = current[section] as unknown[];
+    for (let index = 0; index < Math.max(before.length, after.length); index++)
+      if (JSON.stringify(before[index]) !== JSON.stringify(after[index])) count += 1;
+  }
+  return count;
+}
+
+function markSetPublished(state: AppState, setId: string): void {
+  state.pending = state.pending.filter(item => item.setId !== setId);
+  state.unpublished = state.unpublished.filter(id => id !== setId);
+  syncSession(state);
+}
+
 function recordExists(entry: LastEdited): boolean {
   if (entry.workspace === SCRATCH_WORKSPACE)
     return scratchRecords().some(record => record.section === entry.section && record.key === entry.key);
@@ -400,14 +466,28 @@ function renderBrowser(container: HTMLElement, state: AppState): void {
       '<button type="button" class="button button-outline" data-open="' + escapeHtml(summary.setId) + '">Open</button></div>').join("") +
       "</section>"
     : "";
-  const recent = state.recent.filter(recordExists).slice(0, 5);
-  const recentRows = recent.length ? recent.map(entry =>
-    '<div class="set-row"><div class="set-row-main"><strong>' + escapeHtml(entry.label) + "</strong><small>" +
+  const pending = state.pending.filter(recordExists);
+  const unsavedRows = pending.length ? pending.map(entry =>
+    '<div class="set-row"><input type="checkbox" class="row-select" data-pending="' + escapeHtml(pendingKey(entry)) + '">' +
+    '<div class="set-row-main"><strong>' + escapeHtml(entry.label) + "</strong><small>" +
     SECTION_LABELS[entry.section] + " · " +
-    (entry.workspace === SCRATCH_WORKSPACE ? "local draft" : "set " + escapeHtml(entry.workspace)) +
-    '</small></div><button type="button" class="button button-outline" data-continue-edit="' +
+    (entry.setId === SCRATCH_WORKSPACE ? "local draft" : "set " + escapeHtml(entry.setId)) +
+    '</small></div>' +
+    (entry.setId === SCRATCH_WORKSPACE
+      ? '<button type="button" class="button button-outline" data-assign-local="' + entry.section + "|" + escapeHtml(entry.key) + '">Assign to set</button>'
+      : '<button type="button" class="text-button" data-save-pending="' + escapeHtml(pendingKey(entry)) + '">Save</button>' +
+        '<button type="button" class="text-button danger-text" data-discard-pending="' + escapeHtml(pendingKey(entry)) + '">Discard</button>') +
+    '<button type="button" class="button button-outline" data-continue-edit="' +
     escapeHtml(entry.workspace) + "|" + entry.section + "|" + escapeHtml(entry.key) + '">Continue</button></div>'
-  ).join("") : '<div class="set-empty">Nothing edited yet.</div>';
+  ).join("") : '<div class="set-empty">No unsaved edits.</div>';
+  const unpublishedRows = state.unpublished.length ? state.unpublished.map(setId => {
+    const summary = sets.find(item => item.setId === setId);
+    return '<div class="set-row"><input type="checkbox" class="row-select" data-unpublished="' + escapeHtml(setId) + '">' +
+      '<div class="set-row-main"><strong>' + escapeHtml(summary?.name || setId) + "</strong><small>" +
+      unpublishedCount(setId) + " changed record(s) saved but not published</small></div>" +
+      '<button type="button" class="button button-outline" data-open="' + escapeHtml(setId) + '">Open</button>' +
+      '<button type="button" class="button button-primary" data-publish-set="' + escapeHtml(setId) + '">Publish</button></div>';
+  }).join("") : '<div class="set-empty">Nothing waiting to publish.</div>';
   const locals = scratchRecords();
   const localRows = locals.length ? locals.map(record =>
     '<div class="set-row"><div class="set-row-main"><strong>' + escapeHtml(record.label) + "</strong><small>" +
@@ -417,14 +497,16 @@ function renderBrowser(container: HTMLElement, state: AppState): void {
     '<button type="button" class="text-button danger-text" data-delete-local="' + record.section + "|" + escapeHtml(record.key) + '">Delete</button>' +
     '<button type="button" class="button button-outline" data-assign-local="' + record.section + "|" + escapeHtml(record.key) + '">Assign to set</button></div>'
   ).join("") : '<div class="set-empty">No local drafts yet. Create content below.</div>';
-  const dashboardTabs = ([["recent", "Recent"], ["local", "Local"], ["cloud", "Cloud"]] as const).map(([id, label]) =>
+  const dashboardTabs = ([["unsaved", "Unsaved edits"], ["unpublished", "Ready to publish"], ["local", "Local"], ["cloud", "Cloud"]] as const).map(([id, label]) =>
     '<button type="button" class="button button-outline set-tab' + (state.dashboardTab === id ? " is-active" : "") +
     '" data-dashboard-tab="' + id + '" aria-pressed="' + (state.dashboardTab === id) + '">' + label + "</button>").join("");
-  const panel = (id: "recent" | "local" | "cloud", content: string) =>
+  const panel = (id: AppState["dashboardTab"], content: string) =>
     '<div class="set-list dashboard-panel" data-dashboard-panel="' + id + '"' +
     (state.dashboardTab === id ? "" : " hidden") + ">" + content + "</div>";
-  const tabContent = panel("recent", recentRows) + panel("local", localRows +
-    '<div class="guided-actions"><button type="button" class="button button-outline" data-import>Import JSON / ZIP</button></div>') +
+  const tabContent = panel("unsaved", unsavedRows + '<div class="guided-actions"><button type="button" class="button button-outline" data-bulk-save>Save selected</button>' +
+    '<button type="button" class="button button-outline danger-text" data-bulk-discard>Discard selected</button></div>') +
+    panel("unpublished", unpublishedRows + '<div class="guided-actions"><button type="button" class="button button-primary" data-bulk-publish>Publish selected</button></div>') +
+    panel("local", localRows + '<div class="guided-actions"><button type="button" class="button button-outline" data-import>Import JSON / ZIP</button></div>') +
     panel("cloud", setRows(sets));
 
   container.innerHTML = '<main class="editor-shell"><div class="topbar"><div class="topbar-context">' +
@@ -460,6 +542,65 @@ function renderBrowser(container: HTMLElement, state: AppState): void {
     container.querySelectorAll<HTMLElement>("[data-dashboard-panel]").forEach(panel =>
       panel.hidden = panel.dataset.dashboardPanel !== id);
   }));
+  const savePending = (keys: string[]) => {
+    const entries = state.pending.filter(item => keys.includes(pendingKey(item)) && item.setId !== SCRATCH_WORKSPACE);
+    const setIds = [...new Set(entries.map(item => item.setId))];
+    if (!setIds.length) return;
+    void (async () => {
+      for (const setId of setIds) {
+        const record = storage()[setId];
+        if (!record) continue;
+        state.setId = setId;
+        state.draft = record.draft;
+        state.draftVersion = record.draftVersion;
+        await saveDraft(state);
+      }
+      renderBrowser(container, state);
+      flashStatus(container, state);
+    })();
+  };
+  container.querySelectorAll<HTMLElement>("[data-save-pending]").forEach(button => button.addEventListener("click", () =>
+    savePending([button.dataset.savePending!])));
+  container.querySelectorAll<HTMLElement>("[data-discard-pending]").forEach(button => button.addEventListener("click", () => {
+    state.pending = state.pending.filter(item => pendingKey(item) !== button.dataset.discardPending);
+    syncSession(state);
+    renderBrowser(container, state);
+  }));
+  container.querySelectorAll<HTMLElement>("[data-publish-set]").forEach(button => button.addEventListener("click", () => {
+    const setId = button.dataset.publishSet!;
+    const record = storage()[setId];
+    if (!record) return;
+    state.setId = setId;
+    state.draft = record.draft;
+    state.draftVersion = record.draftVersion;
+    void publishDraft(state).then(() => {
+      renderBrowser(container, state);
+      flashStatus(container, state);
+    });
+  }));
+  container.querySelector<HTMLElement>("[data-bulk-save]")?.addEventListener("click", () =>
+    savePending([...container.querySelectorAll<HTMLInputElement>("[data-pending]:checked")].map(input => input.dataset.pending!)));
+  container.querySelector<HTMLElement>("[data-bulk-discard]")?.addEventListener("click", () => {
+    const keys = [...container.querySelectorAll<HTMLInputElement>("[data-pending]:checked")].map(input => input.dataset.pending!);
+    state.pending = state.pending.filter(item => !keys.includes(pendingKey(item)));
+    syncSession(state);
+    renderBrowser(container, state);
+  });
+  container.querySelector<HTMLElement>("[data-bulk-publish]")?.addEventListener("click", () => {
+    const ids = [...container.querySelectorAll<HTMLInputElement>("[data-unpublished]:checked")].map(input => input.dataset.unpublished!);
+    void (async () => {
+      for (const setId of ids) {
+        const record = storage()[setId];
+        if (!record) continue;
+        state.setId = setId;
+        state.draft = record.draft;
+        state.draftVersion = record.draftVersion;
+        await publishDraft(state);
+      }
+      renderBrowser(container, state);
+      flashStatus(container, state);
+    })();
+  });
   container.querySelectorAll<HTMLElement>("[data-export-set]").forEach(button => button.addEventListener("click", () => {
     const draft = records[button.dataset.exportSet!]?.draft;
     if (draft) downloadText(button.dataset.exportSet! + ".json", JSON.stringify(draft, null, 2));
@@ -782,7 +923,9 @@ async function openEditor(container: HTMLElement, state: AppState, target: Edito
         activeEditorRoute = { kind: "editor", workspace: target.workspace, section: section as DetailSection, key };
         pushRoute(activeEditorRoute);
         syncSession(state);
-      }
+      },
+      onRecordEdited: (section, key) => markRecordEdited(state, target.workspace, section, key),
+      onDiscardRecord: (section, key) => discardRecord(state, target.workspace, section, key)
     });
   } catch (error) {
     if (reloadForStaleChunk(error)) return;
@@ -1154,6 +1297,7 @@ function renderSetView(container: HTMLElement, state: AppState): void {
         : "") + "</li>").join("") + "</ul>"
     : '<p class="step-copy">No validation issues. This set is ready to publish.</p>';
 
+  const showError = /conflict|failed|fix the validation|could not|couldn't|error/i.test(state.status);
   container.innerHTML = '<main class="editor-shell"><div class="topbar"><div class="topbar-context">' +
     '<span class="brand-mark">M</span><strong>MeowEdit</strong><span class="context-divider">/</span>' +
     '<span class="context-crumb">' + escapeHtml(state.setId) + '</span></div><div class="topbar-actions">' +
@@ -1170,11 +1314,45 @@ function renderSetView(container: HTMLElement, state: AppState): void {
     '<div class="guided-actions">' +
     '<button type="button" class="button button-primary" data-save' + (state.dirty ? "" : " hidden") +
     ' title="Uploads your changes as a private draft for this set">Save draft · ' + changedCount(state) + " changed</button>" +
-    '<button type="button" class="button button-outline" data-publish title="Makes this set the latest public revision for players"' +
-    (canPublish() && state.validation.valid ? "" : " disabled") + ">Publish</button></div>" +
-    '<p class="guided-status" data-status>' + escapeHtml(state.status) + "</p></div></main>";
+    '<button type="button" class="button button-outline" data-publish title="Publishes this set to players"' +
+    (canPublish() && state.validation.valid ? "" : " disabled") + ">Publish</button>" +
+    '<button type="button" class="text-button danger-text" data-discard-all>Discard all</button></div>' +
+    (showError ? '<div class="status-banner" role="alert">' + escapeHtml(state.status) + "</div>" : "") +
+    '<div class="guided-status" data-status hidden></div>' +
+    '<dialog class="confirm-dialog" id="discard-dialog"><form method="dialog"><h2>Discard changes in this set?</h2>' +
+    '<p>Local edits to ' + escapeHtml(state.setId) + ' will be reverted to the last saved draft.</p>' +
+    '<label class="mission-check"><input type="checkbox" data-discard-unpublished><span>Also revert saved but unpublished changes</span></label>' +
+    '<p class="field-hint help-copy">This restores the last published version and uploads it as a new draft.</p>' +
+    '<div class="dialog-actions"><button value="cancel" class="button button-outline">Cancel</button>' +
+    '<button value="confirm" class="button button-danger" id="discard-confirm">Discard</button></div></form></dialog>' +
+    '</div></main>';
   writeSession(state);
 
+  container.querySelector<HTMLElement>("[data-discard-all]")?.addEventListener("click", () => {
+    document.querySelector<HTMLDialogElement>("#discard-dialog")?.showModal();
+  });
+  document.querySelector<HTMLDialogElement>("#discard-dialog")?.addEventListener("close", () => {
+    void (async () => {
+      const dialog = document.querySelector<HTMLDialogElement>("#discard-dialog");
+      if (!dialog || dialog.returnValue !== "confirm") return;
+      const setId = state.setId;
+      state.pending = state.pending.filter(item => item.setId !== setId);
+      const workspace = loadWorkspace(setId, state.draft, state.capabilities);
+      saveWorkspaceForSet(setId, workspace);
+      const revertPublished = document.querySelector<HTMLInputElement>("[data-discard-unpublished]")?.checked;
+      if (revertPublished) {
+        const published = loadPublishedSnapshot(setId);
+        if (published) {
+          state.draft = structuredClone(published);
+          state.dirty = true;
+          await saveDraft(state);
+          markSetPublished(state, setId);
+        }
+      }
+      syncSession(state);
+      renderSetView(container, state);
+    })();
+  });
   container.querySelector<HTMLElement>("[data-back-browser]")?.addEventListener("click", () => {
     state.view = "browser";
     renderBrowser(container, state);
@@ -1272,6 +1450,8 @@ async function openClassicEditor(container: HTMLElement, state: AppState, select
         state.dirty = true;
         persistLocal(state);
       },
+      onRecordEdited: (section, key) => markRecordEdited(state, state.setId, section, key),
+      onDiscardRecord: (section, key) => discardRecord(state, state.setId, section, key),
       onBack: () => renderSetView(container, state),
       onPublish: () => publishDraft(state),
       canPublishEditor: () => state.validation.valid && canPublish()
@@ -1304,6 +1484,7 @@ async function saveDraft(state: AppState): Promise<string> {
     state.draftVersion = result.draftVersion;
     state.status = "Saved changes to " + state.setId + " (v" + result.draftVersion + "). Publish to make them live for players.";
     markWorkspaceSynced(state.setId, state.draftVersion);
+    markSetSaved(state, state.setId);
     persistLocal(state);
     await refreshSets(state);
     return state.status;
@@ -1327,6 +1508,10 @@ async function publishDraft(state: AppState): Promise<string> {
     state.status = "Publish cancelled.";
     return state.status;
   }
+  if (state.pending.some(item => item.setId === state.setId)) {
+    const saved = await saveDraft(state);
+    if (!saved.startsWith("Saved changes")) return saved;
+  }
   try {
     const result = await requestJson<{ packageId: string; contentHash?: string }>(
       "/v1/editor/mission-sets/" + encodeURIComponent(state.setId) + "/publish",
@@ -1334,6 +1519,8 @@ async function publishDraft(state: AppState): Promise<string> {
     );
     const packed = await packContentSet(state.draft, state.capabilities);
     state.publishedPackageId = result.packageId;
+    savePublishedSnapshot(state.setId, state.draft);
+    markSetPublished(state, state.setId);
     state.status = "Published " + result.packageId +
       (result.contentHash === packed.contentHash ? " (hash verified)" : " (HASH MISMATCH)") + ".";
     markWorkspaceSynced(state.setId, state.draftVersion);
@@ -1409,7 +1596,8 @@ export async function mountApp(container: HTMLElement): Promise<void> {
     capabilities, sets: [], view: "browser", activeSection: "missions", setId: "", draft: emptyContentSet("", ""),
     draftVersion: 0, status: "", validation: { valid: false, issues: [] },
     help: session.help, savedAt: session.savedAt, lastEdited: session.lastEdited,
-    recent: session.recent, dashboardTab: "recent", dirty: false, baseline: null
+    recent: session.recent, pending: session.pending, unpublished: session.unpublished,
+    dashboardTab: "unsaved", dirty: false, baseline: null
   };
   appContainer = container;
   appState = state;

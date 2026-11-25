@@ -7,15 +7,24 @@ export interface LastEdited {
   label: string;
 }
 
+export interface PendingEdit extends LastEdited {
+  setId: string;
+}
+
 export interface ContentSession {
   help: boolean;
   savedAt: string | null;
   setId: string | null;
   lastEdited: LastEdited | null;
   recent: LastEdited[];
+  pending: PendingEdit[];
+  unpublished: string[];
 }
 
-const DEFAULT: ContentSession = { help: false, savedAt: null, setId: null, lastEdited: null, recent: [] };
+const DEFAULT: ContentSession = {
+  help: false, savedAt: null, setId: null, lastEdited: null,
+  recent: [], pending: [], unpublished: []
+};
 
 function key(): string {
   return "meowedit.content.session." + (getBridgeUserId() ?? "local");
@@ -33,12 +42,18 @@ export function loadSession(): ContentSession {
         && ["dialogues", "quests", "armies", "missions"].includes(value.section ?? "");
     };
     const last = loaded.lastEdited;
+    const pendingValid = (entry: unknown): entry is PendingEdit => {
+      const value = entry as Partial<PendingEdit> | null;
+      return valid(value) && typeof (value as PendingEdit | null)?.setId === "string";
+    };
     return {
       help: loaded.help === true,
       savedAt: typeof loaded.savedAt === "string" ? loaded.savedAt : null,
       setId: typeof loaded.setId === "string" ? loaded.setId : null,
       lastEdited: valid(last) ? last : null,
-      recent: Array.isArray(loaded.recent) ? loaded.recent.filter(valid).slice(0, 5) : []
+      recent: Array.isArray(loaded.recent) ? loaded.recent.filter(valid).slice(0, 5) : [],
+      pending: Array.isArray(loaded.pending) ? loaded.pending.filter(pendingValid) : [],
+      unpublished: Array.isArray(loaded.unpublished) ? loaded.unpublished.filter(id => typeof id === "string") : []
     };
   } catch {
     return { ...DEFAULT };

@@ -76,6 +76,8 @@ export interface EditorMountOptions {
   canPublishEditor?(): boolean;
   onAssign?(): void;
   onRecordChange?(section: string, key: string, label: string): void;
+  onRecordEdited?(section: string, key: string): void;
+  onDiscardRecord?(section: string, key: string): void;
 }
 
 let mountOptions: EditorMountOptions | null = null;
@@ -663,6 +665,8 @@ function bindField(element: HTMLInputElement | HTMLTextAreaElement | HTMLSelectE
   }
   if (quest && path === "extension.killCount.targetKind" && quest.extension.killCount) quest.extension.killCount.targetId = "";
   saveWorkspace();
+  if (workspace.selectedType && workspace.selectedKey)
+    mountOptions?.onRecordEdited?.(workspace.selectedType, workspace.selectedKey);
   refreshDerivedView();
 }
 
@@ -2458,6 +2462,18 @@ function onAction(button: HTMLButtonElement): void {
         const status = document.querySelector<HTMLElement>("#save-status");
         if (status && message) status.textContent = message;
       });
+      return;
+    case "exit-discard": {
+      const section = workspace.selectedType;
+      const key = workspace.selectedKey;
+      if (section && key) mountOptions?.onDiscardRecord?.(section, key);
+      mountOptions?.onBack();
+      return;
+    }
+    case "exit-save":
+      saveWorkspace();
+      syncDraft();
+      void Promise.resolve(mountOptions?.onSave?.()).then(() => mountOptions?.onBack?.());
       return;
     case "open-content-editor":
       saveWorkspace();

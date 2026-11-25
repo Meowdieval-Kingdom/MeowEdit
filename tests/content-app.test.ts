@@ -113,13 +113,31 @@ describe("set manager and single editor", () => {
     expect(location.hash).toContain("#/edit/published-set/quests/");
   });
 
+  it("shows unsaved and unpublished work as actionable dashboard lists", async () => {
+    localStorage.setItem("meowedit.v2.sets.author-1", JSON.stringify({
+      "published-set": { draft: makeValidDraft(), draftVersion: 1 }
+    }));
+    localStorage.setItem("meowedit.content.session.author-1", JSON.stringify({
+      help: false, savedAt: null, setId: null, lastEdited: null, recent: [],
+      pending: [{ setId: "published-set", workspace: "published-set", section: "missions", key: "mission-1", label: "First Mission" }],
+      unpublished: ["published-set"]
+    }));
+    await mountApp(container);
+    expect(container.textContent).toContain("Unsaved edits");
+    expect(container.querySelector('[data-save-pending]')).not.toBeNull();
+    expect(container.querySelector('[data-discard-pending]')).not.toBeNull();
+    expect(container.textContent).toContain("Ready to publish");
+    expect(container.querySelector('[data-publish-set]')).not.toBeNull();
+    expect(container.querySelector('[data-bulk-publish]')).not.toBeNull();
+  });
+
   it("switches dashboard tabs between recent, local and cloud panels", () => {
     const cloud = container.querySelector<HTMLElement>('[data-dashboard-tab="cloud"]')!;
     const local = container.querySelector<HTMLElement>('[data-dashboard-tab="local"]')!;
     expect(container.querySelector<HTMLElement>('[data-dashboard-panel="cloud"]')!.hidden).toBe(true);
     cloud.click();
     expect(container.querySelector<HTMLElement>('[data-dashboard-panel="cloud"]')!.hidden).toBe(false);
-    expect(container.querySelector<HTMLElement>('[data-dashboard-panel="recent"]')!.hidden).toBe(true);
+    expect(container.querySelector<HTMLElement>('[data-dashboard-panel="unsaved"]')!.hidden).toBe(true);
     expect(cloud.classList.contains("is-active")).toBe(true);
     local.click();
     expect(container.querySelector<HTMLElement>('[data-dashboard-panel="local"]')!.hidden).toBe(false);

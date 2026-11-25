@@ -22,6 +22,8 @@
 
 .editor-shell .guided-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .editor-shell .set-tabs { margin-bottom: 18px; }
+.editor-shell .row-select { flex: 0 0 auto; width: 15px; height: 15px; accent-color: #6f7f63; }
+.editor-shell .status-banner { margin: 0 0 16px; padding: 11px 14px; color: #8a4338; background: #fbf0ec; border: 1px solid #e6c8be; border-radius: 8px; font-size: 12px; }
 .editor-shell .set-tab.is-active { color: #fff; background: var(--ink); border-color: var(--ink); }
 .editor-shell .guided-status { color: var(--green-dark); font-size: 12px; min-height: 1em; }
 

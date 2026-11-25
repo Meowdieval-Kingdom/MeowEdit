@@ -76,16 +76,12 @@ describe("editor rendering", () => {
     expect(effect).toContain("5 mana");
   });
 
-  it("keeps the sidebar compact and moves transfer actions out of the top bar", () => {
+  it("keeps browsing in the top bar and transfer actions out of it", () => {
     const root = dom(renderApp(workspaceFixture(), rosterFixture, catalog, [], 0, "full"));
-    const sidebar = root.querySelector(".sidebar")!;
     const topbar = root.querySelector(".topbar")!;
 
-    expect(sidebar.querySelector(".doc-item")).toBeNull();
-    expect(sidebar.textContent).not.toContain("AUTHORING WORKSPACE");
-    expect(sidebar.querySelector('[data-action="open-content-picker"]')).not.toBeNull();
-    expect(sidebar.querySelector('[data-action="open-import"]')).toBeNull();
-    expect(sidebar.querySelector('[data-action="export-package"]')).toBeNull();
+    expect(root.querySelector(".sidebar")).toBeNull();
+    expect(topbar.querySelector('[data-action="open-content-picker"]')).not.toBeNull();
     expect(root.querySelector("#import-file")).toBeNull();
     for (const action of ["open-import", "export-active", "export-package", "delete-active", "delete-item"])
       expect(topbar.querySelector('[data-action="' + action + '"]')).toBeNull();

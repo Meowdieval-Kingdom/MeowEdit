@@ -53,7 +53,7 @@ describe("save and publish flows", () => {
       return new Response(JSON.stringify({ sets: [{ setId: "test-set", draftVersion: 2 }] }), { status: 200, headers: { "content-type": "application/json" } });
     });
     container.querySelector<HTMLElement>("[data-save]")!.click();
-    await vi.waitFor(() => expect(container.textContent).toContain("Saved as private draft v3"));
+    await vi.waitFor(() => expect(container.textContent).toContain("Saved changes to test-set (v3)"));
   });
 
   it("reports a 409 draft conflict from the HTTP error body", async () => {

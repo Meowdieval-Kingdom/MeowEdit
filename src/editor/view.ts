@@ -1960,6 +1960,8 @@ export function renderApp(
     (relatedReturnState ? actionButton("return-to-parent", "← " + escapeHtml(relatedReturnState.label), "text-button return-to-parent", ' aria-label="Return to ' + escapeHtml(relatedReturnState.parent) + '" title="Return to ' + escapeHtml(relatedReturnState.parent) + '"') : "") +
     (bridgeUserId && publishAllowed && canPublish() ? actionButton("publish-package", "Publish", "button button-primary", publishAllowed ? "" : " disabled") : "") +
     (bridgeUserId ? actionButton("save-package", scratchMode ? "Save locally" : "Save to cloud", "button button-outline") : "") +
+    (bridgeUserId && !scratchMode ? actionButton("exit-save", "Exit & save", "button button-outline") +
+      actionButton("exit-discard", "Exit & discard", "text-button danger-text") : "") +
     (bridgeUserId ? actionButton("open-content-editor", scratchMode ? "← Dashboard" : "← Set", "text-button open-content-editor") : "") +
     (bridgeUserId ? actionButton("bridge-sign-out", "Sign out", "text-button bridge-sign-out") : "") +
     (item && !guidedCompact ? helpToggleButton(helpVisible) : "") +
