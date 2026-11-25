@@ -58,7 +58,7 @@ describe("cleanup regressions", () => {
     expect(result.issues.some(issue => issue.code === "schema")).toBe(true);
   });
 
-  it("joins dialogue segments with spaces in the preview", () => {
+  it("previews multi-line moments one line at a time", () => {
     const record = dialogueFixture();
     record.sequence.nodes[0].segments = [
       { speakerIds: [], text: "First sentence." },
@@ -66,8 +66,13 @@ describe("cleanup regressions", () => {
     ];
     const workspace = workspaceFixture();
     workspace.dialogues = [record];
+    workspace.activeNodeId = "opening";
     const html = renderApp({ ...workspace, selectedType: "dialogue", selectedKey: record.key },
       { schemaVersion: 1, rosterVersion: "test", source: "", units: [] }, catalog, [], 0, "full");
-    expect(html).toContain("First sentence. Second sentence.");
+    const previewBody = html.match(/<p class="game-body">([\s\S]*?)<\/p>/)?.[1] ?? "";
+    expect(previewBody).toContain("First sentence.");
+    expect(previewBody).not.toContain("Second sentence.");
+    expect(html).toContain('data-action="preview-next-line"');
+    expect(html).toContain("Line 1 of 2");
   });
 });

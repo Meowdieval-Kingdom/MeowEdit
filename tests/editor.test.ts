@@ -85,6 +85,26 @@ describe("editor", () => {
     await vi.waitFor(() => expect(onSave).toHaveBeenCalled());
   });
 
+  it("advances multi-line moments one line at a time in the preview", async () => {
+    const draft = draftWithArmy();
+    draft.dialogues[0].nodes[0].segments = [
+      { speakerIds: [], text: localized("Hmm.") },
+      { speakerIds: [], text: localized("What?!") }
+    ];
+    const { mountEditor } = await import("../src/editor/main");
+    mountEditor({
+      setId: "editor-set", draft, capabilities, selected: { section: "dialogues", index: 0 },
+      onSave: vi.fn(), onDraftChange: vi.fn(), onBack: vi.fn()
+    });
+    await vi.waitFor(() => expect(document.querySelector('[data-action="preview-next-line"]')).not.toBeNull());
+    expect(document.querySelector(".game-body")!.textContent).toContain("Hmm.");
+    expect(document.querySelector(".preview-line-count")!.textContent).toContain("Line 1 of 2");
+    document.querySelector<HTMLElement>('[data-action="preview-next-line"]')!.click();
+    expect(document.querySelector(".game-body")!.textContent).toContain("What?!");
+    expect(document.querySelector(".game-body")!.textContent).not.toContain("Hmm.");
+    expect(document.querySelector('[data-action="preview-next-line"]')).toBeNull();
+  });
+
   it("starts a fresh mount at the first guided step instead of a stale saved step", async () => {
     const { mountEditor } = await import("../src/editor/main");
     mountEditor({

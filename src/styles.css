@@ -1380,6 +1380,7 @@ body { color: var(--ink); background: var(--canvas); }
 }
 .preview-panel-head > div { display: flex; align-items: center; gap: 9px; }
 .preview-panel-head strong { color: #42473f; font-size: 12px; font-weight: 600; }
+.preview-line-count { color: #6b7264; font-size: 11px; white-space: nowrap; }
 .game-preview-scroll { width: 100%; overflow-x: auto; }
 .game-screen {
   position: relative; width: min(100%, 800px); min-width: 0; margin: 0 auto;

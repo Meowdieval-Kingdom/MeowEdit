@@ -93,6 +93,7 @@ let lastNotifiedStep = -1;
 let lastNotifiedMode: "guided" | "full" | null = null;
 let lastReportedRecord = "";
 let editorDirty = false;
+let lastPreviewNodeId: string | null = null;
 const isScratch = () => !mountOptions?.setId;
 
 /**
@@ -351,6 +352,10 @@ function render(): void {
   }
   if (selectedArmyPlacementId && !currentArmy()?.units.some(unit => unit.id === selectedArmyPlacementId)) selectedArmyPlacementId = null;
   if (selectedArmyBattlefieldEffectId && !currentArmy()?.blessingIds.some(id => id === selectedArmyBattlefieldEffectId)) selectedArmyBattlefieldEffectId = null;
+  if (lastPreviewNodeId !== workspace.activeNodeId) {
+    lastPreviewNodeId = workspace.activeNodeId;
+    workspace.previewLineIndex = 0;
+  }
   persistEditorSession();
   reportRecord();
   const focusAfterPath = guidedFocusAfterPath;
@@ -2433,10 +2438,16 @@ function onAction(button: HTMLButtonElement): void {
       }
       saveWorkspace(); render(); return;
     }
+    case "preview-next-line": {
+      workspace.previewLineIndex = (workspace.previewLineIndex ?? 0) + 1;
+      render();
+      return;
+    }
     case "preview-choice": {
       const target = button.dataset.target ?? "";
       if (target) {
         workspace.activeNodeId = target;
+        workspace.previewLineIndex = 0;
         render();
       } else {
         showToast("End dialogue closes this conversation.");
@@ -2447,6 +2458,7 @@ function onAction(button: HTMLButtonElement): void {
       const record = currentDialogue();
       if (record) {
         workspace.activeNodeId = record.sequence.startNodeId;
+        workspace.previewLineIndex = 0;
         render();
       }
       return;

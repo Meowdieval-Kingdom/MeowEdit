@@ -392,6 +392,8 @@ export interface Workspace {
   selectedType: "dialogue" | "quest" | "army" | "mission" | null;
   selectedKey: string | null;
   activeNodeId: string | null;
+  /** Preview-only index of the current line inside a multi-line moment. */
+  previewLineIndex?: number;
 }
 
 export interface UnitRosterEntry {

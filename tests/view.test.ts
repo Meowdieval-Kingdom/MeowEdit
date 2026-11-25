@@ -254,7 +254,7 @@ describe("editor rendering", () => {
     }
     const firstGuided = renderApp(workspace, rosterFixture, catalog, [], 0, "guided");
     expect(firstGuided).toContain("Step 1 of 4");
-    expect(firstGuided).toContain("Pick one character, or leave this as narration.");
+    expect(firstGuided).toContain("When a different character takes over, add a new moment.");
     expect(firstGuided).not.toContain("Custom moment name (optional)");
     expect(firstGuided).toContain("Moment name (optional)");
     expect(firstGuided).not.toContain('data-guided-autofocus data-bind="nodes.0.editorLabel"');
@@ -290,16 +290,25 @@ describe("editor rendering", () => {
     expect(html).not.toContain("<strong>Missing/Fighter/1</strong>");
   });
 
-  it("inserts spaces between dialogue segments in the preview", () => {
+  it("shows one dialogue line at a time in the preview", () => {
     const record = dialogueFixture();
     record.sequence.nodes[0].segments = [
       { speakerIds: ["elder"], text: "First sentence." },
       { speakerIds: ["elder"], text: "Second sentence." }
     ];
     const workspace = workspaceFixture();
-    const preview = renderDialoguePreview(record, { ...workspace, activeNodeId: "opening" }, rosterFixture);
-    expect(preview).toContain("First sentence. Second sentence.");
-    expect(preview).not.toContain("sentence.Second");
+    const first = renderDialoguePreview(record, { ...workspace, activeNodeId: "opening" }, rosterFixture);
+    expect(first).toContain("First sentence.");
+    expect(first).not.toContain("Second sentence.");
+    expect(first).toContain("Line 1 of 2");
+    expect(first).toContain('data-action="preview-next-line"');
+    const second = renderDialoguePreview(record,
+      { ...workspace, activeNodeId: "opening", previewLineIndex: 1 }, rosterFixture);
+    expect(second).toContain("Second sentence.");
+    expect(second).not.toContain("First sentence.");
+    expect(second).toContain("Line 2 of 2");
+    expect(second).toContain('data-action="preview-choice"');
+    expect(second).not.toContain('data-action="preview-next-line"');
   });
 
   it("keeps Quest Guided sequential and exposes all advanced sections together", () => {

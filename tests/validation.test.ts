@@ -174,6 +174,24 @@ describe("content validation", () => {
     expect(messages).not.toContain("No branching choices yet. Add another choice to create a branch.");
   });
 
+  it("warns when lines in one moment switch narrator", () => {
+    const dialogue = dialogueFixture();
+    const node = dialogue.sequence.nodes[0];
+    node.speakers = [
+      { id: "elder", unitId: "Peasants/Village Elder/1", displayName: "Elder", side: "left", mood: "Normal" },
+      { id: "fighter", unitId: "Peasants/Fighter/1", displayName: "Fighter", side: "right", mood: "Normal" }
+    ];
+    node.segments = [
+      { speakerIds: ["elder"], text: "Hmm." },
+      { speakerIds: ["elder"], text: "What?" },
+      { speakerIds: ["fighter"], text: "Hello?!" }
+    ];
+    const issues = validateDialogue(dialogue);
+    expect(issues.some(issue => issue.level === "warning"
+      && issue.message.includes("changes narrator between lines"))).toBe(true);
+    expect(issues.some(issue => issue.level === "error")).toBe(false);
+  });
+
   it("accepts the published character-mission mission shapes that work in game", () => {
     const mission = missionFixture();
     mission.settings.startingSardines = 0;

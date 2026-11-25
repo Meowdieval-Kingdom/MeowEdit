@@ -470,7 +470,7 @@ function renderDialogueNodeEditor(
 
   if (step === 2) {
     return '<div class="form-block" id="dialogue-lines">' +
-      '<div class="section-heading"><div><h2>Write the lines</h2><p class="help-copy">Segments appear together as one body of text. The game shifts the speaker headline and emphasis as each segment is read.</p></div>' +
+      '<div class="section-heading"><div><h2>Write the lines</h2><p class="help-copy">Each line appears on its own and advances with a Continue button. Keep lines with the same narrator in one moment; start a new moment when a different character speaks. Named choices belong on the last line of a moment.</p></div>' +
       actionButton("add-segment", "＋ Add line", "button button-small", ' data-node-index="' + nodeIndex + '"') +
       '</div>' +
       (node.segments.length ? node.segments.map((_, index) => renderSegment(node, index, nodeIndex)).join("") : '<div class="soft-empty">Add a line to start this node.</div>') +
@@ -573,12 +573,20 @@ export function renderDialoguePreview(
   const visibleLeft = left?.unitId ? left : undefined;
   const visibleRight = right?.unitId ? right : undefined;
   const layout = visibleLeft && visibleRight ? "two" : visibleLeft ? "left" : visibleRight ? "right" : "none";
-  const firstSpeakerNames = (current.segments[0]?.speakerIds ?? [])
+  // One authored segment is one presented line. The game shows them one at a time,
+  // with an implicit Continue between them and the authored choices on the last line.
+  const segments = current.segments.length ? current.segments : [{ speakerIds: [], text: "" }];
+  const lineIndex = Math.max(0, Math.min(segments.length - 1, workspace.previewLineIndex ?? 0));
+  const segment = segments[lineIndex];
+  const firstSpeakerNames = (segment.speakerIds ?? [])
     .map(id => speakers.find(speaker => speaker.id === id)?.displayName || id)
     .filter(Boolean);
   const headline = current.headline || [...new Set(firstSpeakerNames)].join(" & ");
-  const body = current.segments.map(segment => segment.text.trim()).filter(Boolean).join(" ");
-  const actions = dialogueActionsForNode(record.sequence, current);
+  const body = (segment.text ?? "").trim();
+  const hasNextLine = lineIndex < segments.length - 1;
+  const actions = hasNextLine
+    ? [{ label: "Continue", targetNodeId: "", nextLine: true }]
+    : dialogueActionsForNode(record.sequence, current).map(action => ({ ...action, nextLine: false }));
   const missingPortrait = [visibleLeft, visibleRight]
     .filter((speaker): speaker is NonNullable<typeof speaker> => Boolean(speaker))
     .some(speaker => {
@@ -588,8 +596,11 @@ export function renderDialoguePreview(
   const caption = missingPortrait
     ? "No captured portrait is registered for this character yet. Import a UnitAvatar portrait PNG into the roster to show it here."
     : "Panel geometry, fonts, parchment, and choice buttons use current game assets.";
+  const lineCounter = segments.length > 1
+    ? ' <span class="preview-line-count">Line ' + (lineIndex + 1) + ' of ' + segments.length + '</span>'
+    : "";
   return '<aside class="preview-panel" id="live-preview">' +
-    '<div class="preview-panel-head"><div><span class="eyebrow">DIALOGUE PREVIEW</span><strong>' + escapeHtml(dialogueMomentName(record.sequence, current)) + '</strong></div><button type="button" class="text-button" data-action="preview-reset">↺ Start over</button></div>' +
+    '<div class="preview-panel-head"><div><span class="eyebrow">DIALOGUE PREVIEW</span><strong>' + escapeHtml(dialogueMomentName(record.sequence, current)) + '</strong>' + lineCounter + '</div><button type="button" class="text-button" data-action="preview-reset">↺ Start over</button></div>' +
     '<div class="game-preview-scroll"><div class="game-screen" data-layout="' + layout + '">' +
     '<div class="game-dimmer"></div>' +
     '<section class="game-dialogue-panel" data-layout="' + layout + '">' +
@@ -599,12 +610,17 @@ export function renderDialoguePreview(
     '<h3 class="game-headline">' + escapeHtml(headline) + '</h3>' +
     '<p class="game-body">' + escapeHtml(body || " ") + '</p>' +
     '<div class="game-actions">' + actions.map(action =>
-      '<button type="button" class="' + ((action.label || "Continue").length > 16 ? 'is-long-label' : '') + '" data-action="preview-choice" data-target="' + escapeHtml(action.targetNodeId) + '">' +
+      '<button type="button" class="' + ((action.label || "Continue").length > 16 ? 'is-long-label' : '') + '"' +
+      (action.nextLine
+        ? ' data-action="preview-next-line"'
+        : ' data-action="preview-choice" data-target="' + escapeHtml(action.targetNodeId) + '"') + '>' +
       escapeHtml(action.label || "Continue") +
       '</button>'
     ).join("") + '</div>' +
     '</div></section></div></div>' +
-    '<p class="preview-note help-copy">' + escapeHtml(caption) + ' The dimmed background represents the current game scene, which Unity supplies at runtime.</p>' +
+    '<p class="preview-note help-copy">' + escapeHtml(caption) +
+    ' Each line appears on its own: Continue advances to the next line, and named choices stay on the last line of the moment.' +
+    ' The dimmed background represents the current game scene, which Unity supplies at runtime.</p>' +
     '</aside>';
 }
 
@@ -672,7 +688,7 @@ function renderGuidedDialogueEditor(
         '</details>' +
         '</div>'
       : "";
-    screen = '<div class="guided-intro help-copy"><p>Pick one character, or leave this as narration.</p></div>' +
+    screen = '<div class="guided-intro help-copy"><p>Pick the character who speaks in this moment, or leave this as narration. When a different character takes over, add a new moment.</p></div>' +
       (speaker
         ? speakerFields.replace('data-bind="' + speakerPath + '"', 'data-bind="' + speakerPath + '" data-guided-autofocus') +
           (node.speakers.length > 1 ? '<p class="guided-note help-copy">A second speaker is already set up. Edit multiple speakers in the full editor.</p>' : "")
@@ -683,12 +699,16 @@ function renderGuidedDialogueEditor(
         hint: "Leave empty to use the automatic Moment 1, Moment 2, and so on."
       }) + '</details>';
   } else if (node && step === 1) {
-    const lines = node.segments.map((segment, index) =>
-      '<div class="guided-line"><div class="guided-item-heading"><span>Line ' + (index + 1) + '</span>' +
-      (index > 0 ? actionButton("remove-segment", "Remove", "text-button danger-text", ' data-node-index="' + nodeIndex + '" data-index="' + index + '" aria-label="Remove line"') : "") +
-      '</div>' + textAreaField("What should the player read?", "nodes." + nodeIndex + ".segments." + index + ".text", segment.text, "", 3) + '</div>'
-    ).join("");
-    screen = '<div class="guided-intro help-copy"><p>Write the words for this moment. Add another line if the thought needs a pause.</p></div>' +
+    const lines = node.segments.map((segment, index) => {
+      const speakerNames = (segment.speakerIds ?? [])
+        .map(id => node.speakers.find(speaker => speaker.id === id)?.displayName || id)
+        .filter(Boolean);
+      const speakerLabel = [...new Set(speakerNames)].join(" & ") || node.headline || "Narration";
+      return '<div class="guided-line"><div class="guided-item-heading"><span>Line ' + (index + 1) + ' · ' + escapeHtml(speakerLabel) + '</span>' +
+        (index > 0 ? actionButton("remove-segment", "Remove", "text-button danger-text", ' data-node-index="' + nodeIndex + '" data-index="' + index + '" aria-label="Remove line"') : "") +
+        '</div>' + textAreaField("What should the player read?", "nodes." + nodeIndex + ".segments." + index + ".text", segment.text, "", 3) + '</div>';
+    }).join("");
+    screen = '<div class="guided-intro help-copy"><p>Each line appears on its own with a Continue button between lines. Keep lines by the same narrator here; make a new moment when the speaker changes.</p></div>' +
       (lines || '<div class="guided-empty"><p class="help-copy">Add a line to start.</p></div>') +
       actionButton("add-segment", "＋ Add another line", "text-button guided-add", ' data-node-index="' + nodeIndex + '"');
   } else if (node && step === 2) {
@@ -705,11 +725,11 @@ function renderGuidedDialogueEditor(
       (choices || renderDefaultContinue(node, nodeIndex, record)) +
       actionButton("add-action", node.actions.length ? "＋ Add another choice" : "＋ Replace Continue with choices", "text-button guided-add", ' data-node-index="' + nodeIndex + '"');
   } else if (node && step === 3) {
-    screen = '<div class="guided-intro help-copy"><p>Try each choice to check where the conversation goes.</p></div>' +
+    screen = '<div class="guided-intro help-copy"><p>Continue steps through each line; named choices appear after the last line. Try each choice to check where the conversation goes.</p></div>' +
       renderDialoguePreview(record, workspace, roster) +
       '<div class="review-validation">' + renderIssues(issues) + '</div>' +
       '<div class="guided-end-actions">' +
-      actionButton("guided-add-node", "＋ Add another moment", "button button-outline") +
+      actionButton("guided-add-node", "＋ New moment for a different speaker", "button button-outline") +
       '</div>';
   } else {
     screen = '<div class="guided-empty"><p class="help-copy">Add a moment to start the conversation.</p>' + actionButton("guided-add-node", "＋ Add a moment", "button button-outline") + '</div>';

@@ -65,6 +65,14 @@ export function validateDialogue(record: DialogueRecord): ValidationIssue[] {
     if (node.segments.length === 0) {
       issues.push({ level: "warning", message: "This node has no dialogue text.", target: node.id });
     }
+    const lineSpeakers = new Set(node.segments.map(segment => [...segment.speakerIds].sort().join(",")));
+    if (lineSpeakers.size > 1) {
+      issues.push({
+        level: "warning",
+        message: "This moment changes narrator between lines. Start a new moment when a different character speaks.",
+        target: node.id
+      });
+    }
     for (const segment of node.segments) {
       for (const speakerId of segment.speakerIds) {
         if (!speakerIds.includes(speakerId)) {
