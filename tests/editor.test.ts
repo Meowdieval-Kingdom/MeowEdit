@@ -75,7 +75,12 @@ describe("editor", () => {
     await vi.waitFor(() => expect(document.querySelector(".army-grid-cell")).not.toBeNull());
     expect(document.querySelector(".app-shell")).not.toBeNull();
     expect(document.querySelector(".army-grid-placement")).not.toBeNull();
-    expect(document.querySelector('[data-action="save-package"]')).not.toBeNull();
+    const save = document.querySelector<HTMLButtonElement>('[data-action="save-package"]')!;
+    expect(save.disabled).toBe(true);
+    const nameField = document.querySelector<HTMLInputElement>('[data-bind="name"]')!;
+    nameField.value = "Changed army";
+    nameField.dispatchEvent(new Event("input", { bubbles: true }));
+    expect(document.querySelector<HTMLButtonElement>('[data-action="save-package"]')!.disabled).toBe(false);
     document.querySelector<HTMLElement>('[data-action="save-package"]')!.click();
     await vi.waitFor(() => expect(onSave).toHaveBeenCalled());
   });

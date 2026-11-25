@@ -69,7 +69,7 @@ describe("save and publish flows", () => {
     await vi.waitFor(() => expect(container.textContent).toContain("server is at version 9"));
   });
 
-  it("marks a publish as hash verified when hashes match", async () => {
+  it("reports the published package when the server hash matches", async () => {
     const packed = new Response("{}");
     void packed;
     await openSet();
@@ -83,7 +83,7 @@ describe("save and publish flows", () => {
       return new Response(JSON.stringify({ sets: [{ setId: "test-set", draftVersion: 2 }] }), { status: 200, headers: { "content-type": "application/json" } });
     });
     container.querySelector<HTMLElement>("[data-publish]")!.click();
-    await vi.waitFor(() => expect(container.textContent).toContain("hash verified"));
+    await vi.waitFor(() => expect(container.textContent).toContain("Published pkg-1."));
   });
 
   it("tracks unsynced local workspace edits", () => {

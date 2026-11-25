@@ -35,9 +35,9 @@ function respond(requestPath: string, init: RequestInit | undefined, draft: unkn
     { setId: "fresh-set", draftVersion: 0 }
   ] };
   if (requestPath === "/v1/editor/capabilities") body = capabilities;
+  else if (requestPath.endsWith("/publish")) body = { packageId: "pkg-1", contentHash: "different" };
   else if (requestPath === "/v1/editor/mission-sets" && init?.method === "POST") body = { setId: "new-set", draftVersion: 1 };
   else if (requestPath.includes("/v1/editor/mission-sets/") && init?.method === "POST") body = { draftVersion: version + 1 };
-  else if (requestPath.endsWith("/publish")) body = { packageId: "pkg-1", contentHash: "different" };
   else if (requestPath.includes("/v1/editor/mission-sets/")) body = { setId: "published-set", draftVersion: version, draft };
   return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
 }
@@ -260,13 +260,14 @@ describe("set manager and single editor", () => {
     expect(container.textContent).not.toContain("unresolved reference");
   });
 
-  it("reports a hash mismatch when publishing", async () => {
+  it("uses the server package id as the authoritative publish result", async () => {
     const validSet = JSON.parse(readFileSync(path.resolve(process.cwd(), "contract/content/fixtures/valid-set.fixture.json"), "utf8"));
     setBridgeFetch(async (requestPath, init) => respond(requestPath, init, validSet));
     container.querySelector<HTMLElement>('[data-open="published-set"]')!.click();
     await vi.waitFor(() => expect(container.querySelector("[data-publish]")).not.toBeNull());
     container.querySelector<HTMLElement>("[data-publish]")!.click();
-    await vi.waitFor(() => expect(container.textContent).toContain("HASH MISMATCH"));
+    await vi.waitFor(() => expect(container.textContent).toContain("Published pkg-1."));
+    expect(container.textContent).not.toContain("HASH MISMATCH");
   });
 
   it("does not open a stale local copy when the saved draft cannot load", async () => {

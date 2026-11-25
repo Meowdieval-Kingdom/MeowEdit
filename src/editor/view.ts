@@ -1987,7 +1987,8 @@ export function renderApp(
   publishAllowed = true,
   questLibrary: QuestLibraryEntry[] = [],
   editorTabs: Array<{ section: string; key: string; label: string }> = [],
-  activeTabKey = ""
+  activeTabKey = "",
+  canSave = true
 ): string {
   guidedFinalStepActive = editorMode === "full";
   const item = selectedItem(workspace);
@@ -1999,7 +2000,8 @@ export function renderApp(
     actionButton("open-content-picker", "Browse", "text-button", ' aria-haspopup="dialog"') +
     (relatedReturnState ? actionButton("return-to-parent", "← " + escapeHtml(relatedReturnState.label), "text-button return-to-parent", ' aria-label="Return to ' + escapeHtml(relatedReturnState.parent) + '" title="Return to ' + escapeHtml(relatedReturnState.parent) + '"') : "") +
     (bridgeUserId && publishAllowed && canPublish() ? actionButton("publish-package", "Publish", "button button-primary", publishAllowed ? "" : " disabled") : "") +
-    (bridgeUserId ? actionButton("save-package", scratchMode ? "Save locally" : "Save to cloud", "button button-outline") : "") +
+    (bridgeUserId ? actionButton("save-package", scratchMode ? "Save locally" : "Save to cloud", "button button-outline",
+      canSave ? "" : " disabled title=\"No changes to save yet\"") : "") +
     (bridgeUserId && !scratchMode ? actionButton("exit-save", "Exit & save", "button button-outline") +
       actionButton("exit-discard", "Exit & discard", "text-button danger-text") : "") +
     (bridgeUserId ? actionButton("open-content-editor", scratchMode ? "← Dashboard" : "← Set", "text-button open-content-editor") : "") +

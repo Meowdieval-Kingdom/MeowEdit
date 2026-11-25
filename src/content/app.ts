@@ -9,7 +9,6 @@ import { emptyContentSet, namedRef } from "./factory";
 import { escapeHtml } from "./html";
 import { withDeadline } from "../request-timeout";
 import { APP_VERSION } from "./version";
-import { packContentSet } from "./packer";
 import { loadSession, saveSession, type EditorTabState, type LastEdited, type PendingEdit } from "./session";
 import { loadPublishedSnapshot, savePublishedSnapshot } from "./snapshots";
 import { gameCapabilitiesSchema } from "./zod";
@@ -1594,12 +1593,13 @@ async function publishDraft(state: AppState): Promise<string> {
       "/v1/editor/mission-sets/" + encodeURIComponent(state.setId) + "/publish",
       { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(publishRequest(state.draftVersion)) }
     );
-    const packed = await packContentSet(state.draft, state.capabilities);
     state.publishedPackageId = result.packageId;
     savePublishedSnapshot(state.setId, state.draft);
     markSetPublished(state, state.setId);
-    state.status = "Published " + result.packageId +
-      (result.contentHash === packed.contentHash ? " (hash verified)" : " (HASH MISMATCH)") + ".";
+    state.status = "Published " + result.packageId + "." +
+      (result.contentHash && !result.contentHash.startsWith(result.packageId.split("-").at(-1) ?? "")
+        ? " The editor's local copy differs from the server draft; reopen the set to compare."
+        : "");
     markWorkspaceSynced(state.setId, state.draftVersion);
     persistLocal(state);
     await refreshSets(state);

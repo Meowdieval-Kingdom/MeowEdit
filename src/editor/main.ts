@@ -92,6 +92,7 @@ let lastFocusSignature = "";
 let lastNotifiedStep = -1;
 let lastNotifiedMode: "guided" | "full" | null = null;
 let lastReportedRecord = "";
+let editorDirty = false;
 const isScratch = () => !mountOptions?.setId;
 
 /**
@@ -171,6 +172,7 @@ export function mountEditor(options: EditorMountOptions): void {
   activeEditorStep = options.initialStep ?? 0;
   lastNotifiedStep = -1;
   lastNotifiedMode = null;
+  editorDirty = false;
   selectedArmyPlacementId = null;
   selectedMissionFloorId = null;
   selectedMissionNodeId = null;
@@ -380,7 +382,7 @@ function render(): void {
     label: returnContext.returnLabel
   } : undefined, armyCatalogKind, helpVisible, { abilityId: selectedArmyBattlefieldEffectId, region: selectedArmyCellRegion }, armyAbilityFilters, armyAbilityCategory, armyAbilitySelections, selectedMissionEventId,
     (mountOptions?.canPublishEditor?.() ?? true) && !isScratch(), questLibrary(),
-    mountOptions?.tabs ?? [], mountOptions?.activeTabKey ?? "");
+    mountOptions?.tabs ?? [], mountOptions?.activeTabKey ?? "", isScratch() || editorDirty);
   const appLayout = root!.querySelector<HTMLElement>(".app-layout");
   appLayout?.classList.toggle("is-sidebar-collapsed", sidebarCollapsed);
   appLayout?.classList.toggle("is-sidebar-open", root!.querySelector<HTMLElement>(".sidebar")?.classList.contains("is-open") ?? false);
@@ -672,6 +674,9 @@ function bindField(element: HTMLInputElement | HTMLTextAreaElement | HTMLSelectE
   }
   if (quest && path === "extension.killCount.targetKind" && quest.extension.killCount) quest.extension.killCount.targetId = "";
   saveWorkspace();
+  editorDirty = true;
+  const saveButton = root!.querySelector<HTMLButtonElement>('[data-action="save-package"]');
+  if (saveButton) saveButton.disabled = false;
   if (workspace.selectedType && workspace.selectedKey)
     mountOptions?.onRecordEdited?.(workspace.selectedType, workspace.selectedKey);
   refreshDerivedView();
@@ -2455,6 +2460,8 @@ function onAction(button: HTMLButtonElement): void {
       }
       syncDraft();
       void Promise.resolve(mountOptions?.onSave()).then(message => {
+        editorDirty = false;
+        render();
         const status = document.querySelector<HTMLElement>("#save-status");
         if (status && message) status.textContent = message;
       }).catch(error => {
@@ -2474,10 +2481,15 @@ function onAction(button: HTMLButtonElement): void {
       root!.querySelector(".app-layout")?.classList.toggle("context-collapsed");
       return;
     case "editor-switch-tab": {
-      const tab = mountOptions?.tabs?.find(item => item.key === button.dataset.key);
-      if (!tab) return;
-      saveWorkspace();
-      mountOptions?.onSwitchTab?.(tab.section, tab.key, tab.step, tab.mode);
+      const key = button.dataset.key ?? "";
+      const tab = mountOptions?.tabs?.find(item => item.key === key);
+      if (tab) {
+        saveWorkspace();
+        mountOptions?.onSwitchTab?.(tab.section, tab.key, tab.step, tab.mode);
+      } else if (key && button.dataset.section) {
+        saveWorkspace();
+        mountOptions?.onSwitchTab?.(button.dataset.section, key);
+      }
       return;
     }
     case "editor-close-tab":
