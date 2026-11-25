@@ -1337,7 +1337,7 @@ function renderMissionEditor(
   const floorTabs = mission.floors.map(item =>
     '<button type="button" class="mission-floor-tab' + (floor?.id === item.id ? " is-active" : "") + '" data-action="mission-select-floor" data-floor-id="' + escapeHtml(item.id) + '"><strong>Floor ' + item.number + '</strong><small>' + (item.mode === "authored" ? "Hand placed" : item.mode === "random" ? "Random" : "Mixed") + '</small></button>'
   ).join("");
-  const startingSettings = '<section class="mission-settings-panel" id="mission-starting-run"><div class="mission-section-heading"><div><h2>Starting run</h2></div></div>' +
+  const startingSettings = '<section class="mission-settings-panel" id="mission-starting-run"><div class="mission-section-heading"><div><h2>Mission settings</h2></div></div>' +
     '<div class="form-grid two">' +
     selectField("Board preview unit", "boardPreviewUnitId", mission.boardPreviewUnitId ?? "", [
       ["", "Use selected faction hero"],
@@ -1468,8 +1468,14 @@ function renderMissionEditor(
       : "Drag plugs to connect. Click a node to edit, drag it to move, or click a line to disconnect.";
     const interactionStatus = '<div class="mission-map-status" data-mode="' + viewState.interactionMode + '" role="status" aria-live="polite"><span class="help-copy">' + escapeHtml(interactionHint) + '</span>' +
       (viewState.interactionMode === "add" ? actionButton("mission-select-mode", "Cancel placement", "text-button mission-cancel-action") : "") + '</div>';
+    const nodeEvents = mission.events.filter(event => event.nodeId === selectedNode?.id && (!event.floorNumber || event.floorNumber === floor?.number));
+    const nodeEventsMarkup = !selectedNode ? "" : '<div class="mission-node-events"><div class="mission-node-events-head"><strong>Events on this node · ' + nodeEvents.length + '</strong>' +
+      actionButton("mission-add-node-event", "＋ Add event", "button button-small button-outline") + '</div>' +
+      (nodeEvents.length ? nodeEvents.map(event => '<button type="button" class="mission-node-event-row" data-action="mission-open-event" data-event-id="' + escapeHtml(event.id) + '">' +
+        escapeHtml(MISSION_EVENT_TRIGGER_LABELS.find(([value]) => value === event.trigger)?.[1] ?? "Mission event") + ' · ' +
+        escapeHtml(missionEventSummary(event, mission, workspace)) + '</button>').join("") : '<p class="help-copy">No events on this node yet.</p>') + '</div>';
     nodeProperties = selectedNode ? '<div class="mission-node-inspector"><div class="mission-inspector-heading"><div><h3>' + escapeHtml(selectedNode.kind) + '</h3></div>' + actionButton("mission-remove-node", "Remove node", "text-button danger-text") + '</div>' +
-      inputField("Node name", path("label"), selectedNode.label, { placeholder: selectedNode.kind + " node" }) +
+      inputField("Node name", path("label"), selectedNode.label, { placeholder: selectedNode.kind + " node" }) + nodeEventsMarkup +
       ((selectedNode.kind === "Battle" || selectedNode.kind === "Boss") ? '<div class="form-grid two">' +
         selectField("Enemy army", path("armyId"), selectedNode.armyId, [["", "Use generated army"], ...workspace.armies.map(army => [army.id, army.name + " · " + army.units.length + " units"] as [string, string])], "Create detailed formations in Armies.") +
         selectField("Enemy faction", path("enemyFactionId"), selectedNode.enemyFactionId, [["", "Use army or game default"], ...catalog.factions.map(item => [item.id, item.name] as [string, string])]) +
@@ -1582,21 +1588,23 @@ function renderMissionEditor(
     '<div class="mission-floor-tabs">' + (floorTabs || "") + '</div>' +
     (floor ? '<div class="mission-floor-mode-row"><span>Floor ' + floor.number + ' layout</span>' + floorModes + '</div>' + randomControls : '<div class="mission-empty-state"><strong>No floor boards yet</strong><p class="help-copy">Add a floor to start laying out the mission.</p></div>') +
     '</section>';
-  const mapBoard = '<section class="mission-map-step"><div class="mission-map-step-heading"><div><h2>Arrange the path</h2></div><p class="help-copy">Nodes snap to the grid and show coordinates. Route labels use the game’s 8-direction map steps.</p></div>' +
+  const mapBoard = '<section class="mission-map-step" id="mission-map"><div class="mission-map-step-heading"><div><h2>Arrange the path</h2></div><p class="help-copy">Nodes snap to the grid and show coordinates. Route labels use the game’s 8-direction map steps.</p></div>' +
     (floor?.mode === "random" ? '<div class="mission-random-preview"><div class="mission-random-mark">✧</div><div><strong>This floor is generated in game</strong><p class="help-copy">Its layout settings are on the Floors step.</p></div></div>' : board) + '</section>';
   const boards = '<section class="mission-boards-full" id="mission-floors">' + floorSetup + (mode === "full" ? (floorPoolDisclosure ? floorPoolDisclosure.replace('<details class="mission-floor-pool">', '<details class="mission-floor-pool" open>') : "") + board : "") + '</section>';
-  const quests = '<section class="mission-quest-section" id="mission-quests"><div><h2>Available quests</h2><p class="help-copy">Quest nodes on these floors can reference these quests.</p></div>' + poolDisclosure + '</section>';
-  const missionEventsSection = '<section class="mission-events-section" id="mission-events"><div class="mission-event-list-heading"><div><h2>Mission events</h2></div>' + actionButton("mission-add-event", "＋ Add event", "button button-outline") + '</div>' +
-    (mission.events.length ? mission.events.map((event, index) => renderMissionEventEditor(event, index, mission, workspace, "full", false)).join("") : '<p class="mission-event-empty">No mission events yet.</p>') + '</section>';
+  const eventEditors = mission.events.map((event, index) =>
+    '<div class="mission-event-editor-store" data-event-editor-id="' + escapeHtml(event.id) + '" hidden>' +
+    renderMissionEventEditor(event, index, mission, workspace, "full", false) + '</div>').join("");
+  const missionEventsSection = '<details class="mission-events-section" id="mission-events"><summary>Mission events · ' + mission.events.length + '</summary>' +
+    '<div class="mission-events-overview">' + renderMissionEventsList(mission, workspace) + eventEditors + '</div></details>';
   if (mode === "full") {
     const sections = [
       { id: "mission-basics", label: "Basics" }, { id: "mission-floors", label: "Floors" },
-      { id: "mission-map", label: "Map" }, { id: "mission-quests", label: "Quests" },
+      { id: "mission-map", label: "Map" },
       { id: "mission-events", label: "Events" },
       { id: "mission-shops", label: "Shops" },
-      { id: "mission-starting-run", label: "Starting run" }, { id: "mission-progression", label: "Progression" }
+      { id: "mission-starting-run", label: "Mission settings" }, { id: "mission-progression", label: "Progression" }
     ];
-    return '<main class="workspace-main mission-editor">' + heading + renderAdvancedSectionNav(sections) + profile + boards + quests + missionEventsSection + missionShopAdvanced +
+    return '<main class="workspace-main mission-editor">' + heading + renderAdvancedSectionNav(sections) + profile + boards + missionEventsSection + missionShopAdvanced +
       '<div class="guided-end-actions">' + '</div>' +
       '</main>';
   }
@@ -1629,7 +1637,7 @@ function renderMissionEditor(
     reviewField("Setup", isSettingsOnly ? "Randomizer only" : "Authored mission"),
     reviewField("Floors", String(mission.floors.length)),
     reviewField("Board preview", boardPreviewSummary),
-    reviewField("Starting run", startingRunSummary),
+    reviewField("Mission settings", startingRunSummary),
     reviewField("Generated shop pools", missionShopPoolSummary),
     reviewField("Mission events", String(mission.events.length)),
     reviewField("Generated progression", progressionSummary)
@@ -2019,10 +2027,12 @@ export function renderApp(
     '<button type="button" class="button button-outline" data-action="export-active">Download JSON</button>' +
     '<button type="button" class="button button-primary" data-action="export-package">Export ZIP</button></div></form></dialog>' +
     renderContentPicker(workspace) +
+    '<dialog class="confirm-dialog mission-event-dialog" id="mission-event-dialog"><form method="dialog"><h2>Mission event</h2><div id="mission-event-editor-host"></div><div class="dialog-actions"><button value="cancel" class="button button-outline">Close</button></div></form></dialog>' +
     '<dialog class="confirm-dialog" id="confirm-dialog"><form method="dialog"><h2>Remove this item?</h2><p>This only removes the local draft. Downloaded files are unchanged.</p><div class="dialog-actions"><button value="cancel" class="button button-outline">Keep it</button><button value="confirm" class="button button-danger" id="confirm-delete">Remove</button></div></form></dialog>' +
     (hasErrors ? '<div class="global-error-dot" title="Fix validation errors before treating this content as ready"></div>' : "") +
     '</div>';
 }
+
 
 
 

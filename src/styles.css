@@ -2176,6 +2176,14 @@ body { color: var(--ink); background: var(--canvas); }
 }
 
 .mission-events-section, .mission-event-review, .mission-event-list { display: grid; gap: 12px; }
+.mission-events-section { display: block; padding: 10px 14px; background: #f7f8f3; border: 1px solid var(--line); border-radius: 8px; }
+.mission-events-section > summary { cursor: pointer; color: #3a3f36; font-size: 12px; font-weight: 650; }
+.mission-events-overview { margin-top: 12px; }
+.mission-node-events { margin: 14px 0; padding: 12px; background: #f7f8f3; border: 1px solid var(--line); border-radius: 7px; }
+.mission-node-events-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; font-size: 11px; }
+.mission-node-event-row { display: block; width: 100%; margin-bottom: 5px; padding: 7px 9px; color: #3f453b; text-align: left; background: #fffefa; border: 1px solid #e0e1d8; border-radius: 5px; font-size: 10px; cursor: pointer; }
+.mission-node-event-row:hover { border-color: #738663; }
+.mission-event-dialog { width: min(92vw, 520px); max-height: 86vh; overflow: auto; }
 .mission-event-list-heading, .mission-event-editor-heading, .mission-event-action-heading, .mission-event-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .mission-event-list-heading h2 { margin: 0; color: #3a3f36; font: 650 17px "Segoe UI", sans-serif; }
 .mission-event-list-row { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 8px; padding: 10px 0; border-bottom: 1px solid #e8e7df; }

@@ -739,6 +739,16 @@ function newMissionFloor(number: number, mode: MissionFloorMode = "authored"): M
   return createMissionFloor(number, mode);
 }
 
+function openMissionEventDialog(eventId: string): void {
+  const source = root!.querySelector<HTMLElement>('[data-event-editor-id="' + eventId + '"]');
+  const host = document.querySelector<HTMLElement>("#mission-event-editor-host");
+  const dialog = document.querySelector<HTMLDialogElement>("#mission-event-dialog");
+  if (!source || !host || !dialog) return;
+  host.replaceChildren(source.cloneNode(true));
+  if (typeof dialog.showModal === "function") dialog.showModal();
+  else dialog.setAttribute("open", "");
+}
+
 function addMissionEvent(): void {
   const mission = currentMission();
   if (!mission) return;
@@ -1900,6 +1910,26 @@ function onAction(button: HTMLButtonElement): void {
       return;
     case "mission-add-floor": addMissionFloor(); return;
     case "mission-add-event": addMissionEvent(); return;
+    case "mission-open-event": openMissionEventDialog(button.dataset.eventId ?? ""); return;
+    case "mission-add-node-event": {
+      const mission = currentMission();
+      const floor = currentMissionFloor(mission);
+      const node = floor?.nodes.find(item => item.id === selectedMissionNodeId);
+      if (!mission || !floor || !node) return;
+      const event = {
+        id: uniqueId("event-" + (mission.events.length + 1), mission.events.map(item => item.id), "mission-event"),
+        trigger: node.kind === "Battle" || node.kind === "Boss" ? "before-battle" as const : "node-cleared" as const,
+        floorNumber: floor.number,
+        nodeId: node.id,
+        actions: []
+      };
+      mission.events.push(event);
+      selectedMissionEventId = event.id;
+      saveWorkspace();
+      render();
+      openMissionEventDialog(event.id);
+      return;
+    }
     case "mission-edit-events": {
       const mission = currentMission();
       if (!mission?.events.length) return;

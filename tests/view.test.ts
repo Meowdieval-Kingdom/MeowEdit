@@ -176,6 +176,23 @@ describe("editor rendering", () => {
     expect(renderApp(armyWorkspace, rosterFixture, catalog, [], 0, "full")).toContain('class="army-data-note help-copy"');
   });
 
+  it("keeps the full mission editor compact and surfaces node events in context", () => {
+    const workspace = workspaceFixture();
+    workspace.selectedType = "mission";
+    workspace.selectedKey = workspace.missions[0].key;
+    const mission = workspace.missions[0];
+    mission.questIds = ["test-quest"];
+    mission.events = [{ id: "event-1", trigger: "node-cleared", floorNumber: 1, nodeId: "battle-a-1", actions: [] }];
+    const view = { selectedFloorId: mission.floors[0].id, selectedNodeId: "battle-a-1", interactionMode: "select" as const, nodeKind: "Battle" as const, addMenuOpen: false, pendingPlugFromId: null, selectedRouteId: null };
+    const html = renderApp(workspace, rosterFixture, catalog, [], 0, "full", null, view);
+    expect(html).not.toContain("Available quests");
+    expect(html).toContain("Mission events · 1");
+    expect(html).toContain("Events on this node · 1");
+    expect(html).toContain('data-action="mission-open-event"');
+    expect(html).toContain('data-action="mission-add-node-event"');
+    expect(html).toContain('id="mission-event-dialog"');
+  });
+
   it("only offers a random quest pool when the floor actually generates quest nodes", () => {
     const workspace = workspaceFixture();
     workspace.selectedType = "mission";
@@ -375,7 +392,7 @@ describe("editor rendering", () => {
     expect(advanced).toContain('data-bind="settings.factionSelectionEnabled"');
     expect(advanced).toContain("Allow faction selection");
     expect(advanced).not.toContain("ADVENTURE NODE MAP");
-    for (const section of ["mission-basics", "mission-floors", "mission-map", "mission-quests", "mission-shops", "mission-starting-run", "mission-progression"]) {
+    for (const section of ["mission-basics", "mission-floors", "mission-map", "mission-events", "mission-shops", "mission-starting-run", "mission-progression"]) {
       expect(advanced).toContain('id="' + section + '"');
       expect(advanced).toContain('data-section="' + section + '"');
     }
