@@ -377,6 +377,7 @@ describe("editor rendering", () => {
     expect(floorStep).toContain("Choose the boards");
     expect(floorStep).toContain("Place nodes and connect routes");
     expect(floorStep).toContain('data-mission-port="output"');
+    expect(floorStep).toMatch(/style="left:\d[^"]*" data-mission-port="output"/);
     expect(floorStep).toContain('data-action="mission-toggle-add-menu"');
     expect(floorStep).toContain('class="mission-route-distance"');
     expect(floorStep).toContain("map distance 1 step");

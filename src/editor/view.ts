@@ -11,6 +11,8 @@ import type {
   ArmyUnitPlacement,
   MissionFloor,
   MissionRecord,
+  MissionNode,
+  MissionRoute,
   MissionFloorMode,
   MissionShopOfferKind,
   AdventureNodeKind,
@@ -1437,10 +1439,25 @@ function renderMissionEditor(
     const pendingX = pendingNode ? offsetX + pendingNode.x * snap + 62 : 0;
     const pendingY = pendingNode ? offsetY + pendingNode.y * snap : 0;
     const pendingLine = '<line class="mission-route-draft" x1="' + pendingX + '" y1="' + pendingY + '" x2="' + pendingX + '" y2="' + pendingY + '"' + (pendingNode ? "" : " hidden") + '/>';
-    const nodes = floor.nodes.map(node => '<div draggable="true" class="mission-node mission-node-' + node.kind.toLowerCase() + (selectedNode?.id === node.id ? " is-selected" : "") + (viewState.pendingPlugFromId === node.id ? " is-route-source" : "") + '" data-mission-node data-node-id="' + escapeHtml(node.id) + '" style="left:' + (offsetX + node.x * snap) + 'px;top:' + (offsetY + node.y * snap) + 'px">' +
-      '<button type="button" class="mission-node-port mission-node-input" data-mission-port="input" data-node-id="' + escapeHtml(node.id) + '" aria-label="Connect into ' + escapeHtml(node.label) + '" title="Drop a connection here"></button>' +
+    const portPosition = (node: MissionNode, route?: MissionRoute): string => {
+      if (!route) return "left:50%;top:50%;right:auto;";
+      const otherId = route.fromNodeId === node.id ? route.toNodeId : route.fromNodeId;
+      const other = floor.nodes.find(candidate => candidate.id === otherId);
+      if (!other) return "left:50%;top:50%;right:auto;";
+      const dx = other.x - node.x;
+      const dy = other.y - node.y;
+      const distance = Math.hypot(dx, dy) || 1;
+      return "left:" + (34 + dx / distance * 34) + "px;top:" + (34 + dy / distance * 34) + "px;right:auto;transform:translate(-50%,-50%);";
+    };
+    const nodes = floor.nodes.map(node => {
+      const nodeRoutes = floor.routes.filter(route => route.fromNodeId === node.id || route.toNodeId === node.id);
+      const outputStyle = portPosition(node, nodeRoutes[0]);
+      const inputStyle = portPosition(node, nodeRoutes[1] ?? nodeRoutes[0]);
+      return '<div draggable="true" class="mission-node mission-node-' + node.kind.toLowerCase() + (selectedNode?.id === node.id ? " is-selected" : "") + (viewState.pendingPlugFromId === node.id ? " is-route-source" : "") + '" data-mission-node data-node-id="' + escapeHtml(node.id) + '" style="left:' + (offsetX + node.x * snap) + 'px;top:' + (offsetY + node.y * snap) + 'px">' +
+      '<button type="button" class="mission-node-port mission-node-input" style="' + inputStyle + '" data-mission-port="input" data-node-id="' + escapeHtml(node.id) + '" aria-label="Connect into ' + escapeHtml(node.label) + '" title="Drop a connection here"></button>' +
       '<button type="button" class="mission-node-select" data-action="mission-node" data-node-id="' + escapeHtml(node.id) + '" aria-label="Edit ' + escapeHtml(node.kind + ": " + node.label + ", grid cell " + node.x + ", " + node.y) + '" title="Grid cell ' + node.x + ', ' + node.y + '"><span class="mission-node-symbol">' + ({ Start: "S", Battle: "⚔", Reward: "★", Boss: "B", Quest: "?", Shop: "$" } as Record<string, string>)[node.kind] + '</span><strong>' + escapeHtml(node.label) + '</strong><small>' + escapeHtml(node.kind) + ' · ' + node.x + ', ' + node.y + '</small></button>' +
-      '<button type="button" class="mission-node-port mission-node-output" data-mission-port="output" data-node-id="' + escapeHtml(node.id) + '" aria-label="Drag from ' + escapeHtml(node.label) + ' to connect" title="Drag to another node’s input plug"></button></div>').join("");
+      '<button type="button" class="mission-node-port mission-node-output" style="' + outputStyle + '" data-mission-port="output" data-node-id="' + escapeHtml(node.id) + '" aria-label="Drag from ' + escapeHtml(node.label) + ' to connect" title="Drag to another node’s input plug"></button></div>';
+    }).join("");
     const addMenu = '<div class="mission-node-menu"' + (viewState.addMenuOpen ? '' : ' hidden') + ' aria-label="Choose node type">' + kindNames.map(kind => {
         const uniqueTaken = kind === "Start" || kind === "Boss" ? floor.nodes.some(node => node.kind === kind) : false;
         return '<button type="button" class="mission-add-kind' + (viewState.interactionMode === "add" && viewState.nodeKind === kind ? " is-active" : "") + '" data-action="mission-node-tool" data-kind="' + kind + '" title="Add ' + kind + ' node" aria-pressed="' + String(viewState.interactionMode === "add" && viewState.nodeKind === kind) + '"' + (uniqueTaken ? " disabled" : "") + '><b>' + ({ Start: "S", Battle: "⚔", Reward: "★", Boss: "B", Quest: "?", Shop: "$" } as Record<string, string>)[kind] + '</b>' + kind + '</button>';
