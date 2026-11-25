@@ -27,7 +27,7 @@ describe("editor rendering", () => {
     expect(html).toContain("SPELLS FOR THIS UNIT");
     expect(html).toContain("Fireball");
     expect(html).toContain('aria-label="Jump to editor section"');
-    expect(html).toContain('href="#army-lineup"');
+    expect(html).toContain('data-section="army-lineup"');
     expect(html).toContain('aria-label="Army ability type"');
     expect(html).toContain("Army abilities");
     expect(html).not.toContain('id="army-blessing-picker"');
@@ -206,7 +206,7 @@ describe("editor rendering", () => {
     const advanced = renderApp(workspace, rosterFixture, catalog, [], 0, "full");
     for (const section of ["dialogue-sequence", "dialogue-moment", "dialogue-speakers", "dialogue-lines", "dialogue-choices", "dialogue-preview"]) {
       expect(advanced).toContain('id="' + section + '"');
-      expect(advanced).toContain('href="#' + section + '"');
+      expect(advanced).toContain('data-section="' + section + '"');
     }
     expect(advanced).toContain('data-bind="sequenceId"');
     expect(advanced).toContain('data-bind="nodes.0.segments.0.text"');
@@ -264,7 +264,7 @@ describe("editor rendering", () => {
     const advanced = renderApp(workspace, rosterFixture, catalog, [], 0, "full");
     for (const section of ["details", "objective", "story", "reward", "dialogues", "progress", "effects", "review"]) {
       expect(advanced).toContain('id="quest-' + section + '"');
-      expect(advanced).toContain('href="#quest-' + section + '"');
+      expect(advanced).toContain('data-section="quest-' + section + '"');
     }
     expect(advanced).toContain('data-bind="extension.dialogueLinks.offer"');
     expect(advanced).toContain('data-bind="definition.id"');
@@ -362,7 +362,7 @@ describe("editor rendering", () => {
     expect(advanced).not.toContain("ADVENTURE NODE MAP");
     for (const section of ["mission-basics", "mission-floors", "mission-map", "mission-quests", "mission-shops", "mission-starting-run", "mission-progression"]) {
       expect(advanced).toContain('id="' + section + '"');
-      expect(advanced).toContain('href="#' + section + '"');
+      expect(advanced).toContain('data-section="' + section + '"');
     }
     expect(advanced).not.toContain("MISSION · ADVANCED");
     expect(advanced).toContain('details class="mission-advanced-node" open');

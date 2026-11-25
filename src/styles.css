@@ -1220,13 +1220,13 @@ body { color: var(--ink); background: var(--canvas); }
   position: sticky; top: 62px; z-index: 20; display: flex; flex-wrap: wrap; gap: 4px; margin: 0 0 18px; padding: 6px;
   background: #f1f0ea; border: 1px solid var(--line); border-radius: 7px;
 }
-.advanced-section-nav a {
+.advanced-section-nav button {
   display: inline-flex; align-items: center; min-height: 32px; padding: 0 11px;
   color: #656a60; text-decoration: none; border: 1px solid transparent; border-radius: 5px;
-  font-size: 11px; font-weight: 600; white-space: nowrap;
+  background: transparent; cursor: pointer; font: inherit; font-size: 11px; font-weight: 600; white-space: nowrap;
 }
-.advanced-section-nav a:hover { color: #35432b; background: #fffefa; border-color: #dedfd5; }
-.advanced-section-nav a:focus-visible { outline: 2px solid #71835e; outline-offset: 2px; }
+.advanced-section-nav button:hover { color: #35432b; background: #fffefa; border-color: #dedfd5; }
+.advanced-section-nav button:focus-visible { outline: 2px solid #71835e; outline-offset: 2px; }
 .advanced-editor-section { scroll-margin-top: 138px; margin: 0 0 28px; padding: 5px 3px 25px; border-bottom: 1px solid var(--line); }
 .advanced-editor-section:last-child { margin-bottom: 0; border-bottom: 0; }
 .advanced-editor-content > .form-block, .army-identity, .army-layout, .army-wide-abilities, .army-roster-section,

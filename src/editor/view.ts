@@ -453,7 +453,8 @@ function avatarMarkup(
 
 function renderAdvancedSectionNav(sections: Array<{ id: string; label: string }>): string {
   return '<nav class="advanced-section-nav" aria-label="Jump to editor section">' +
-    sections.map(section => '<a href="#' + escapeHtml(section.id) + '">' + escapeHtml(section.label) + '</a>').join("") +
+    sections.map(section => '<button type="button" data-action="jump-section" data-section="' +
+      escapeHtml(section.id) + '">' + escapeHtml(section.label) + '</button>').join("") +
     '</nav>';
 }
 

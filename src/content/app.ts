@@ -58,6 +58,8 @@ interface AppState {
   lastEdited: LastEdited | null;
   recent: LastEdited[];
   dashboardTab: "recent" | "local" | "cloud";
+  dirty: boolean;
+  baseline: ContentSetDocument | null;
 }
 
 type DetailSection = "missions" | "quests" | "armies" | "dialogues";
@@ -346,8 +348,7 @@ function renderBrowser(container: HTMLElement, state: AppState): void {
         draftVersion: record.draftVersion, publishedPackageId: record.publishedPackageId
       });
   const setRow = (summary: SetSummary) =>
-    '<div class="set-row"><div class="set-row-main"><strong>' + escapeHtml(summary.name || summary.setId) + "</strong>" +
-    "<small>" + escapeHtml(summary.setId) + "</small></div>" +
+    '<div class="set-row"><div class="set-row-main"><strong>' + escapeHtml(summary.name || summary.setId) + "</strong></div>" +
     '<span class="set-badge">' + (summary.kind === "data" ? "Data" : "Missions") + "</span>" +
     badge(summary) +
     '<button type="button" class="text-button icon-button" data-export-set="' + escapeHtml(summary.setId) +
@@ -363,7 +364,9 @@ function renderBrowser(container: HTMLElement, state: AppState): void {
     : '<div class="set-empty">No sets yet.</div>';
   const needsAttention = state.sets.filter(summary => {
     const record = records[summary.setId];
-    return record && !validateContentSet(record.draft, state.capabilities).valid;
+    // A cached draft from an older format is not a reliable source of issues.
+    if (!record?.draft?.set?.kind) return false;
+    return validateContentSet(record.draft, state.capabilities).issues.length > 0;
   });
   const notifications = needsAttention.length
     ? '<section class="set-group notifications"><h2>Needs attention</h2>' + needsAttention.map(summary =>
@@ -731,6 +734,7 @@ async function openEditor(container: HTMLElement, state: AppState, target: Edito
       onDraftChange: () => {
         if (!scratch) {
           state.validation = validateContentSet(state.draft, state.capabilities);
+          state.dirty = true;
           persistLocal(state);
         }
       },
@@ -1061,7 +1065,24 @@ async function openSet(container: HTMLElement, state: AppState, setId: string): 
   state.publishedPackageId = published;
   state.view = "set";
   state.validation = validateContentSet(draft, state.capabilities);
+  state.baseline = structuredClone(draft);
+  state.dirty = false;
   renderSetView(container, state);
+}
+
+function changedCount(state: AppState): number {
+  const baseline = state.baseline;
+  if (!baseline) return 0;
+  let count = 0;
+  for (const section of SECTIONS) {
+    const before = baseline[section] as unknown[];
+    const after = state.draft[section] as unknown[];
+    const length = Math.max(before.length, after.length);
+    for (let index = 0; index < length; index++)
+      if (JSON.stringify(before[index]) !== JSON.stringify(after[index])) count += 1;
+  }
+  if (JSON.stringify(baseline.set) !== JSON.stringify(state.draft.set)) count += 1;
+  return count;
 }
 
 function renderSetView(container: HTMLElement, state: AppState): void {
@@ -1078,7 +1099,9 @@ function renderSetView(container: HTMLElement, state: AppState): void {
   const issues = state.validation.issues;
   const issueCount = (entrySection: string, entryIndex: number) =>
     issues.filter(issue => issue.section === entrySection && issue.entryIndex === entryIndex).length;
-  const rows = '<div class="set-group"><h3>' + SECTION_LABELS[section] + "</h3>" +
+  const rows = '<div class="set-group"><h3>' + SECTION_LABELS[section] +
+    '<button type="button" class="text-button" data-add-set-item="' + section + '">＋ Add ' +
+    SECTION_LABELS[section] + "</button></h3>" +
     (items.length ? items.map((_, index) => {
       const count = issueCount(section, index);
       return '<div class="set-row"><div class="set-row-main"><strong>' +
@@ -1109,8 +1132,10 @@ function renderSetView(container: HTMLElement, state: AppState): void {
     draft.armies.length + " armies · " + draft.dialogues.length + " dialogues</p></div></div>" +
     '<div class="guided-actions set-tabs">' + tabs + "</div>" + rows +
     '<section class="content-validation"><h2>Validation</h2>' + validation + "</section>" +
-    '<div class="guided-actions"><button type="button" class="button button-outline" data-save title="Uploads the private draft to your set on the server">Save draft</button>' +
-    '<button type="button" class="button button-primary" data-publish title="Makes this set the latest public revision for players"' +
+    '<div class="guided-actions">' +
+    '<button type="button" class="button button-primary" data-save' + (state.dirty ? "" : " hidden") +
+    ' title="Uploads your changes as a private draft for this set">Save draft · ' + changedCount(state) + " changed</button>" +
+    '<button type="button" class="button button-outline" data-publish title="Makes this set the latest public revision for players"' +
     (canPublish() && state.validation.valid ? "" : " disabled") + ">Publish</button></div>" +
     '<p class="guided-status" data-status>' + escapeHtml(state.status) + "</p></div></main>";
   writeSession(state);
@@ -1125,6 +1150,26 @@ function renderSetView(container: HTMLElement, state: AppState): void {
     syncSession(state);
     renderSetView(container, state);
   });
+  container.querySelectorAll<HTMLElement>("[data-add-set-item]").forEach(button => button.addEventListener("click", () => {
+    const section = button.dataset.addSetItem as DetailSection;
+    const id = nextSystemId(section);
+    const name = SECTION_LABELS[section] + " " + id.split("-")[1];
+    const native = createLocalRecord(section, id, name);
+    const temporaryDraft = structuredClone(state.draft);
+    const temporaryWorkspace = { ...loadScratchWorkspace(), [section]: [native] } as never;
+    workspaceToDraft(temporaryDraft, temporaryWorkspace, state.capabilities);
+    const record = structuredClone(temporaryDraft[section].at(-1));
+    (state.draft[section] as unknown[]).push(record);
+    if (section === "missions") state.draft.set.missionOrder.push(id);
+    state.dirty = true;
+    state.validation = validateContentSet(state.draft, state.capabilities);
+    persistLocal(state);
+    localStorage.removeItem("meowedit.workspace.v1." + (getBridgeUserId() ?? "local") + "." + state.setId);
+    void openEditor(container, state, {
+      workspace: state.setId, section, index: (state.draft[section] as unknown[]).length - 1,
+      key: id, label: name, forceMode: "guided"
+    });
+  }));
   container.querySelectorAll<HTMLElement>("[data-section]").forEach(button => button.addEventListener("click", () => {
     state.activeSection = button.dataset.section as DetailSection;
     renderSetView(container, state);
@@ -1140,7 +1185,14 @@ function renderSetView(container: HTMLElement, state: AppState): void {
     const [section, index] = button.dataset.fixIssue!.split(":");
     void openClassicEditor(container, state, { section: section as DetailSection, index: Number(index) }, "full");
   }));
-  container.querySelector<HTMLElement>("[data-save]")?.addEventListener("click", () => { void saveDraft(state).then(() => flashStatus(container, state)); });
+  container.querySelector<HTMLElement>("[data-save]")?.addEventListener("click", () => {
+    void saveDraft(state).then(() => {
+      state.dirty = false;
+      state.baseline = structuredClone(state.draft);
+      renderSetView(container, state);
+      flashStatus(container, state);
+    });
+  });
   container.querySelector<HTMLElement>("[data-publish]")?.addEventListener("click", () => { void publishDraft(state).then(() => flashStatus(container, state)); });
 }
 
@@ -1306,7 +1358,7 @@ export async function mountApp(container: HTMLElement): Promise<void> {
     capabilities, sets: [], view: "browser", activeSection: "missions", setId: "", draft: emptyContentSet("", ""),
     draftVersion: 0, status: "", validation: { valid: false, issues: [] },
     help: session.help, savedAt: session.savedAt, lastEdited: session.lastEdited,
-    recent: session.recent, dashboardTab: "recent"
+    recent: session.recent, dashboardTab: "recent", dirty: false, baseline: null
   };
   appContainer = container;
   appState = state;

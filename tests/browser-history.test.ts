@@ -75,6 +75,22 @@ describe("browser history routing", () => {
     await vi.waitFor(() => expect(document.querySelector(".army-editor")).not.toBeNull(), { timeout: 10000 });
   });
 
+  it("keeps section jumps inside the editor and toggles help text there", async () => {
+    container.querySelector<HTMLElement>('[data-create="quests"]')!.click();
+    await vi.waitFor(() => expect(document.querySelector('[data-action="open-full-editor"]')).not.toBeNull(), { timeout: 10000 });
+    expect(location.hash).toContain("#/edit/__scratch__/quests/");
+    document.querySelector<HTMLElement>('[data-action="open-full-editor"]')!.click();
+    const before = location.hash;
+    expect(document.querySelector('[data-action="jump-section"]')).not.toBeNull();
+    document.querySelector<HTMLElement>('[data-action="jump-section"]')!.click();
+    expect(location.hash).toBe(before);
+
+    document.querySelector<HTMLElement>('[data-action="toggle-help"]')!.click();
+    expect(document.querySelector(".app-shell")!.classList.contains("help-visible")).toBe(true);
+    document.querySelector<HTMLElement>('[data-action="toggle-help"]')!.click();
+    expect(document.querySelector(".app-shell")!.classList.contains("help-visible")).toBe(false);
+  });
+
   it("creates a mission from the Create new content button", async () => {
     container.querySelector<HTMLElement>('[data-create="missions"]')!.click();
     await vi.waitFor(() => expect(document.querySelector(".mission-editor")).not.toBeNull(), { timeout: 10000 });

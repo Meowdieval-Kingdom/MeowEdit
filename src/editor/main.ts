@@ -2441,6 +2441,11 @@ function onAction(button: HTMLButtonElement): void {
     case "bridge-sign-out":
       getBridgeActions()?.signOut();
       return;
+    case "jump-section": {
+      const target = root!.querySelector<HTMLElement>("#" + (button.dataset.section ?? "").replace(/[^a-zA-Z0-9_-]/g, ""));
+      target?.scrollIntoView?.({ behavior: "smooth", block: "start" });
+      return;
+    }
     case "open-content-picker": {
       const picker = document.querySelector<HTMLDialogElement>("#content-picker-dialog");
       if (picker && typeof picker.showModal === "function") picker.showModal();

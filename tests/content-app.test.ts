@@ -99,6 +99,20 @@ describe("set manager and single editor", () => {
     expect(container.textContent).toContain("Your dashboard");
   });
 
+  it("toggles help text and hides the Save draft button until the set changes", async () => {
+    container.querySelector<HTMLElement>("[data-toggle-help]")!.click();
+    expect(container.querySelector(".editor-main")!.classList.contains("help-visible")).toBe(true);
+    container.querySelector<HTMLElement>("[data-toggle-help]")!.click();
+    expect(container.querySelector(".editor-main")!.classList.contains("help-visible")).toBe(false);
+
+    container.querySelector<HTMLElement>('[data-open="published-set"]')!.click();
+    await vi.waitFor(() => expect(container.querySelector(".content-validation")).not.toBeNull());
+    expect(container.querySelector<HTMLElement>("[data-save]")!.hidden).toBe(true);
+    container.querySelector<HTMLElement>('[data-section="quests"]')!.click();
+    container.querySelector<HTMLElement>('[data-add-set-item="quests"]')!.click();
+    expect(location.hash).toContain("#/edit/published-set/quests/");
+  });
+
   it("switches dashboard tabs between recent, local and cloud panels", () => {
     const cloud = container.querySelector<HTMLElement>('[data-dashboard-tab="cloud"]')!;
     const local = container.querySelector<HTMLElement>('[data-dashboard-tab="local"]')!;
@@ -136,7 +150,8 @@ describe("set manager and single editor", () => {
     expect(container.querySelector('[data-section="quests"]')!.classList.contains("is-active")).toBe(true);
     expect(container.querySelector('[data-section="missions"]')!.classList.contains("is-active")).toBe(false);
     expect(container.querySelectorAll(".set-group h3")).toHaveLength(1);
-    expect(container.querySelector(".set-group h3")!.textContent).toBe("Quest");
+    expect(container.querySelector(".set-group h3")!.textContent).toContain("Quest");
+    expect(container.querySelector('[data-add-set-item="quests"]')).not.toBeNull();
   });
 
   it("replays dashboard, set and editor screens on browser Back/Forward", async () => {
