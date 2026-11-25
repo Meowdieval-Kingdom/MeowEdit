@@ -91,6 +91,20 @@ describe("browser history routing", () => {
     expect(document.querySelector(".app-shell")!.classList.contains("help-visible")).toBe(false);
   });
 
+  it("creates a mission even when a cached draft predates the mission key", async () => {
+    const oldDraft = JSON.parse(readFileSync(path.resolve(process.cwd(), "contract/content/fixtures/valid-set.fixture.json"), "utf8"));
+    oldDraft.campaigns = oldDraft.missions;
+    delete oldDraft.missions;
+    localStorage.setItem("meowedit.v2.sets.history-user", JSON.stringify({
+      old: { draft: oldDraft, draftVersion: 1 }
+    }));
+    await mountApp(container);
+
+    container.querySelector<HTMLElement>('[data-create="missions"]')!.click();
+    await vi.waitFor(() => expect(document.querySelector(".mission-editor")).not.toBeNull(), { timeout: 10000 });
+    expect(loadScratchWorkspace().missions[0].id).toBe("mission-1");
+  }, 20000);
+
   it("creates a mission from the Create new content button", async () => {
     container.querySelector<HTMLElement>('[data-create="missions"]')!.click();
     await vi.waitFor(() => expect(document.querySelector(".mission-editor")).not.toBeNull(), { timeout: 10000 });
