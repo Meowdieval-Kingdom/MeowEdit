@@ -148,12 +148,38 @@ function localKey(): string {
   return "meowedit.v2.sets." + (getBridgeUserId() ?? "local");
 }
 
-function storage(): Record<string, LocalRecord> {
+function isCurrentDraft(value: unknown): value is ContentSetDocument {
+  const draft = value as Partial<ContentSetDocument> | null;
+  return !!draft && draft.schemaVersion === 2 && !!draft.set &&
+    (draft.set.kind === "missions" || draft.set.kind === "data") &&
+    Array.isArray(draft.quests) && Array.isArray(draft.armies) &&
+    Array.isArray(draft.missions) && Array.isArray(draft.dialogues);
+}
+
+function rawStorage(): Record<string, unknown> {
   try {
-    return JSON.parse(localStorage.getItem(localKey()) ?? "{}") as Record<string, LocalRecord>;
+    const value = JSON.parse(localStorage.getItem(localKey()) ?? "{}") as unknown;
+    return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
   } catch {
     return {};
   }
+}
+
+/** Drop stale cached drafts once at startup so no reader has to guard against them. */
+function pruneStaleDrafts(): void {
+  const raw = rawStorage();
+  let changed = false;
+  for (const [setId, value] of Object.entries(raw)) {
+    if (!isCurrentDraft((value as Partial<LocalRecord> | null)?.draft)) {
+      delete raw[setId];
+      changed = true;
+    }
+  }
+  if (changed) localStorage.setItem(localKey(), JSON.stringify(raw));
+}
+
+function storage(): Record<string, LocalRecord> {
+  return rawStorage() as Record<string, LocalRecord>;
 }
 
 function writeSession(state: AppState): void {
@@ -291,11 +317,11 @@ function badge(summary: SetSummary): string {
 }
 
 function entryCount(draft: ContentSetDocument, section: DetailSection): number {
-  return draftSection(draft, section).length;
+  return draft[section].length;
 }
 
 function entryLabel(draft: ContentSetDocument, section: DetailSection, index: number): string {
-  const item = draftSection(draft, section)[index] as Record<string, unknown> | undefined;
+  const item = draft[section][index] as unknown as Record<string, unknown> | undefined;
   if (!item) return "(missing)";
   if (section === "dialogues") return String((item.sequenceId as string) ?? "");
   const name = item.name ?? item.title;
@@ -320,12 +346,6 @@ function scratchRecords(): Array<{ section: DetailSection; key: string; label: s
   return records;
 }
 
-/** Cached drafts from older formats may miss a section; never iterate undefined. */
-function draftSection(draft: unknown, section: DetailSection): unknown[] {
-  const value = (draft as Record<string, unknown> | null)?.[section];
-  return Array.isArray(value) ? value : [];
-}
-
 function recordEdited(state: AppState, entry: LastEdited): void {
   state.lastEdited = entry;
   const id = (item: LastEdited) => item.workspace + "|" + item.section + "|" + item.key;
@@ -337,7 +357,7 @@ function recordExists(entry: LastEdited): boolean {
     return scratchRecords().some(record => record.section === entry.section && record.key === entry.key);
   const draft = storage()[entry.workspace]?.draft;
   if (!draft) return false;
-  const items = draftSection(draft, entry.section) as Array<{ id?: string; sequenceId?: string }>;
+  const items = draft[entry.section] as Array<{ id?: string; sequenceId?: string }>;
   return items.some(item => (item.id ?? item.sequenceId) === entry.key);
 }
 
@@ -371,9 +391,7 @@ function renderBrowser(container: HTMLElement, state: AppState): void {
     : '<div class="set-empty">No sets yet.</div>';
   const needsAttention = state.sets.filter(summary => {
     const record = records[summary.setId];
-    // A cached draft from an older format is not a reliable source of issues.
-    if (!record?.draft?.set?.kind) return false;
-    return validateContentSet(record.draft, state.capabilities).issues.length > 0;
+    return !!record && validateContentSet(record.draft, state.capabilities).issues.length > 0;
   });
   const notifications = needsAttention.length
     ? '<section class="set-group notifications"><h2>Needs attention</h2>' + needsAttention.map(summary =>
@@ -607,12 +625,12 @@ function nextSystemId(section: DetailSection): string {
     if (match) highest = Math.max(highest, Number(match[1]));
   };
   const scratch = loadScratchWorkspace();
-  for (const item of draftSection(scratch, section) as Array<Record<string, unknown>>) {
+  for (const item of scratch[section] as unknown as Array<Record<string, unknown>>) {
     consider(item.id);
     consider((item.sequence as { sequenceId?: string } | undefined)?.sequenceId);
   }
   for (const record of Object.values(storage())) {
-    for (const item of draftSection(record.draft, section) as Array<Record<string, unknown>>) {
+    for (const item of record.draft[section] as unknown as Array<Record<string, unknown>>) {
       consider(item.id);
       consider((item.sequenceId as string | undefined));
     }
@@ -678,7 +696,7 @@ async function continueEditing(container: HTMLElement, state: AppState, input: {
       draft = loaded.draft;
     } catch { return false; }
   }
-  const items = draftSection(draft, input.section) as Array<{ id?: string; sequenceId?: string }>;
+  const items = draft[input.section] as Array<{ id?: string; sequenceId?: string }>;
   const index = items.findIndex(item => (item.id ?? item.sequenceId) === input.key);
   if (index < 0) return false;
   state.setId = input.workspace;
@@ -1092,8 +1110,8 @@ function changedCount(state: AppState): number {
   if (!baseline) return 0;
   let count = 0;
   for (const section of SECTIONS) {
-    const before = draftSection(baseline, section);
-    const after = draftSection(state.draft, section);
+    const before = baseline[section];
+    const after = state.draft[section];
     const length = Math.max(before.length, after.length);
     for (let index = 0; index < length; index++)
       if (JSON.stringify(before[index]) !== JSON.stringify(after[index])) count += 1;
@@ -1112,7 +1130,7 @@ function renderSetView(container: HTMLElement, state: AppState): void {
     '" aria-pressed="' + (section === state.activeSection) + '">' +
     SECTION_LABELS[section] + " (" + entryCount(draft, section) + ")</button>").join("");
   const section = state.activeSection;
-  const items = draftSection(draft, section) as ContentSetDocument[DetailSection];
+  const items = draft[section] as ContentSetDocument[DetailSection];
   const issues = state.validation.issues;
   const issueCount = (entrySection: string, entryIndex: number) =>
     issues.filter(issue => issue.section === entrySection && issue.entryIndex === entryIndex).length;
@@ -1175,7 +1193,7 @@ function renderSetView(container: HTMLElement, state: AppState): void {
     const temporaryDraft = structuredClone(state.draft);
     const temporaryWorkspace = { ...loadScratchWorkspace(), [section]: [native] } as never;
     workspaceToDraft(temporaryDraft, temporaryWorkspace, state.capabilities);
-    const record = structuredClone(draftSection(temporaryDraft, section).at(-1));
+    const record = structuredClone(temporaryDraft[section].at(-1));
     const target = state.draft as unknown as Record<string, unknown>;
     if (!Array.isArray(target[section])) target[section] = [];
     (target[section] as unknown[]).push(record);
@@ -1185,7 +1203,7 @@ function renderSetView(container: HTMLElement, state: AppState): void {
     persistLocal(state);
     localStorage.removeItem("meowedit.workspace.v1." + (getBridgeUserId() ?? "local") + "." + state.setId);
     void openEditor(container, state, {
-      workspace: state.setId, section, index: draftSection(state.draft, section).length - 1,
+      workspace: state.setId, section, index: state.draft[section].length - 1,
       key: id, label: name, forceMode: "guided"
     });
   }));
@@ -1224,7 +1242,7 @@ function flashStatus(container: HTMLElement, state: AppState): void {
 async function openClassicEditor(container: HTMLElement, state: AppState, selected?: { section: string; index: number }, forceMode?: "guided" | "full"): Promise<void> {
   const route: Extract<AppRoute, { kind: "editor" }> = { kind: "editor", workspace: state.setId };
   if (selected) {
-    const items = draftSection(state.draft, selected.section as DetailSection) as Array<{ id?: string; sequenceId?: string }>;
+    const items = state.draft[selected.section as DetailSection] as Array<{ id?: string; sequenceId?: string }>;
     const record = items[selected.index];
     route.section = selected.section as DetailSection;
     route.key = record?.id ?? record?.sequenceId;
@@ -1371,6 +1389,7 @@ async function restoreRoute(route: AppRoute): Promise<void> {
 
 /** Mounts the set manager into the app root after authentication. */
 export async function mountApp(container: HTMLElement): Promise<void> {
+  pruneStaleDrafts();
   const capabilities = await loadCapabilities();
   const session = loadSession();
   const state: AppState = {
