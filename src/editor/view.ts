@@ -1395,28 +1395,34 @@ function renderMissionEditor(
     const maxX = Math.max(...mapCoordinates.map(node => node.x));
     const minY = Math.min(...mapCoordinates.map(node => node.y));
     const maxY = Math.max(...mapCoordinates.map(node => node.y));
-    const snap = 146;
-    const offsetX = 140 - minX * snap;
-    const offsetY = 110 - minY * snap;
-    const canvasWidth = Math.max(820, (maxX - minX) * snap + 280);
-    const canvasHeight = Math.max(470, (maxY - minY) * snap + 220);
+    const snap = 120;
+    const offsetX = 120 - minX * snap;
+    const offsetY = 100 - minY * snap;
+    const canvasWidth = Math.max(720, (maxX - minX) * snap + 240);
+    const canvasHeight = Math.max(420, (maxY - minY) * snap + 200);
     const routeLines = floor.routes.map(route => {
       const from = floor.nodes.find(node => node.id === route.fromNodeId);
       const to = floor.nodes.find(node => node.id === route.toNodeId);
       if (!from || !to) return "";
-      const direction = to.x >= from.x ? 1 : -1;
-      const x1 = offsetX + from.x * snap + 62 * direction;
-      const y1 = offsetY + from.y * snap;
-      const x2 = offsetX + to.x * snap - 62 * direction;
-      const y2 = offsetY + to.y * snap;
-      const control1X = x1 + 72 * direction;
-      const control2X = x2 - 72 * direction;
+      const fromCenterX = offsetX + from.x * snap;
+      const fromCenterY = offsetY + from.y * snap;
+      const toCenterX = offsetX + to.x * snap;
+      const toCenterY = offsetY + to.y * snap;
+      const dx = toCenterX - fromCenterX;
+      const dy = toCenterY - fromCenterY;
+      const distance = Math.hypot(dx, dy) || 1;
+      // Attach each end on the circle edge, angled toward the other node.
+      const edge = 40;
+      const x1 = fromCenterX + dx / distance * edge;
+      const y1 = fromCenterY + dy / distance * edge;
+      const x2 = toCenterX - dx / distance * edge;
+      const y2 = toCenterY - dy / distance * edge;
       const fromName = from.label;
       const toName = to.label;
       const mapSteps = Math.max(Math.abs(to.x - from.x), Math.abs(to.y - from.y));
       const distanceText = String(mapSteps);
-      const labelX = (x1 + 3 * control1X + 3 * control2X + x2) / 8;
-      const labelY = (y1 + 3 * y1 + 3 * y2 + y2) / 8 - 5;
+      const labelX = (x1 + x2) / 2;
+      const labelY = (y1 + y2) / 2 - 5;
       return '<g class="mission-route-group"><path class="mission-route-line' + (route.oneWay ? " is-one-way" : "") + (viewState.selectedRouteId === route.id ? " is-selected" : "") + '" data-mission-route-id="' + escapeHtml(route.id) + '" role="button" tabindex="0" aria-label="Connection: ' + escapeHtml(fromName + (route.oneWay ? " to " : " with ") + toName + "; map distance " + distanceText + (mapSteps === 1 ? " step" : " steps")) + '" d="M ' + x1 + ' ' + y1 + ' L ' + x2 + ' ' + y2 + '"' + (route.oneWay ? ' marker-end="url(#mission-arrow)"' : "") + '/><text class="mission-route-distance" x="' + labelX + '" y="' + labelY + '" aria-hidden="true">' + distanceText + '</text></g>';
     }).join("");
     const selectedRoute = floor.routes.find(route => route.id === viewState.selectedRouteId);
@@ -1633,11 +1639,13 @@ function renderMissionEditor(
       screen += '<details class="mission-optional-quest-content"><summary>Add optional authored quests</summary><p class="help-copy">Only needed if generated floors should include mission quests.</p>' + actionButton("create-mission-pool-quest", "＋ Create a quest", "text-button related-create") + '</details>';
     }
   } else if (stepName === "Node") {
+    const map = floor && floor.mode !== "random" ? mapBoard : "";
     screen = selectedNode && floor
-      ? (floor.mode === "random" ? "" : mapBoard.replace('class="mission-map-step"', 'class="mission-map-step mission-context-map"')) +
-      '<section class="mission-node-focus"><div class="mission-node-focus-heading"><div><h2>Floor ' + floor.number + ' · ' + escapeHtml(selectedNode.label) + '</h2></div>' + actionButton("mission-back-to-map", "← Back to map", "button button-outline") + '</div>' +
-        nodeProperties + '<details class="mission-focused-connections"><summary>Connections · ' + selectedRoutes.length + '</summary>' + (routes ? '<ul>' + routes + '</ul>' : '<p class="help-copy">No routes connect to this node yet. Draw them from the map.</p>') + '</details></section>'
-      : '<section class="mission-node-focus-empty"><p class="help-copy">Choose a node on the map to edit its contents.</p>' + actionButton("mission-back-to-map", "← Back to map", "button button-outline") + '</section>';
+      ? '<div class="mission-node-layout">' + map +
+        '<section class="mission-node-focus"><div class="mission-node-focus-heading"><div><h2>Floor ' + floor.number + ' · ' + escapeHtml(selectedNode.label) + '</h2></div>' +
+        actionButton("mission-back-to-map", "×", "icon-button mission-node-close", ' aria-label="Close node details" title="Close node details"') + '</div>' +
+        nodeProperties + '<details class="mission-focused-connections"><summary>Connections · ' + selectedRoutes.length + '</summary>' + (routes ? '<ul>' + routes + '</ul>' : '<p class="help-copy">No routes connect to this node yet. Draw them from the map.</p>') + '</details></section></div>'
+      : '<div class="mission-node-layout">' + map + '<section class="mission-node-focus-empty"><p class="help-copy">Choose a node on the map to edit its contents.</p></section></div>';
   } else if (stepName === "Quests") {
     screen = '<div class="mission-quest-step"><p class="mission-step-prompt help-copy">Choose the quests that can appear in this mission.</p><label class="mission-quest-filter"><span>Find a quest</span><input type="search" data-mission-quest-filter="mission" placeholder="Search by name"></label>' + poolDisclosure + '</div>';
   } else if (stepName === "Floor pools") {
@@ -1659,7 +1667,10 @@ function renderMissionEditor(
   }
   return '<main class="workspace-main mission-editor guided-editor' + (guidedContextUnmuted ? ' guided-context-unmuted' : '') + (focusedNodeStep ? ' mission-node-focus-mode' : '') + ((stepName === "Shop pools" || stepName === "Shop unlocks") ? ' mission-shop-focus-mode' : '') + '">' + heading + (focusedNodeStep ? '' : progress) +
     '<section class="mission-guided-screen" aria-labelledby="mission-step-title"><div class="mission-guided-step-heading"><span>' + (stepName === "Approach" ? "Mission setup" : "Step " + (step + 1) + " of " + steps.length + " · Mission") + '</span><h1 id="mission-step-title">' + stepName + '</h1></div>' +
-    screen + '</section>' + (stepName === "Approach" ? "" : focusedNodeStep ? '<footer class="mission-focus-footer"><span>Changes save as you type</span>' + actionButton("editor-next", steps[step + 1] ? "Next · " + steps[step + 1] + " →" : "Next", "button button-primary") + '</footer>' : renderWorkflowFooter(steps, step, "Mission ready · export when you are ready")) +
+    screen + '</section>' + (stepName === "Approach" ? "" : focusedNodeStep ? '<footer class="mission-focus-footer"><span>Changes save as you type</span><div class="mission-focus-actions">' +
+      actionButton("mission-back-to-map", "← Back to map", "button button-primary") +
+      actionButton("editor-next", steps[step + 1] ? "Continue to " + steps[step + 1] + " →" : "Next", "button button-outline") +
+      '</div></footer>' : renderWorkflowFooter(steps, step, "Mission ready · export when you are ready")) +
     '</main>';
 }
 

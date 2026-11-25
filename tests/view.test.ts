@@ -385,7 +385,8 @@ describe("editor rendering", () => {
     const nodeStep = renderApp(workspace, rosterFixture, catalog, [], 2, "guided", null, view);
     expect(nodeStep).toContain("Step 3 of 8");
     expect(nodeStep).toContain('data-action="mission-back-to-map"');
-    expect(nodeStep).toContain('class="mission-map-step mission-context-map"');
+    expect(nodeStep).toContain('class="mission-node-layout"');
+    expect(nodeStep).toContain('data-action="mission-back-to-map"');
     expect(nodeStep).toContain('data-mission-canvas');
     expect(renderApp(workspace, rosterFixture, catalog, [], 3, "guided", null, view)).toContain("Find a quest");
     expect(renderApp(workspace, rosterFixture, catalog, [], 7, "guided", null, view)).toContain("Review your mission");

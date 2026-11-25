@@ -2569,7 +2569,7 @@ root.addEventListener("click", event => {
   const canvas = target.closest<HTMLElement>("[data-mission-canvas]");
   if (!canvas || missionInteractionMode !== "add") return;
   const rect = canvas.getBoundingClientRect();
-  const snap = Number(canvas.dataset.snap ?? 146);
+  const snap = Number(canvas.dataset.snap ?? 120);
   const x = Math.round((event.clientX - rect.left - Number(canvas.dataset.offsetX ?? 0)) / snap);
   const y = Math.round((event.clientY - rect.top - Number(canvas.dataset.offsetY ?? 0)) / snap);
   handleMissionCell(x, y);
@@ -2677,7 +2677,7 @@ root.addEventListener("drop", event => {
   if (!canvas || !nodeId) return;
   event.preventDefault();
   const rect = canvas.getBoundingClientRect();
-  const snap = Number(canvas.dataset.snap ?? 146);
+  const snap = Number(canvas.dataset.snap ?? 120);
   const x = Math.round((event.clientX - rect.left - Number(canvas.dataset.offsetX ?? 0)) / snap);
   const y = Math.round((event.clientY - rect.top - Number(canvas.dataset.offsetY ?? 0)) / snap);
   moveMissionNodeTo(nodeId, x, y);
@@ -2691,5 +2691,6 @@ root.addEventListener("change", event => {
 });
 
 window.addEventListener("beforeunload", () => { saveWorkspace(); persistEditorSession(); });
+
 
 
