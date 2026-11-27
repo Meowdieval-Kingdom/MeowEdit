@@ -1326,13 +1326,31 @@ body { color: var(--ink); background: var(--canvas); }
 }
 .effect-index { color: #777b72; }
 .effect-row .field input, .effect-row .field select { height: 40px; }
-.workflow-footer {
-  display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px;
-  padding: 15px 0 4px; color: #72766d; font-size: 11px;
+.workflow-footer { padding: 15px 0 4px; color: #72766d; font-size: 11px; }
+.workflow-step-nav { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; }
+.workflow-step-toggle {
+  justify-self: center; display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 11px; color: #4f564b; background: #f4f6f1; border: 1px solid #dde2d7;
+  border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer;
 }
-.workflow-footer > span { justify-self: center; }
-.workflow-footer > .button:last-child { justify-self: end; }
-.workflow-complete { justify-self: end; color: #59644c; font-weight: 600; }
+.workflow-step-toggle:hover { background: #ebefe6; }
+.workflow-step-nav > .button:last-child, .workflow-step-nav > .workflow-complete { justify-self: end; }
+.workflow-complete { color: #59644c; font-weight: 600; }
+.workflow-footer.is-focus .workflow-step-nav { grid-template-columns: auto 1fr; }
+.guided-step-list {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(155px, 1fr)); gap: 6px;
+  margin-top: 10px; padding: 10px; background: #f7f8f4; border: 1px solid #e3e6dd; border-radius: 8px;
+}
+.guided-step-item {
+  display: flex; align-items: center; gap: 8px; min-height: 34px; padding: 6px 8px;
+  color: #4f564b; text-align: left; background: #fff; border: 1px solid #e2e5dc;
+  border-radius: 5px; font-size: 11px; cursor: pointer;
+}
+.guided-step-item:hover { background: #eef2e9; }
+.guided-step-item.is-active { color: #2f3d28; background: #e9efe2; border-color: #b9c9aa; font-weight: 650; }
+.guided-step-index { color: #8a9185; font-size: 10px; }
+.guided-step-name { flex: 1; }
+.guided-step-done { color: #4f7a3f; font-weight: 700; }
 .validation-card {
   margin-top: 0; padding: 17px 0 0; background: transparent;
   border: 0; border-top: 1px solid #e5e3dc; border-radius: 0;
@@ -1598,9 +1616,10 @@ body { color: var(--ink); background: var(--canvas); }
   .form-grid.two, .form-grid.three { grid-template-columns: 1fr; gap: 15px; }
   .form-block + .form-block { margin-top: 23px; padding-top: 19px; }
   .field textarea { min-height: 90px; }
-  .workflow-footer { grid-template-columns: auto 1fr auto; gap: 8px; }
-  .workflow-footer > span { font-size: 10px; }
-  .workflow-footer .button { min-height: 36px; padding: 0 10px; font-size: 11px; }
+  .workflow-step-nav { gap: 8px; }
+  .workflow-step-toggle { font-size: 10px; min-height: 36px; padding: 0 8px; }
+  .workflow-step-nav .button { min-height: 36px; padding: 0 10px; font-size: 11px; }
+  .guided-step-list { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
   .effect-row { grid-template-columns: 20px minmax(0,1fr) 28px; gap: 8px; }
   .effect-row .field:nth-of-type(2), .effect-row .field:nth-of-type(3) { grid-column: 2; }
   .effect-row .icon-button { grid-column: 3; grid-row: 1; }
@@ -1715,7 +1734,7 @@ body { color: var(--ink); background: var(--canvas); }
 .guided-editor.is-writing .guided-focus-brand,
 .guided-editor.is-writing .guided-header-title,
 .guided-editor.is-writing .guided-keyboard-hint,
-.guided-editor.is-writing .workflow-footer { opacity: .55; }
+.guided-editor.is-writing .workflow-footer { opacity: 1; }
 .guided-editor.is-writing .guided-step-screen .field:focus-within .field-label { color: #4c6140; }
 .guided-keyboard-hint { margin: 8px 0 -9px; color: #83877c; font-size: 10px; text-align: right; }
 .guided-end-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; }

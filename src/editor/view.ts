@@ -512,16 +512,94 @@ function renderAdvancedSectionNav(sections: Array<{ id: string; label: string }>
     '</nav>';
 }
 
-function renderWorkflowFooter(steps: string[], activeStep: number, completeCopy = "Review complete · ready to export"): string {
-  const previous = activeStep > 0
-    ? actionButton("editor-back", "← Back", "button button-outline")
-    : '<button type="button" class="button button-outline" disabled>← Back</button>';
-  const next = activeStep < steps.length - 1
-    ? actionButton("editor-next", "Next · " + escapeHtml(steps[activeStep + 1]) + " →", "button button-primary")
-    : '<span class="workflow-complete">' + escapeHtml(completeCopy) + '</span>';
-  return '<footer class="workflow-footer">' + previous +
-    '<span>Step ' + (activeStep + 1) + ' of ' + steps.length + '</span>' + next +
-    '</footer>';
+let guidedStepListOpen = false;
+
+/** The step list is a toggle; Back/Next stay visible on every guided screen. */
+export function toggleGuidedStepList(): void { guidedStepListOpen = !guidedStepListOpen; }
+export function setGuidedStepListOpen(open: boolean): void { guidedStepListOpen = open; }
+
+/** Maps the advanced section currently in view to the matching guided step. */
+export function guidedStepForAdvancedSection(section: string, steps: string[]): number {
+  const candidates: Record<string, string[]> = {
+    "mission-basics": ["Name"], "mission-floors": ["Floors", "Randomizer settings"],
+    "mission-map": ["Node"], "mission-events": ["Events"], "mission-shops": ["Shop pools", "Shop unlocks"],
+    "mission-starting-run": ["Mission settings"], "mission-progression": ["Mission settings", "Review"],
+    "dialogue-sequence": ["Speaker"], "dialogue-moment": ["Speaker"], "dialogue-speakers": ["Speaker"],
+    "dialogue-lines": ["Lines"], "dialogue-choices": ["Choices"], "dialogue-preview": ["Preview"],
+    "quest-basics": ["Basics"], "quest-objective": ["Objective"], "quest-giver": ["Quest giver"],
+    "quest-offer": ["Offer"], "quest-progress": ["In progress"], "quest-reward": ["Reward"],
+    "army-basics": ["Name"], "army-units": ["Choose units"], "army-grid": ["Arrange grid"],
+    "army-spells": ["Army spells"], "army-blessings": ["Blessings"], "army-curses": ["Curses"]
+  };
+  for (const name of candidates[section] ?? []) {
+    const index = steps.indexOf(name);
+    if (index >= 0) return index;
+  }
+  return 0;
+}
+
+export function missionConfiguredSteps(mission: MissionRecord, steps: string[]): boolean[] {
+  return steps.map(name => {
+    switch (name) {
+      case "Name": return !!mission.name.trim() || !!mission.description.trim();
+      case "Floors":
+      case "Randomizer settings": return mission.floors.length > 0;
+      case "Node": return mission.floors.some(floor => floor.nodes.length > 0);
+      case "Quests": return mission.questIds.length > 0;
+      case "Floor pools": return mission.floors.some(floor => floor.questPoolMode === "custom" && floor.questPoolIds.length > 0);
+      case "Shop pools": return mission.settings.shopPoolKinds.length > 0;
+      case "Shop unlocks": return mission.floors.some(floor => floor.shopPoolMode === "custom" || floor.shopLevel > 1);
+      case "Mission settings": return !!mission.boardPreviewUnitId || mission.settings.startingSardines !== 10 ||
+        mission.settings.startingLives !== 3 || !mission.settings.factionSelectionEnabled ||
+        !mission.settings.battleShopEnabled || !mission.settings.sardinePayoutEnabled;
+      case "Events": return mission.events.length > 0;
+      default: return false;
+    }
+  });
+}
+
+export function missionGuidedSteps(mission: MissionRecord): string[] {
+  const generatesQuestsLater = mission.settings.continueWithGeneratedFloors && mission.settings.questNodeCountPerRandomFloor > 0;
+  const hasGeneratedQuestNodes = mission.floors.some(item => (item.mode === "random" || item.mode === "mixed") && item.randomSettings.questNodeCount > 0) || generatesQuestsLater;
+  const hasQuestContent = mission.questIds.length > 0 || hasGeneratedQuestNodes || mission.floors.some(item => item.nodes.some(node => node.kind === "Quest"));
+  const hasFloorPoolChoices = mission.questIds.length > 0 && (mission.floors.some(item => (item.mode === "random" || item.mode === "mixed") && item.randomSettings.questNodeCount > 0) || generatesQuestsLater);
+  const hasShopContent = mission.settings.shopNodeCountPerRandomFloor > 0 || mission.floors.some(item => item.nodes.some(node => node.kind === "Shop") || (item.mode !== "authored" && item.randomSettings.shopNodeCount > 0));
+  const isSettingsOnly = mission.floors.length > 0 && mission.floors.every(item => item.mode === "random" && item.nodes.length === 0 && item.routes.length === 0);
+  const hasAuthoredBoards = mission.floors.some(item => item.mode !== "random");
+  return isSettingsOnly
+    ? ["Name", "Randomizer settings", ...(hasQuestContent ? ["Quests"] : []), ...(hasFloorPoolChoices ? ["Floor pools"] : []), ...(hasShopContent ? ["Shop pools", "Shop unlocks"] : []), "Mission settings", ...(mission.events.length ? ["Events"] : []), "Review"]
+    : ["Name", "Floors", ...(hasAuthoredBoards ? ["Node"] : []), "Quests", ...(hasFloorPoolChoices ? ["Floor pools"] : []), ...(hasShopContent ? ["Shop pools", "Shop unlocks"] : []), "Mission settings", ...(mission.events.length ? ["Events"] : []), "Review"];
+}
+
+function renderWorkflowFooter(
+  steps: string[],
+  activeStep: number,
+  completeCopy = "Review complete · ready to export",
+  configured: boolean[] = [],
+  focusMode = false
+): string {
+  const back = focusMode || activeStep === 0 ? ""
+    : actionButton("editor-back", "← Back", "button button-outline");
+  const next = focusMode
+    ? actionButton("mission-back-to-map", "← Back to map", "button button-primary")
+    : activeStep < steps.length - 1
+      ? actionButton("editor-next", "Next · " + escapeHtml(steps[activeStep + 1]) + " →", "button button-primary")
+      : '<span class="workflow-complete">' + escapeHtml(completeCopy) + '</span>';
+  const list = guidedStepListOpen
+    ? '<div class="guided-step-list" role="list">' + steps.map((name, index) =>
+      '<button type="button" role="listitem" class="guided-step-item' + (index === activeStep ? ' is-active' : '') +
+      '" data-action="editor-goto-step" data-step="' + index + '">' +
+      '<span class="guided-step-index">' + String(index + 1).padStart(2, "0") + '</span>' +
+      '<span class="guided-step-name">' + escapeHtml(name) + '</span>' +
+      (configured[index] ? '<span class="guided-step-done" title="Configured">✓</span>' : '') +
+      '</button>').join("") + '</div>'
+    : "";
+  return '<footer class="workflow-footer' + (focusMode ? ' is-focus' : '') + '">' +
+    '<div class="workflow-step-nav">' + back +
+    '<button type="button" class="workflow-step-toggle" data-action="toggle-step-list" aria-expanded="' +
+    String(guidedStepListOpen) + '">Step ' + (activeStep + 1) + ' of ' + steps.length + ' · ' +
+    escapeHtml(steps[activeStep]) + ' <span aria-hidden="true">' + (guidedStepListOpen ? "▴" : "▾") + '</span></button>' +
+    next + '</div>' + list + '</footer>';
 }
 
 function renderDialogueMap(activeNodeId: string, addAction = "guided-add-node"): string {
@@ -743,7 +821,12 @@ function renderGuidedDialogueEditor(
     screen +
     '</section>' +
     '<p class="guided-keyboard-hint help-copy">Enter continues · Shift+Enter adds a line break</p>' +
-    renderWorkflowFooter(steps, step, "Ready to export") +
+    renderWorkflowFooter(steps, step, "Ready to export", [
+      !!node?.speakers.length || !!node?.headline.trim(),
+      !!node?.segments.some(segment => segment.text.trim().length > 0),
+      !!node?.actions.length || !!node?.continueLabel?.trim(),
+      false
+    ]) +
     '</main>';
 }
 
@@ -1263,7 +1346,15 @@ function renderArmyEditor(record: ArmyRecord, catalog: ArmyCatalog, roster: Unit
       screen = '<div class="army-guided-loadout"><section class="army-focus-panel">' + renderArmyAbilityPicker(catalog, abilityKind, entries, abilityKind === "spells" ? entries : record.blessingIds, abilityFilters[abilityKind], abilitySelections[abilityKind]) +
         '</section><div class="army-context-muted"><strong>Army setup</strong><span>' + record.units.length + ' lineup entries</span></div></div>';
     } else screen = '<section class="army-review"><dl><div><dt>Name</dt><dd>' + escapeHtml(record.name || "Untitled army") + '</dd></div><div><dt>Board</dt><dd>Floor ' + floor + ' · ' + size.width + ' × ' + size.height + '</dd></div><div><dt>Lineup</dt><dd>' + record.units.length + ' units and buildings</dd></div><div><dt>Army spells</dt><dd>' + record.spellIds.length + '</dd></div><div><dt>Blessings and curses</dt><dd>' + record.blessingIds.length + '</dd></div></dl>' + list + '<div class="army-review-effects"><span>Spells</span><div class="army-chips">' + (spells || "<small>None</small>") + '</div><span>Blessings / curses</span><div class="army-chips">' + (blessings || "<small>None</small>") + '</div></div>' + reviewList("Spells by lineup entry", perEntrySpellReview) + '</section>';
-    return '<main class="workspace-main army-editor guided-editor' + (guidedContextUnmuted ? ' guided-context-unmuted' : '') + ' army-guided-step-' + step + '">' + renderGuidedEditorHeader("Army", record.name || "New army", returnState, helpVisible) + '<div class="army-guided-progress" role="progressbar" aria-label="Army setup" aria-valuemin="1" aria-valuemax="' + steps.length + '" aria-valuenow="' + (step + 1) + '"><span style="width:' + ((step + 1) / steps.length * 100) + '%"></span></div><section class="army-guided-screen"><div class="army-guided-heading"><span>Step ' + (step + 1) + ' of ' + steps.length + '</span><h1>' + steps[step] + '</h1></div>' + screen + '</section>' + renderWorkflowFooter(steps, step, "Ready to export") + '</main>' + cellFocusOverlay;
+    return '<main class="workspace-main army-editor guided-editor' + (guidedContextUnmuted ? ' guided-context-unmuted' : '') + ' army-guided-step-' + step + '">' + renderGuidedEditorHeader("Army", record.name || "New army", returnState, helpVisible) + '<div class="army-guided-progress" role="progressbar" aria-label="Army setup" aria-valuemin="1" aria-valuemax="' + steps.length + '" aria-valuenow="' + (step + 1) + '"><span style="width:' + ((step + 1) / steps.length * 100) + '%"></span></div><section class="army-guided-screen"><div class="army-guided-heading"><span>Step ' + (step + 1) + ' of ' + steps.length + '</span><h1>' + steps[step] + '</h1></div>' + screen + '</section>' + renderWorkflowFooter(steps, step, "Ready to export", [
+      !!record.name.trim(),
+      record.units.length > 0,
+      record.units.some(unit => unit.x !== 0 || unit.y !== 0) || record.units.length > 0,
+      record.spellIds.length > 0,
+      record.blessingIds.some(id => catalog.blessings.some(item => item.id === id)),
+      record.blessingIds.some(id => (catalog.curses ?? []).some(item => item.id === id)),
+      false
+    ]) + '</main>' + cellFocusOverlay;
   }
   const activeAbilityIds = abilityCategory === "spells" ? record.spellIds : record.blessingIds;
   const armyAbilities = '<section class="army-wide-abilities" id="army-loadout"><div class="army-loadout-heading"><div><span class="eyebrow">LOADOUT</span><h2>Army abilities</h2></div>' +
@@ -1434,7 +1525,7 @@ function renderMissionEditor(
       inputField("Sardine payout base", "settings.sardinePayoutBase", mission.settings.sardinePayoutBase, { type: "number", min: 0 }) +
       inputField("Extra Sardines per floor", "settings.sardinePayoutPerFloor", mission.settings.sardinePayoutPerFloor, { type: "number", min: 0 }) +
       '</div>' : '') + '</section>';
-  const generatedFloorSettings = '<section class="mission-settings-panel" id="mission-progression"><div class="mission-section-heading"><div><h2>' + (mission.designMode === "settings-only" ? "Later generated floors" : "After these boards") + '</h2></div></div>' +
+  const generatedFloorSettings = '<section class="mission-settings-panel" id="mission-progression"><div class="mission-section-heading"><div><h2>After these boards</h2></div></div>' +
     '<label class="mission-check"><input type="checkbox" data-bind="settings.continueWithGeneratedFloors"' + (mission.settings.continueWithGeneratedFloors ? " checked" : "") + '><span>Continue with generated floors</span></label>' +
     (mission.settings.continueWithGeneratedFloors ? '<div class="form-grid two">' +
       inputField("Initial random node count", "settings.startingNodeCount", mission.settings.startingNodeCount, { type: "number", min: 12, max: 30, step: 2 }) +
@@ -1648,12 +1739,9 @@ function renderMissionEditor(
     ? renderGuidedEditorHeader("Mission", mission.name || "Untitled mission", returnState, helpVisible)
     : '<div class="workspace-heading"><div><h1>' + escapeHtml(mission.name || "Untitled mission") + '</h1><p class="help-copy">Edit the complete mission here, or switch to Guided flow for focused floor-by-floor authoring.</p></div><div class="mission-heading-actions">' + missionIssues + actionButton("open-guided-editor", "✦ Guided flow", "button button-mode-guided") + '</div></div>';
   const profile = '<div class="mission-profile">' + identity + (mode === "full" ? settings : '<details class="mission-advanced-settings"><summary>Advanced · start and generation settings</summary>' + settings + '</details>') + '</div>';
-  const isSettingsOnly = mission.designMode === "settings-only" && mission.floors.length > 0 && mission.floors.every(item => item.mode === "random" && item.nodes.length === 0 && item.routes.length === 0);
+  const isSettingsOnly = mission.floors.length > 0 && mission.floors.every(item => item.mode === "random" && item.nodes.length === 0 && item.routes.length === 0);
   const hasGeneratedQuestNodes = mission.floors.some(item => (item.mode === "random" || item.mode === "mixed") && item.randomSettings.questNodeCount > 0) || (mission.settings.continueWithGeneratedFloors && mission.settings.questNodeCountPerRandomFloor > 0);
   const hasQuestContent = mission.questIds.length > 0 || hasGeneratedQuestNodes || mission.floors.some(item => item.nodes.some(node => node.kind === "Quest"));
-  const hasFloorPoolChoices = mission.questIds.length > 0 && (mission.floors.some(item => (item.mode === "random" || item.mode === "mixed") && item.randomSettings.questNodeCount > 0) || generatesQuestsLater);
-  const hasShopContent = mission.settings.shopNodeCountPerRandomFloor > 0 || mission.floors.some(item => item.nodes.some(node => node.kind === "Shop") || (item.mode !== "authored" && item.randomSettings.shopNodeCount > 0));
-  const hasAuthoredBoards = mission.floors.some(item => item.mode !== "random");
   const floorSetup = '<section class="mission-floor-section mission-floor-setup' + "" + '"><div class="mission-floor-heading"><div><h2>' + (isSettingsOnly ? "Set generated floor rules" : "Choose the boards") + '</h2><p class="help-copy">' + (isSettingsOnly ? "Every floor is generated from these settings. Switch a floor to Hand placed to author its map." : "Each floor can be hand placed, generated, or mixed.") + '</p></div><div class="mission-floor-actions">' +
     actionButton("mission-remove-floor", "Remove floor", "text-button danger-text", mission.floors.length > 1 ? "" : " disabled") +
     actionButton("mission-add-floor", "＋ Add floor", "button button-outline") + '</div></div>' +
@@ -1681,9 +1769,7 @@ function renderMissionEditor(
       '</main>';
   }
 
-  const steps = mission.designMode === "choose" ? ["Approach"] : isSettingsOnly
-    ? ["Name", "Randomizer settings", ...(hasQuestContent ? ["Quests"] : []), ...(hasFloorPoolChoices ? ["Floor pools"] : []), ...(hasShopContent ? ["Shop pools", "Shop unlocks"] : []), "Mission settings", ...(mission.events.length ? ["Events"] : []), "Review"]
-    : ["Name", "Floors", ...(hasAuthoredBoards ? ["Node"] : []), "Quests", ...(hasFloorPoolChoices ? ["Floor pools"] : []), ...(hasShopContent ? ["Shop pools", "Shop unlocks"] : []), "Mission settings", ...(mission.events.length ? ["Events"] : []), "Review"];
+  const steps = missionGuidedSteps(mission);
   const step = Math.max(0, Math.min(steps.length - 1, activeStep));
   const stepName = steps[step];
   guidedFinalStepActive = step === steps.length - 1;
@@ -1725,11 +1811,7 @@ function renderMissionEditor(
     '<div class="mission-review-validation">' + renderIssues(allIssues) + '</div>' +
     '<div class="guided-end-actions">' + '</div></section>';
   let screen = "";
-  if (stepName === "Approach") {
-    screen = '<section class="mission-approach"><p class="mission-step-prompt help-copy">Choose what you want to design. You can switch editors later.</p>' +
-      '<div class="mission-approach-options"><button type="button" class="mission-approach-option" data-action="mission-design-choice" data-mode="settings-only"><strong>Randomizer settings only</strong><span class="help-copy">Generated floors, starting rules, and progression. No authored map or mission quests.</span></button>' +
-      '<button type="button" class="mission-approach-option" data-action="mission-design-choice" data-mode="custom"><strong>Custom mission</strong><span class="help-copy">Author maps, nodes, quests, and the rules that connect them.</span></button></div></section>';
-  } else if (stepName === "Name") {
+  if (stepName === "Name") {
     screen = '<section class="mission-setup-step"><p class="mission-step-prompt help-copy">Name the mission so your team can find it.</p>' + guidedIdentity + '</section>';
   } else if (stepName === "Floors" || stepName === "Randomizer settings") {
     // One step for adding a floor: generation settings and/or the hand-placed map.
@@ -1765,11 +1847,9 @@ function renderMissionEditor(
     screen = review;
   }
   return '<main class="workspace-main mission-editor guided-editor' + (guidedContextUnmuted ? ' guided-context-unmuted' : '') + (focusedNodeStep ? ' mission-node-focus-mode' : '') + ((stepName === "Shop pools" || stepName === "Shop unlocks") ? ' mission-shop-focus-mode' : '') + '">' + heading + (focusedNodeStep ? '' : progress) +
-    '<section class="mission-guided-screen" aria-labelledby="mission-step-title"><div class="mission-guided-step-heading"><span>' + (stepName === "Approach" ? "Mission setup" : "Step " + (step + 1) + " of " + steps.length + " · Mission") + '</span><h1 id="mission-step-title">' + stepName + '</h1></div>' +
-    screen + '</section>' + (stepName === "Approach" ? "" : focusedNodeStep ? '<footer class="mission-focus-footer"><span>Changes save as you type</span><div class="mission-focus-actions">' +
-      actionButton("mission-back-to-map", "← Back to map", "button button-primary") +
-      actionButton("editor-next", steps[step + 1] ? "Continue to " + steps[step + 1] + " →" : "Next", "button button-outline") +
-      '</div></footer>' : renderWorkflowFooter(steps, step, "Mission ready · export when you are ready")) +
+    '<section class="mission-guided-screen" aria-labelledby="mission-step-title"><div class="mission-guided-step-heading"><span>Step ' + (step + 1) + ' of ' + steps.length + ' · Mission</span><h1 id="mission-step-title">' + stepName + '</h1></div>' +
+    screen + '</section>' +
+    renderWorkflowFooter(steps, step, "Mission ready · export when you are ready", missionConfiguredSteps(mission, steps), focusedNodeStep) +
     '</main>';
 }
 
@@ -1856,7 +1936,15 @@ function renderGuidedQuestEditor(
       ? '<div class="guided-end-actions quest-export-actions">' + '</div>'
       : "") +
     '<p class="guided-keyboard-hint help-copy">Enter continues · Shift+Enter adds a line break</p>' +
-    renderWorkflowFooter(steps, step, "Ready to export") +
+    renderWorkflowFooter(steps, step, "Ready to export", [
+      !!quest.title.trim() || !!quest.description.trim(),
+      !!quest.objectiveKind,
+      !!quest.speakerUnitId || !!quest.speakerName.trim(),
+      !!quest.offerText.trim(),
+      !!quest.activeText.trim(),
+      quest.rewardAmount > 0 || !!quest.rewardKind,
+      false
+    ]) +
     '</main>';
 }
 

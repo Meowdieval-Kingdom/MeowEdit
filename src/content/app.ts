@@ -794,7 +794,7 @@ function createLocalRecord(section: DetailSection, id: string, name: string): Re
   };
   if (section === "armies") return { key, id, idAuto: true, name, previewFloor: 1, units: [], spellIds: [], blessingIds: [] };
   return {
-    key, id, idAuto: true, name, description: "", designMode: "custom", boardPreviewUnitId: "", questIds: [],
+    key, id, idAuto: true, name, description: "", boardPreviewUnitId: "", questIds: [],
     floors: [createMissionFloor(1, "authored")], events: [], settings: {
       startingLives: 3, startingSardines: 10, startingNodeCount: 12, playerFactionId: "",
       factionSelectionEnabled: true, battleShopEnabled: true, shopPoolKinds: ["Unit"],

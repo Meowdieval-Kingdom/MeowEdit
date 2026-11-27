@@ -116,11 +116,6 @@ export function normalizeMission(value: unknown, idFactory: IdFactory = createKe
     name: String(raw.name ?? raw.id ?? "Imported mission"),
     description: String(raw.description ?? ""),
     boardPreviewUnitId: String(raw.boardPreviewUnitId ?? ""),
-    designMode: meta.designMode === "settings-only" || meta.designMode === "custom" || meta.designMode === "choose"
-      ? meta.designMode
-      : Array.isArray(raw.floors) && raw.floors.length > 0 && !(raw.questIds?.length) &&
-        raw.floors.every((floor: Record<string, any>) => floor.mode === "random" && !(floor.nodes?.length) && !(floor.routes?.length) && Number(floor.randomSettings?.questNodeCount ?? 2) === 0) &&
-        Number(raw.settings?.questNodeCountPerRandomFloor ?? 2) === 0 ? "settings-only" : "custom",
     questIds: Array.isArray(raw.questIds) ? raw.questIds.map(String) : [],
     events: Array.isArray(raw.events) ? raw.events
       .filter((event: unknown) => !!event && typeof event === "object" && !Array.isArray(event))

@@ -232,7 +232,7 @@ describe("editor", () => {
     const workspace = draftToWorkspace(draft, capabilities);
     workspace.missions.push({
       key: "mission-1", id: "mission-1", name: "Mission", description: "", questIds: [],
-      designMode: "custom", boardPreviewUnitId: "",
+      boardPreviewUnitId: "",
       floors: [], settings: {
         startingLives: 3, startingSardines: 10, startingNodeCount: 12, playerFactionId: capabilities.ids.factions[0],
         factionSelectionEnabled: true, battleShopEnabled: true, shopPoolKinds: ["Unit"],

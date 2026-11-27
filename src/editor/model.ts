@@ -294,8 +294,6 @@ export interface MissionRecord {
   description: string;
   /** Optional unit shown as the player's character on the Adventure board; empty uses the faction hero. */
   boardPreviewUnitId?: string;
-  /** Guided entry path; editor metadata and omitted from game exports. */
-  designMode?: "choose" | "settings-only" | "custom";
   /** Selected reusable quest definitions available to Quest nodes in this mission. */
   questIds: string[];
   floors: MissionFloor[];

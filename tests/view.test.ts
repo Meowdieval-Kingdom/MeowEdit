@@ -3,7 +3,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import type { UnitRoster } from "../src/editor/model";
 import { includeArmyUnitsInRoster } from "../src/editor/roster";
-import { escapeHtml, renderApp, renderArmyAbilityPreview, renderArmyEntityPreview, renderDialoguePreview, renderLivePreview, renderValidationSummary } from "../src/editor/view";
+import { escapeHtml, guidedStepForAdvancedSection, missionConfiguredSteps, renderApp, renderArmyAbilityPreview, renderArmyEntityPreview, renderDialoguePreview, renderLivePreview, renderValidationSummary, setGuidedStepListOpen } from "../src/editor/view";
 import { armyFixture, catalog, dialogueFixture, rosterFixture, workspaceFixture } from "./fixtures";
 
 function dom(html: string): HTMLElement {
@@ -160,11 +160,11 @@ describe("editor rendering", () => {
     const missionWorkspace = workspaceFixture();
     missionWorkspace.selectedType = "mission";
     missionWorkspace.selectedKey = missionWorkspace.missions[0].key;
-    missionWorkspace.missions[0].designMode = "choose";
     const missionStart = renderApp(missionWorkspace, rosterFixture, catalog, [], 0, "guided");
-    expect(missionStart).toContain('class="mission-step-prompt help-copy"');
-    expect(missionStart).toContain('<span class="help-copy">Generated floors, starting rules, and progression.');
-    expect(missionStart).not.toContain('<span>Generated floors, starting rules, and progression.');
+    expect(missionStart).toContain('id="mission-step-title">Name</h1>');
+    expect(missionStart).toContain('data-action="toggle-step-list"');
+    expect(missionStart).toContain('data-action="editor-next"');
+    expect(missionStart).not.toContain("Randomizer settings only");
 
     const armyWorkspace = workspaceFixture();
     armyWorkspace.selectedType = "army";
@@ -579,7 +579,6 @@ describe("editor rendering", () => {
   it("puts generated board controls in a focused guided settings surface", () => {
     const workspace = workspaceFixture();
     const mission = workspace.missions[0];
-    mission.designMode = "settings-only";
     mission.floors[0].mode = "random";
     mission.floors[0].nodes = [];
     mission.floors[0].routes = [];
@@ -648,6 +647,42 @@ describe("editor rendering", () => {
 
     record.sequence.nodes = [];
     expect(renderDialoguePreview(record, { ...workspaceFixture(), activeNodeId: null }, roster)).toContain("Add a node to see the dialogue preview");
+  });
+
+  it("keeps guided step navigation visible and marks configured steps in the toggle list", () => {
+    setGuidedStepListOpen(true);
+    try {
+      const workspace = workspaceFixture();
+      workspace.selectedType = "dialogue";
+      workspace.selectedKey = workspace.dialogues[0].key;
+      const html = renderApp(workspace, rosterFixture, catalog, [], 0, "guided");
+      expect(html).toContain('class="workflow-step-nav"');
+      expect(html).toContain('data-action="toggle-step-list"');
+      expect(html).toContain('data-action="editor-goto-step"');
+      expect(html).toContain('class="guided-step-done"');
+      expect(html).toContain("Step 1 of 4");
+    } finally {
+      setGuidedStepListOpen(false);
+    }
+  });
+
+  it("maps the advanced section in view to its guided step", () => {
+    const steps = ["Name", "Floors", "Node", "Quests", "Shop pools", "Mission settings", "Events", "Review"];
+    expect(guidedStepForAdvancedSection("mission-map", steps)).toBe(2);
+    expect(guidedStepForAdvancedSection("mission-shops", steps)).toBe(4);
+    expect(guidedStepForAdvancedSection("unknown-section", steps)).toBe(0);
+    expect(missionConfiguredSteps(workspaceFixture().missions[0], steps)[0]).toBe(true);
+  });
+
+  it("uses Back to map instead of prev/next inside a focused mission node", () => {
+    const workspace = workspaceFixture();
+    workspace.selectedType = "mission";
+    workspace.selectedKey = workspace.missions[0].key;
+    const steps = ["Name", "Floors", "Node", "Review"];
+    expect(steps).toContain("Node");
+    const html = renderApp(workspace, rosterFixture, catalog, [], 2, "guided");
+    expect(html).toContain('data-action="mission-back-to-map"');
+    expect(html).not.toContain('data-action="editor-next"');
   });
 });
 

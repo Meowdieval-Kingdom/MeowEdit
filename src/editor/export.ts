@@ -119,8 +119,7 @@ export function workspaceJson(workspace: Workspace): string {
       ...missionDocument(record),
       _meowEditWorkspace: {
         key: record.key,
-        idAuto: record.idAuto === true,
-        ...(record.designMode ? { designMode: record.designMode } : {})
+        idAuto: record.idAuto === true
       }
     })),
     dialogues: workspace.dialogues.map(record => ({

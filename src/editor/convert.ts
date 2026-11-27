@@ -176,7 +176,6 @@ export function draftToWorkspace(
   const missions: MissionRecord[] = draft.missions.map(doc => ({
     key: doc.id, id: doc.id, idAuto: true, name: text(doc.name), description: text(doc.description),
     boardPreviewUnitId: ref(doc.boardPreviewUnitId),
-    designMode: "choose",
     questIds: doc.questIds.map(item => item.id),
     floors: doc.floors.map(floor => ({
       id: floor.id, number: floor.number, mode: floor.mode as MissionRecord["floors"][number]["mode"],

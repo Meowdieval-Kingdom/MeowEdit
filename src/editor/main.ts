@@ -41,7 +41,7 @@ import {
 } from "./export";
 import { readStoredZip } from "./zip";
 import { normalizeArmy, normalizeMission, normalizeQuest } from "./import-normalizers";
-import { escapeHtml, renderApp, renderLivePreview, renderValidationSummary, renderArmyEntityPreview, renderArmyAbilityPreview, setScratchMode, setGuidedContextUnmuted, type ArmyAbilityFilters, type ArmyAbilityKind, type ArmyAbilitySelections, type EditorMode, type QuestLibraryEntry } from "./view";
+import { escapeHtml, guidedStepForAdvancedSection, missionGuidedSteps, renderApp, renderLivePreview, renderValidationSummary, renderArmyEntityPreview, renderArmyAbilityPreview, setScratchMode, setGuidedContextUnmuted, toggleGuidedStepList, type ArmyAbilityFilters, type ArmyAbilityKind, type ArmyAbilitySelections, type EditorMode, type QuestLibraryEntry } from "./view";
 import { SCRATCH_WORKSPACE } from "./workspace-store";
 
 const initialEditorSession = (() => {
@@ -94,6 +94,8 @@ let lastNotifiedMode: "guided" | "full" | null = null;
 let lastReportedRecord = "";
 let editorDirty = false;
 let lastPreviewNodeId: string | null = null;
+let focusedAdvancedSection = "";
+let advancedScrollBound = false;
 const isScratch = () => !mountOptions?.setId;
 
 /**
@@ -184,6 +186,17 @@ export function mountEditor(options: EditorMountOptions): void {
     ? loadWorkspace(options.setId, options.draft, options.capabilities, options.selected)
     : loadScratchWorkspace();
   applyMountSelection(options);
+  if (!advancedScrollBound) {
+    advancedScrollBound = true;
+    window.addEventListener("scroll", () => {
+      if (editorMode !== "full" || !root) return;
+      let current = "";
+      root.querySelectorAll<HTMLElement>(".advanced-editor-content [id], .workspace-main [id]").forEach(section => {
+        if (section.getBoundingClientRect().top <= 160) current = section.id;
+      });
+      if (current) focusedAdvancedSection = current;
+    }, { passive: true });
+  }
   void Promise.all([loadRoster(), loadArmyCatalog()]).then(([loadedRoster, loadedCatalog]) => {
     if (generation !== mountGeneration) return;
     armyCatalog = loadedCatalog;
@@ -793,7 +806,7 @@ function addMission(): void {
   const id = uniqueId(name, workspace.missions.map(item => item.id), "mission");
   const key = createKey("mission");
   const mission: MissionRecord = {
-    key, id, idAuto: true, name, description: "", boardPreviewUnitId: "", designMode: "choose", questIds: [], events: [],
+    key, id, idAuto: true, name, description: "", boardPreviewUnitId: "", questIds: [], events: [],
     floors: [newMissionFloor(1)],
     settings: {
       startingLives: 3, startingSardines: 10, startingNodeCount: 12, playerFactionId: "",
@@ -823,8 +836,7 @@ function addMissionFloor(): void {
   const mission = currentMission();
   if (!mission) return;
   const number = mission.floors.reduce((max, floor) => Math.max(max, floor.number), 0) + 1;
-  const floor = newMissionFloor(number, mission.designMode === "settings-only" ? "random" : "authored");
-  if (mission.designMode === "settings-only") floor.randomSettings.questNodeCount = 0;
+  const floor = newMissionFloor(number);
   mission.floors.push(floor);
   selectedMissionFloorId = floor.id;
   selectedMissionNodeId = floor.nodes[0]?.id ?? null;
@@ -1986,34 +1998,6 @@ function onAction(button: HTMLButtonElement): void {
       event.actions.splice(index, 1);
       saveWorkspace(); render(); return;
     }
-    case "mission-design-choice": {
-      const mission = currentMission();
-      const choice = button.dataset.mode;
-      if (!mission || mission.designMode !== "choose" || (choice !== "settings-only" && choice !== "custom")) return;
-      mission.designMode = choice;
-      if (choice === "settings-only") {
-        mission.questIds = [];
-        mission.settings.questNodeCountPerRandomFloor = 0;
-        mission.settings.continueWithGeneratedFloors = true;
-        for (const floor of mission.floors) {
-          floor.mode = "random";
-          floor.nodes = [];
-          floor.routes = [];
-          floor.randomSettings.questNodeCount = 0;
-          floor.questPoolMode = "mission";
-          floor.questPoolIds = [];
-        }
-        selectedMissionNodeId = null;
-        missionInteractionMode = "select";
-        missionAddMenuOpen = false;
-        pendingMissionPlugFromId = null;
-        selectedMissionRouteId = null;
-      }
-      activeEditorStep = 0;
-      saveWorkspace();
-      render();
-      return;
-    }
     case "mission-remove-floor": {
       const mission = currentMission();
       const floor = currentMissionFloor(mission);
@@ -2035,10 +2019,8 @@ function onAction(button: HTMLButtonElement): void {
     }
     case "mission-set-floor-mode": {
       const floor = currentMissionFloor();
-      const mission = currentMission();
       const mode = button.dataset.mode as MissionFloorMode;
       if (!floor || !["authored", "random", "mixed"].includes(mode)) return;
-      if (mode !== "random" && mission?.designMode === "settings-only") mission.designMode = "custom";
       if (mode !== "random" && floor.mode === "random" && floor.nodes.length === 0) {
         const replacement = newMissionFloor(floor.number, mode);
         floor.nodes = replacement.nodes; floor.routes = replacement.routes;
@@ -2213,11 +2195,32 @@ function onAction(button: HTMLButtonElement): void {
       else activeEditorStep = Math.min(activeEditorStep, 4);
       render();
       return;
-    case "open-guided-editor":
+    case "open-guided-editor": {
+      const wasFull = editorMode === "full";
       editorMode = "guided";
-      activeEditorStep = currentQuest() ? (activeEditorStep >= 4 ? 4 : Math.min(activeEditorStep, 3)) : Math.min(activeEditorStep, 4);
-      if (currentMission()) activeEditorStep = Math.min(activeEditorStep, 12);
-      if (currentArmy()) activeEditorStep = Math.min(activeEditorStep, 5);
+      if (wasFull && focusedAdvancedSection) {
+        const steps = currentMission()
+          ? missionGuidedSteps(currentMission()!)
+          : currentQuest()
+            ? ["Basics", "Objective", "Quest giver", "Offer", "In progress", "Reward", "Review"]
+            : currentArmy()
+              ? ["Name", "Choose units", "Arrange grid", "Army spells", "Blessings", "Curses", "Review"]
+              : ["Speaker", "Lines", "Choices", "Preview"];
+        activeEditorStep = guidedStepForAdvancedSection(focusedAdvancedSection, steps);
+      } else {
+        activeEditorStep = currentQuest() ? (activeEditorStep >= 4 ? 4 : Math.min(activeEditorStep, 3)) : Math.min(activeEditorStep, 4);
+        if (currentMission()) activeEditorStep = Math.min(activeEditorStep, 12);
+        if (currentArmy()) activeEditorStep = Math.min(activeEditorStep, 5);
+      }
+      render();
+      return;
+    }
+    case "toggle-step-list":
+      toggleGuidedStepList();
+      render();
+      return;
+    case "editor-goto-step":
+      activeEditorStep = Math.max(0, Number(button.dataset.step) || 0);
       render();
       return;
     case "guided-add-node":
@@ -2547,8 +2550,9 @@ function onAction(button: HTMLButtonElement): void {
       getBridgeActions()?.signOut();
       return;
     case "jump-section": {
-      const target = root!.querySelector<HTMLElement>("#" + (button.dataset.section ?? "").replace(/[^a-zA-Z0-9_-]/g, ""));
-      target?.scrollIntoView?.({ behavior: "smooth", block: "start" });
+      const section = (button.dataset.section ?? "").replace(/[^a-zA-Z0-9_-]/g, "");
+      focusedAdvancedSection = section;
+      root!.querySelector<HTMLElement>("#" + section)?.scrollIntoView?.({ behavior: "smooth", block: "start" });
       return;
     }
     case "open-content-picker": {

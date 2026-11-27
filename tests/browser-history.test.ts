@@ -200,7 +200,7 @@ describe("browser history routing", () => {
     };
     (workspace.armies as unknown[]).push({ id: "army-1", idAuto: true, name: "Old Army", units: [], spellIds: [], blessingIds: [] });
     (workspace.missions as unknown[]).push({ id: "mission-1", idAuto: true, name: "Old Mission", description: "",
-      designMode: "custom", boardPreviewUnitId: "", questIds: [], floors: [], events: [],
+      boardPreviewUnitId: "", questIds: [], floors: [], events: [],
       settings: { startingLives: 3, startingSardines: 10, startingNodeCount: 12, playerFactionId: "",
         factionSelectionEnabled: true, battleShopEnabled: true, shopPoolKinds: ["Unit"],
         questNodeCountPerRandomFloor: 2, shopNodeCountPerRandomFloor: 3, nodeGrowthPerFloor: 2,

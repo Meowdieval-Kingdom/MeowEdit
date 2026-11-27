@@ -42,7 +42,7 @@ export function questFixture(): QuestRecord {
 
 export function missionFixture(): MissionRecord {
   return {
-    key: "mission-key", id: "test-mission", idAuto: false, name: "Test Mission", description: "", boardPreviewUnitId: "", designMode: "custom", questIds: [],
+    key: "mission-key", id: "test-mission", idAuto: false, name: "Test Mission", description: "", boardPreviewUnitId: "", questIds: [],
     events: [],
     floors: [createMissionFloor(1, "authored", prefix => prefix + "-id")],
     settings: { startingLives: 3, startingSardines: 10, startingNodeCount: 12, playerFactionId: "", factionSelectionEnabled: true, battleShopEnabled: true,

@@ -86,13 +86,12 @@ describe("content import normalization", () => {
     }]);
   });
 
-  it("recognizes randomizer-only mission imports and defaults omitted lists safely", () => {
+  it("defaults omitted lists safely for randomizer-only mission imports", () => {
     const mission = normalizeMission({
       id: "randomizer-run",
       floors: [{ mode: "random", randomSettings: { nodeCount: 14, questNodeCount: 0, shopNodeCount: 2 } }],
       settings: { questNodeCountPerRandomFloor: 0 }
     }, prefix => prefix + "-fixture");
-    expect(mission.designMode).toBe("settings-only");
     expect(mission.questIds).toEqual([]);
     expect(mission.floors[0]).toMatchObject({
       id: "floor-import-fixture", number: 1, questPoolMode: "mission", questPoolIds: [],
