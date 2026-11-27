@@ -196,8 +196,8 @@ describe("content validation", () => {
     const mission = missionFixture();
     mission.settings.startingSardines = 0;
     mission.events = [
-      { id: "intro-lineup", trigger: "mission-start", floorNumber: 0, nodeId: "", actions: [{ kind: "dialogue" }] } as never,
-      { id: "add-units", trigger: "battle-won", actions: [{ kind: "grant-blessings" }, { kind: "restart-battle" }] } as never
+      { id: "intro-lineup", trigger: "mission-start", floorNumber: 0, nodeId: "", actions: [{ kind: "dialogue", sequence: "test-dialogue", timing: "map" }] } as never,
+      { id: "add-units", trigger: "battle-won", actions: [{ kind: "grant-blessings", ids: "Blessing - Bulwark [Keyword]" }, { kind: "restart-battle" }] } as never
     ];
     const startNode = mission.floors[0].nodes.find(node => node.kind === "Start")!;
     startNode.armyId = "none";

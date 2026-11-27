@@ -20,6 +20,32 @@ describe("cleanup regressions", () => {
     expect(result.valid).toBe(true);
   });
 
+  it("round-trips a battle-lost second-chance event with authored actions", () => {
+    const workspace = workspaceFixture();
+    const mission = workspace.missions[0];
+    const battle = mission.floors[0].nodes.find(node => node.kind === "Battle")!;
+    mission.events = [{
+      id: "second-chance", trigger: "battle-lost", floorNumber: 1, nodeId: battle.id,
+      conditions: [], oneShot: "per-run",
+      actions: [
+        { kind: "dialogue", sequence: "test-dialogue", timing: "in-battle" },
+        { kind: "grant-blessings", ids: "Blessing - Bulwark [Keyword]|Blessing - Sharpened Claws [Keyword]" },
+        { kind: "restart-battle" }
+      ]
+    }];
+    const draft = structuredClone(fixture);
+    workspaceToDraft(draft, workspace, caps);
+    const event = (draft.missions as Array<{ events: Array<{ trigger: string; actions: Array<{ kind: string; parameters: Array<{ key: string; value: unknown }> }> }> }>)[0].events[0];
+    expect(event.trigger).toBe("battle-lost");
+    expect(event.actions.map(action => action.kind)).toEqual(["dialogue", "grant-blessings", "restart-battle"]);
+    expect(event.actions[0].parameters).toEqual([
+      { key: "sequence", value: "test-dialogue" }, { key: "timing", value: "in-battle" }
+    ]);
+    expect(event.actions[1].parameters).toEqual([
+      { key: "ids", value: "Blessing - Bulwark [Keyword]|Blessing - Sharpened Claws [Keyword]" }
+    ]);
+  });
+
   it("escapes related-return labels from authored names", () => {
     const html = renderApp(workspaceFixture(), { schemaVersion: 1, rosterVersion: "test", source: "", units: [] },
       catalog, [], 0, "guided", null, undefined,

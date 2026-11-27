@@ -260,7 +260,7 @@ export interface MissionSettings {
   sardinePayoutPerFloor: number;
 }
 
-export type MissionEventTrigger = "mission-start" | "before-battle" | "after-battle" | "node-cleared";
+export type MissionEventTrigger = "mission-start" | "before-battle" | "after-battle" | "battle-lost" | "node-cleared";
 
 /** Unknown action fields are retained so the mission action list can grow without losing imported data. */
 export interface MissionEventAction {

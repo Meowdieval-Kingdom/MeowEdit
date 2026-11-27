@@ -303,7 +303,7 @@ export function validateMission(
         const node = floor?.nodes.find(item => item.id === event.nodeId);
         if (!node) {
           issues.push({ level: "error", message: label + "target node “" + event.nodeId + "” does not exist on Floor " + event.floorNumber + "." });
-        } else if ((event.trigger === "before-battle" || event.trigger === "after-battle") && node.kind !== "Battle" && node.kind !== "Boss") {
+        } else if ((event.trigger === "before-battle" || event.trigger === "after-battle" || event.trigger === "battle-lost") && node.kind !== "Battle" && node.kind !== "Boss") {
           issues.push({ level: "error", message: label + "battle triggers must target a Battle or Boss node." });
         } else if (event.trigger === "node-cleared" && node.kind === "Start") {
           issues.push({ level: "error", message: label + "node-cleared triggers cannot target a Start node." });
@@ -317,6 +317,15 @@ export function validateMission(
         if (typeof armyId !== "string" || !workspace.armies.some(army => army.id === armyId)) {
           issues.push({ level: "error", message: label + "replace-player-army must reference an Army Editor army." });
         }
+      } else if (action.kind === "dialogue") {
+        if (typeof action.sequence !== "string" || !workspace.dialogues.some(record => record.sequence.sequenceId === action.sequence))
+          issues.push({ level: "error", message: label + "dialogue must reference a dialogue in this set." });
+        if (typeof action.timing !== "string"
+          || !["in-battle", "after-battle", "map", "round-summary", "immediate"].includes(action.timing))
+          issues.push({ level: "error", message: label + "dialogue timing is not supported." });
+      } else if (action.kind === "grant-blessings") {
+        if (typeof action.ids !== "string" || !action.ids.split("|").filter(Boolean).length)
+          issues.push({ level: "error", message: label + "grant-blessings needs at least one blessing ID." });
       } else if (!findAction(action.kind)) {
         // Registered actions round-trip through parameters unchanged; only warn
         // about genuinely unknown kinds that the runtime would not understand.

@@ -1443,6 +1443,7 @@ const MISSION_EVENT_TRIGGER_LABELS: Array<[string, string]> = [
   ["mission-start", "Mission starts"],
   ["before-battle", "Before a battle"],
   ["after-battle", "After a battle"],
+  ["battle-lost", "When a battle is lost"],
   ["node-cleared", "After a node is cleared"]
 ];
 
@@ -1462,22 +1463,49 @@ function renderMissionEventEditor(event: MissionRecord["events"][number], eventI
   const eventIdAttribute = ' data-event-id="' + escapeHtml(event.id) + '"';
   const floorOptions: Array<[string, string]> = [["", "Every floor"], ...mission.floors.map(item => [String(item.number), "Floor " + item.number] as [string, string])];
   const floor = mission.floors.find(item => item.number === event.floorNumber);
+  const battleTrigger = event.trigger === "before-battle" || event.trigger === "after-battle" || event.trigger === "battle-lost";
   const eligibleNodes = floor ? floor.nodes.filter(node => event.trigger === "node-cleared"
     ? node.kind !== "Start"
-    : (event.trigger === "before-battle" || event.trigger === "after-battle") && (node.kind === "Battle" || node.kind === "Boss")) : [];
+    : battleTrigger && (node.kind === "Battle" || node.kind === "Boss")) : [];
   const targetFields = event.trigger === "mission-start" ? "" : '<div class="mission-event-target-fields">' +
     selectField("Floor", path("floorNumber"), event.floorNumber ?? "", floorOptions, "", true, true) +
     (floor ? selectField("Specific node", path("nodeId"), event.nodeId ?? "", [["", "All matching nodes"], ...eligibleNodes.map(node => [node.id, node.label + " · " + node.kind] as [string, string])], "", true) : "") +
     '</div>';
+  const dialogueOptions: Array<[string, string]> = [["", "Choose a dialogue"], ...workspace.dialogues.map(record =>
+    [record.sequence.sequenceId, record.sequence.sequenceId] as [string, string])];
+  const timingOptions: Array<[string, string]> = [
+    ["in-battle", "During the battle"], ["map", "On the map"],
+    ["round-summary", "On the round summary"], ["after-battle", "After the battle"],
+    ["immediate", "Immediately"]
+  ];
   const actionRows = event.actions.map((action, actionIndex) => {
-    if (action.kind !== "replace-player-army") return '<div class="mission-event-unknown-action"><span>Unsupported action</span><code>' + escapeHtml(action.kind || "(missing kind)") + '</code></div>';
-    const armyId = typeof action.armyId === "string" ? action.armyId : "";
-    const army = workspace.armies.find(item => item.id === armyId);
-    return '<div class="mission-event-action-row"><div class="mission-event-action-heading"><strong>Replace player army</strong>' +
-      (event.actions.filter(item => item.kind === "replace-player-army").length > 1 ? actionButton("mission-remove-event-action", "Remove", "text-button danger-text", ' data-index="' + actionIndex + '"' + eventIdAttribute) : "") + '</div>' +
-      selectField("Player army", path("actions." + actionIndex + ".armyId"), armyId, [["", "Choose an Army Editor army"], ...workspace.armies.map(item => [item.id, item.name + " · " + item.id] as [string, string])]) +
-      '<div class="related-editor-actions">' + actionButton("create-mission-event-army", "＋ Create army", "text-button related-create", eventIdAttribute) +
-      (army ? actionButton("open-mission-event-army", "Edit linked army", "text-button related-open", ' data-army-id="' + escapeHtml(army.id) + '"' + eventIdAttribute) : "") + '</div></div>';
+    const remove = actionButton("mission-remove-event-action", "Remove", "text-button danger-text",
+      ' data-index="' + actionIndex + '" data-kind="' + escapeHtml(action.kind) + '"' + eventIdAttribute);
+    if (action.kind === "replace-player-army") {
+      const armyId = typeof action.armyId === "string" ? action.armyId : "";
+      const army = workspace.armies.find(item => item.id === armyId);
+      return '<div class="mission-event-action-row"><div class="mission-event-action-heading"><strong>Replace player army</strong>' + remove + '</div>' +
+        selectField("Player army", path("actions." + actionIndex + ".armyId"), armyId, [["", "Choose an Army Editor army"], ...workspace.armies.map(item => [item.id, item.name + " · " + item.id] as [string, string])]) +
+        '<div class="related-editor-actions">' + actionButton("create-mission-event-army", "＋ Create army", "text-button related-create", eventIdAttribute) +
+        (army ? actionButton("open-mission-event-army", "Edit linked army", "text-button related-open", ' data-army-id="' + escapeHtml(army.id) + '"' + eventIdAttribute) : "") + '</div></div>';
+    }
+    if (action.kind === "dialogue") {
+      return '<div class="mission-event-action-row"><div class="mission-event-action-heading"><strong>Show a dialogue</strong>' + remove + '</div>' +
+        '<div class="form-grid two">' +
+        selectField("Dialogue", path("actions." + actionIndex + ".sequence"), String(action.sequence ?? ""), dialogueOptions, "", true) +
+        selectField("When to show it", path("actions." + actionIndex + ".timing"), String(action.timing ?? "in-battle"), timingOptions, "", true) +
+        '</div></div>';
+    }
+    if (action.kind === "grant-blessings") {
+      return '<div class="mission-event-action-row"><div class="mission-event-action-heading"><strong>Grant blessings</strong>' + remove + '</div>' +
+        inputField("Blessing IDs", path("actions." + actionIndex + ".ids"), String(action.ids ?? ""),
+          { placeholder: "Blessing - Bulwark [Keyword]|Blessing - Sharpened Claws [Keyword]", hint: "Separate multiple blessing IDs with |." }) + '</div>';
+    }
+    if (action.kind === "restart-battle") {
+      return '<div class="mission-event-action-row"><div class="mission-event-action-heading"><strong>Retry the battle</strong>' + remove + '</div>' +
+        '<p class="field-hint help-copy">Replay this encounter in place after the dialogue.</p></div>';
+    }
+    return '<div class="mission-event-unknown-action"><span>Unsupported action</span><code>' + escapeHtml(action.kind || "(missing kind)") + '</code></div>';
   }).join("");
   const hasReplaceAction = event.actions.some(action => action.kind === "replace-player-army");
   const idField = mode === "full" ? inputField("Event ID", path("id"), event.id, { placeholder: "intro-army" }) :
@@ -1486,7 +1514,9 @@ function renderMissionEventEditor(event: MissionRecord["events"][number], eventI
     '<div class="mission-event-editor-heading"><div><span class="eyebrow">EVENT ' + (eventIndex + 1) + '</span><h3>' + escapeHtml(MISSION_EVENT_TRIGGER_LABELS.find(([value]) => value === event.trigger)?.[1] ?? "Mission event") + '</h3></div>' +
     (focused ? actionButton("mission-events-back", "← Events", "button button-outline") : actionButton("mission-remove-event", "Remove", "icon-button danger-icon", eventIdAttribute + ' aria-label="Remove mission event" title="Remove mission event"')) + '</div>' +
     selectField("When", path("trigger"), event.trigger, MISSION_EVENT_TRIGGER_LABELS, "", true) + targetFields +
-    '<section class="mission-event-actions"><div class="mission-event-section-heading"><h4>Actions</h4>' + (!hasReplaceAction ? actionButton("mission-add-event-action", "＋ Add action", "text-button related-create", eventIdAttribute) : "") + '</div>' +
+    '<section class="mission-event-actions"><div class="mission-event-section-heading"><h4>Actions</h4>' +
+    (!hasReplaceAction ? actionButton("mission-add-event-action", "＋ Replace player army", "text-button related-create", eventIdAttribute) +
+      actionButton("mission-add-second-chance", "＋ Second chance (dialogue + boost + retry)", "text-button related-create", eventIdAttribute) : "") + '</div>' +
     (actionRows || '<p class="mission-event-empty-action">Add an action to this event.</p>') + '</section>' + idField + '</section>';
 }
 

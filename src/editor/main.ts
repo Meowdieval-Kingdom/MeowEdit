@@ -1991,10 +1991,28 @@ function onAction(button: HTMLButtonElement): void {
       event.actions.push({ kind: "replace-player-army", armyId: "" });
       saveWorkspace(); render(); return;
     }
+    case "mission-add-second-chance": {
+      const mission = currentMission();
+      const event = mission?.events.find(item => item.id === (button.dataset.eventId ?? selectedMissionEventId));
+      if (!mission || !event || event.actions.some(item => item.kind === "replace-player-army")) return;
+      const dialogue = mission.questIds.length
+        ? workspace.dialogues.find(record => mission.questIds.includes(record.sequence.sequenceId))
+        : undefined;
+      const sequence = dialogue?.sequence.sequenceId ?? workspace.dialogues[0]?.sequence.sequenceId ?? "";
+      if (!event.actions.some(item => item.kind === "dialogue"))
+        event.actions.push({ kind: "dialogue", sequence, timing: "in-battle" });
+      if (!event.actions.some(item => item.kind === "grant-blessings"))
+        event.actions.push({ kind: "grant-blessings", ids: "Blessing - Bulwark [Keyword]|Blessing - Sharpened Claws [Keyword]" });
+      if (!event.actions.some(item => item.kind === "restart-battle"))
+        event.actions.push({ kind: "restart-battle" });
+      saveWorkspace(); render(); return;
+    }
     case "mission-remove-event-action": {
       const event = currentMission()?.events.find(item => item.id === (button.dataset.eventId ?? selectedMissionEventId));
       const index = Number(button.dataset.index);
-      if (!event || !Number.isInteger(index) || index < 0 || index >= event.actions.length || event.actions[index].kind !== "replace-player-army") return;
+      const editable = ["replace-player-army", "dialogue", "grant-blessings", "restart-battle"];
+      if (!event || !Number.isInteger(index) || index < 0 || index >= event.actions.length
+        || !editable.includes(event.actions[index].kind)) return;
       event.actions.splice(index, 1);
       saveWorkspace(); render(); return;
     }

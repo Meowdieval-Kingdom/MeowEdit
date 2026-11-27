@@ -220,6 +220,29 @@ describe("editor rendering", () => {
     expect(context).toContain('data-key="dialogue-key" aria-current="true"');
   });
 
+  it("offers the battle-lost trigger and editable second-chance actions", () => {
+    const workspace = workspaceFixture();
+    workspace.selectedType = "mission";
+    workspace.selectedKey = workspace.missions[0].key;
+    const battle = workspace.missions[0].floors[0].nodes.find(node => node.kind === "Battle")!;
+    workspace.missions[0].events = [{
+      id: "second-chance", trigger: "battle-lost", floorNumber: 1, nodeId: battle.id,
+      conditions: [], oneShot: "per-run",
+      actions: [
+        { kind: "dialogue", sequence: "test-dialogue", timing: "in-battle" },
+        { kind: "grant-blessings", ids: "Blessing - Bulwark [Keyword]" },
+        { kind: "restart-battle" }
+      ]
+    }];
+    const html = renderApp(workspace, rosterFixture, catalog, [], 0, "full", null, undefined, undefined, "units", true);
+    expect(html).toContain("When a battle is lost");
+    expect(html).toContain("＋ Second chance (dialogue + boost + retry)");
+    expect(html).toContain('data-bind="events.0.actions.0.sequence"');
+    expect(html).toContain('data-bind="events.0.actions.0.timing"');
+    expect(html).toContain('data-bind="events.0.actions.1.ids"');
+    expect(html).toContain("Retry the battle");
+  });
+
   it("renders open-content tabs when more than one record is open", () => {
     const workspace = workspaceFixture();
     workspace.selectedType = "quest";
