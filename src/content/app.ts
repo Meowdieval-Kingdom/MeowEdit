@@ -357,8 +357,19 @@ function recordEdited(state: AppState, entry: LastEdited): void {
 }
 
 function syncEditorTabs(state: AppState, setId: string, tabs: EditorTabState[]): void {
-  state.tabs = { ...state.tabs, [setId]: tabs.slice(-20) };
+  // Keep the existing array identity: the mounted editor holds a reference to it and
+  // must see tab additions/closures on its next render without being remounted.
+  const existing = state.tabs[setId];
+  const limited = tabs.slice(-20);
+  if (existing) existing.splice(0, existing.length, ...limited);
+  else state.tabs = { ...state.tabs, [setId]: limited };
   syncSession(state);
+}
+
+/** Removes a closed tab from the mounted editor chrome without navigating away. */
+function removeTabFromChrome(container: HTMLElement, key: string): void {
+  container.querySelectorAll<HTMLElement>('[data-action="editor-close-tab"], .editor-tab')
+    .forEach(element => { if (element.dataset.key === key) element.remove(); });
 }
 
 async function openTabTarget(container: HTMLElement, state: AppState, setId: string, tab: EditorTabState): Promise<void> {
@@ -976,8 +987,13 @@ async function openEditor(container: HTMLElement, state: AppState, target: Edito
       onCloseTab: key => {
         const remaining = (state.tabs[target.workspace] ?? []).filter(item => item.key !== key);
         syncEditorTabs(state, target.workspace, remaining);
-        if (key === target.key && remaining.length) void openTabTarget(container, state, target.workspace, remaining.at(-1)!);
-        else if (key === target.key) renderBrowser(container, state);
+        if (key !== target.key) {
+          // Closing a background tab must leave the current record open.
+          removeTabFromChrome(container, key);
+          return;
+        }
+        if (remaining.length) void openTabTarget(container, state, target.workspace, remaining.at(-1)!);
+        else if (scratch) renderBrowser(container, state);
         else renderSetView(container, state);
       },
       onTabState: (step, mode) => updateActiveTab(state, target.workspace, target.key, { step, mode })
@@ -1521,6 +1537,11 @@ async function openClassicEditor(container: HTMLElement, state: AppState, select
       onCloseTab: key => {
         const remaining = (state.tabs[state.setId] ?? []).filter(item => item.key !== key);
         syncEditorTabs(state, state.setId, remaining);
+        if (key !== route.key) {
+          // Closing a background tab must leave the current record open.
+          removeTabFromChrome(container, key);
+          return;
+        }
         if (remaining.length) void openTabTarget(container, state, state.setId, remaining.at(-1)!);
         else renderSetView(container, state);
       },
