@@ -215,69 +215,95 @@ const CONTEXT_ICONS: Record<string, string> = {
   set: "◆", missions: "▣", quests: "?", dialogues: "◍", armies: "⚔"
 };
 
-function renderContextSidebar(workspace: Workspace, openKeys: string[] = []): string {
+function renderContextSidebar(workspace: Workspace, openKeys: string[] = [], activeKey = ""): string {
   const open = new Set(openKeys);
   const leaf = (section: string, key: string, label: string, depth: number) =>
-    '<button type="button" class="context-item context-depth-' + depth + '" data-action="editor-switch-tab" data-section="' +
-    escapeHtml(section) + '" data-key="' + escapeHtml(key) + '">' +
+    '<button type="button" class="context-item context-depth-' + depth + (key === activeKey ? " is-active" : "") +
+    '" data-action="editor-switch-tab" data-section="' + escapeHtml(section) + '" data-key="' + escapeHtml(key) + '"' +
+    (key === activeKey ? ' aria-current="true"' : "") + '>' +
     '<span class="context-icon">' + CONTEXT_ICONS[section] + "</span>" + escapeHtml(label) + "</button>";
-  const group = (id: string, label: string, icon: string, children: string, childKeys: string[], depth: number) => {
-    const expanded = !!(children && childKeys.some(key => open.has(key)));
+  const group = (id: string, label: string, icon: string, children: string, childKeys: string[], depth: number, key = "") => {
+    const expanded = !!(children && childKeys.some(item => open.has(item)));
     return '<div class="context-group context-depth-' + depth + '">' +
-      '<button type="button" class="context-toggle' + (expanded ? " is-open" : "") + '" data-action="context-toggle" data-group="' +
-      escapeHtml(id) + '" aria-expanded="' + expanded + '"><span class="context-caret">' + (expanded ? "▾" : "▸") +
-      '</span><span class="context-icon">' + icon + "</span>" + escapeHtml(label) + "</button>" +
+      '<button type="button" class="context-toggle' + (expanded ? " is-open" : "") + (key && key === activeKey ? " is-active" : "") +
+      '" data-action="context-toggle" data-group="' + escapeHtml(id) + '" aria-expanded="' + expanded + '">' +
+      '<span class="context-caret">' + (expanded ? "▾" : "▸") + '</span><span class="context-icon">' + icon + "</span>" +
+      escapeHtml(label) + "</button>" +
       '<div class="context-children" data-context-group="' + escapeHtml(id) + '"' + (expanded ? "" : " hidden") + ">" + children + "</div></div>";
   };
+
+  const dialoguesForQuest = (quest: typeof workspace.quests[number]) => {
+    const keys = new Set<string>();
+    Object.values(quest.extension.dialogueLinks ?? {}).flat().forEach(ref => {
+      const id = typeof ref === "string" ? ref : (ref as { id?: string })?.id;
+      const dialogue = workspace.dialogues.find(item => item.sequence.sequenceId === id || item.key === id);
+      if (dialogue) keys.add(dialogue.key);
+    });
+    return [...keys];
+  };
+  const questGroup = (quest: typeof workspace.quests[number], depth: number) => {
+    const keys = dialoguesForQuest(quest);
+    const children = keys.map(key => {
+      const dialogue = workspace.dialogues.find(item => item.key === key)!;
+      return leaf("dialogues", key, dialogue.sequence.sequenceId || key, depth + 1);
+    }).join("");
+    return group("quest:" + quest.key, quest.definition.title || quest.definition.id, CONTEXT_ICONS.quests,
+      children, keys, depth, quest.key);
+  };
+
+  // Anything already placed under a mission/quest/army branch is not repeated in "Other content".
+  const contextualQuests = new Set(
+    workspace.missions.flatMap(mission => mission.questIds.flatMap(id => {
+      const quest = workspace.quests.find(item => item.definition.id === id);
+      return quest ? [quest.key] : [];
+    })));
+  const contextualDialogues = new Set(workspace.quests.flatMap(dialoguesForQuest));
+  const contextualArmies = new Set(
+    workspace.missions.flatMap(mission => [
+      ...mission.floors.flatMap(floor => floor.nodes.map(node => node.armyId).filter(Boolean)),
+      ...mission.events.flatMap(event => event.actions.map(action => String(action.armyId ?? ""))).filter(Boolean)
+    ]).flatMap(id => {
+      const army = workspace.armies.find(item => item.id === id || item.key === id);
+      return army ? [army.key] : [];
+    }));
 
   const missionItems = workspace.missions.map(mission => {
     const questGroups = mission.questIds.flatMap(id => {
       const quest = workspace.quests.find(item => item.definition.id === id);
-      if (!quest) return [];
-      const dialogueKeys: string[] = [];
-      const dialogues = Object.values(quest.extension.dialogueLinks ?? {}).flat().flatMap(ref => {
-        const dialogueId = typeof ref === "string" ? ref : (ref as { id?: string })?.id;
-        const dialogue = workspace.dialogues.find(item => item.sequence.sequenceId === dialogueId || item.key === dialogueId);
-        if (!dialogue) return [];
-        dialogueKeys.push(dialogue.key);
-        return [leaf("dialogues", dialogue.key, dialogue.sequence.sequenceId || dialogue.key, 3)];
-      });
-      return [group("quest:" + quest.key, quest.definition.title || quest.definition.id, CONTEXT_ICONS.quests,
-        dialogues.join(""), dialogueKeys, 2)];
+      return quest ? [questGroup(quest, 2)] : [];
     });
-    const armyIds = [
+    const missionArmyIds = [
       ...mission.floors.flatMap(floor => floor.nodes.map(node => node.armyId).filter(Boolean)),
       ...mission.events.flatMap(event => event.actions.map(action => String(action.armyId ?? ""))).filter(Boolean)
     ];
-    const armyLinks = [...new Set(armyIds)].flatMap(id => {
-      const army = workspace.armies.find(item => item.id === id || item.key === id);
-      return army ? [leaf("armies", army.key, army.name || army.id, 2)] : [];
-    });
-    const childKeys = [...mission.questIds.flatMap(id => {
+    const armyLinks = workspace.armies
+      .filter(army => missionArmyIds.some(id => army.id === id || army.key === id))
+      .map(army => leaf("armies", army.key, army.name || army.id, 2));
+    const childKeys = mission.questIds.flatMap(id => {
       const quest = workspace.quests.find(item => item.definition.id === id);
       return quest ? [quest.key] : [];
-    }), ...armyLinks.map(() => "").filter(Boolean)];
+    });
     return group("mission:" + mission.key, mission.name || mission.id, CONTEXT_ICONS.missions,
-      questGroups.join("") + armyLinks.join(""), childKeys, 1);
+      questGroups.join("") + armyLinks.join(""), childKeys, 1, mission.key);
   }).join("");
 
-  const others = [
-    ...workspace.quests.filter(quest => !workspace.missions.some(mission => mission.questIds.includes(quest.definition.id)))
-      .map(quest => leaf("quests", quest.key, quest.definition.title || quest.definition.id, 1)),
-    ...workspace.dialogues.map(dialogue => leaf("dialogues", dialogue.key, dialogue.sequence.sequenceId || dialogue.key, 1)),
-    ...workspace.armies.map(army => leaf("armies", army.key, army.name || army.id, 1))
-  ];
+  const standaloneQuests = workspace.quests.filter(quest => !contextualQuests.has(quest.key));
+  const looseDialogues = workspace.dialogues.filter(dialogue => !contextualDialogues.has(dialogue.key));
+  const looseArmies = workspace.armies.filter(army => !contextualArmies.has(army.key));
+  const others = standaloneQuests.map(quest => questGroup(quest, 1)).join("") +
+    looseDialogues.map(dialogue => leaf("dialogues", dialogue.key, dialogue.sequence.sequenceId || dialogue.key, 1)).join("") +
+    looseArmies.map(army => leaf("armies", army.key, army.name || army.id, 1)).join("");
   const otherKeys = [
-    ...workspace.quests.filter(quest => !workspace.missions.some(mission => mission.questIds.includes(quest.definition.id))).map(quest => quest.key),
-    ...workspace.dialogues.map(dialogue => dialogue.key),
-    ...workspace.armies.map(army => army.key)
+    ...standaloneQuests.map(quest => quest.key),
+    ...looseDialogues.map(dialogue => dialogue.key),
+    ...looseArmies.map(army => army.key)
   ];
   return '<aside class="context-sidebar"><div class="context-heading"><strong>Set context</strong>' +
     '<button type="button" class="icon-button" data-action="toggle-context" aria-label="Collapse context">×</button></div>' +
     '<div class="context-list">' +
     group("missions", "Missions", CONTEXT_ICONS.missions, missionItems,
       workspace.missions.map(mission => mission.key), 0) +
-    group("other", "Other content", CONTEXT_ICONS.set, others.join(""), otherKeys, 0) +
+    group("other", "Other content", CONTEXT_ICONS.set, others, otherKeys, 0) +
     "</div></aside>";
 }
 
@@ -2186,7 +2212,7 @@ export function renderApp(
     '</header>' +
     tabStrip +
     '<div class="app-layout">' +
-    renderContextSidebar(workspace, editorTabs.map(tab => tab.key)) +
+    renderContextSidebar(workspace, editorTabs.map(tab => tab.key), activeTabKey) +
     '<div class="stage-wrap">' + content +
     (item && (editorMode === "full" || guidedFinalStepActive) ? '<div class="editor-transfer-bar">' +
       (scratchMode ? actionButton("assign-to-set", "Assign to set", "button button-primary") : "") +

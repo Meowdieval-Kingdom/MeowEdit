@@ -201,6 +201,25 @@ describe("editor rendering", () => {
     expect(html).toContain("Test Quest");
   });
 
+  it("shows contextualized content once and marks the active tab in the context sidebar", () => {
+    const workspace = workspaceFixture();
+    workspace.selectedType = "mission";
+    workspace.selectedKey = workspace.missions[0].key;
+    workspace.missions[0].questIds = ["test-quest"];
+    workspace.missions[0].floors[0].nodes[0].armyId = "test-army";
+    workspace.quests[0].extension.dialogueLinks = {
+      offer: "test-dialogue", active: "", failure: "", completion: ""
+    };
+    const html = renderApp(workspace, rosterFixture, catalog, [], 0, "full", null, undefined, undefined, "units", false,
+      undefined, undefined, undefined, undefined, undefined, true, [], [], "dialogue-key");
+    const start = html.indexOf('class="context-sidebar"');
+    const context = html.slice(start, html.indexOf("</aside>", start));
+    expect(context).toContain("Other content");
+    expect(context.match(/data-key="dialogue-key"/g)).toHaveLength(1);
+    expect(context.match(/data-key="army-key"/g)).toHaveLength(1);
+    expect(context).toContain('data-key="dialogue-key" aria-current="true"');
+  });
+
   it("renders open-content tabs when more than one record is open", () => {
     const workspace = workspaceFixture();
     workspace.selectedType = "quest";
