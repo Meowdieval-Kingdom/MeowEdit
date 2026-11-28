@@ -1636,8 +1636,11 @@ body { color: var(--ink); background: var(--canvas); }
 /* Guided mode keeps only the authoring flow and its advanced-mode escape. */
 .app-shell.guided-shell .topbar,
 .app-shell.guided-shell .sidebar { display: none; }
-.app-shell.guided-shell .app-layout { display: block; min-height: 100vh; }
-.app-shell.guided-shell .stage-wrap { min-height: 100vh; padding: 0 32px 48px; }
+.app-shell.guided-shell .app-layout {
+  display: grid; grid-template-columns: 210px minmax(0, 1fr); min-height: 100vh;
+}
+.app-shell.guided-shell .app-layout.context-collapsed { grid-template-columns: minmax(0, 1fr); }
+.app-shell.guided-shell .stage-wrap { min-width: 0; min-height: 100vh; padding: 0 32px 48px; }
 .guided-editor { width: min(100%, 1040px); padding-top: 0; }
 .guided-editor-header {
   min-height: 62px; display: grid; grid-template-columns: 1fr minmax(0, 1fr) auto; align-items: center;
