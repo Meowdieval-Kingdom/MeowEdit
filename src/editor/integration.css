@@ -46,6 +46,21 @@
 .app-layout.context-collapsed .context-sidebar { display: none; }
 .app-shell.guided-shell .app-layout.context-collapsed .stage-wrap { width: 100%; }
 
+@media (max-width: 760px) {
+  .app-layout { position: relative; }
+  .context-sidebar {
+    position: fixed; z-index: 35; inset: 0 auto 0 0; width: min(86vw, 290px);
+    max-height: none; height: 100vh; overflow: auto;
+    transform: translateX(-102%); transition: transform 160ms ease;
+    box-shadow: 14px 0 35px rgba(39, 52, 43, .14);
+  }
+  .app-layout:not(.context-collapsed) .context-sidebar { transform: translateX(0); }
+  .app-layout:not(.context-collapsed)::before {
+    content: ""; position: fixed; inset: 0; z-index: 34; background: rgba(39, 52, 43, .22);
+  }
+  .topbar-actions [data-action="toggle-context"] { display: inline-flex; }
+}
+
 /* Open-content tabs in the editor chrome. */
 .editor-tabs { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; max-width: 1040px; margin: 8px auto 0; padding: 0 24px; }
 .editor-tab { min-height: 28px; padding: 0 10px; color: #62685e; background: #f1f2ec; border: 1px solid #dedfd7; border-radius: 5px; font-size: 11px; cursor: pointer; }

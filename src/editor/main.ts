@@ -171,6 +171,8 @@ export function mountEditor(options: EditorMountOptions): void {
   editorMode = options.initialMode ?? options.forceMode ?? session.editorMode;
   helpVisible = session.helpVisible;
   sidebarCollapsed = session.sidebarCollapsed;
+  // On small screens the context is an overlay; start with it closed.
+  contextCollapsed = typeof window !== "undefined" && window.innerWidth <= 760;
   armyCatalogKind = session.armyCatalogKind;
   activeEditorStep = options.initialStep ?? 0;
   lastNotifiedStep = -1;
@@ -242,6 +244,7 @@ let activeEditorStep = initialEditorSession.activeEditorStep;
 let editorMode: EditorMode = initialEditorSession.editorMode;
 let helpVisible = initialEditorSession.helpVisible;
 let sidebarCollapsed = initialEditorSession.sidebarCollapsed;
+let contextCollapsed = false;
 let guidedFocusAfterPath: string | null = null;
 let guidedFocusExactPath: string | null = null;
 let renderVersion = 0;
@@ -402,6 +405,7 @@ function render(): void {
     (mountOptions?.canPublishEditor?.() ?? true) && !isScratch(), questLibrary(),
     mountOptions?.tabs ?? [], mountOptions?.activeTabKey ?? "", isScratch() || editorDirty);
   const appLayout = root!.querySelector<HTMLElement>(".app-layout");
+  appLayout?.classList.toggle("context-collapsed", contextCollapsed);
   appLayout?.classList.toggle("is-sidebar-collapsed", sidebarCollapsed);
   appLayout?.classList.toggle("is-sidebar-open", root!.querySelector<HTMLElement>(".sidebar")?.classList.contains("is-open") ?? false);
   const sidebarToggle = root!.querySelector<HTMLButtonElement>(".sidebar-collapse-button");
@@ -2511,7 +2515,8 @@ function onAction(button: HTMLButtonElement): void {
       });
       return;
     case "toggle-context":
-      root!.querySelector(".app-layout")?.classList.toggle("context-collapsed");
+      contextCollapsed = !contextCollapsed;
+      root!.querySelector(".app-layout")?.classList.toggle("context-collapsed", contextCollapsed);
       return;
     case "context-toggle": {
       const id = button.dataset.group ?? "";

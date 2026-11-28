@@ -220,6 +220,16 @@ describe("editor rendering", () => {
     expect(context).toContain('data-key="dialogue-key" aria-current="true"');
   });
 
+  it("puts the focused guided step above the dialogue map", () => {
+    const workspace = workspaceFixture();
+    workspace.selectedType = "dialogue";
+    workspace.selectedKey = workspace.dialogues[0].key;
+    const html = renderApp(workspace, rosterFixture, catalog, [], 0, "guided");
+    expect(html).toContain('class="guided-map-context"');
+    expect(html.indexOf('class="guided-step-screen"')).toBeLessThan(html.indexOf('class="guided-map-context"'));
+    expect(html).toContain('data-action="open-full-editor"');
+  });
+
   it("offers the battle-lost trigger and editable second-chance actions", () => {
     const workspace = workspaceFixture();
     workspace.selectedType = "mission";

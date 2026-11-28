@@ -841,7 +841,6 @@ function renderGuidedDialogueEditor(
 
   return '<main class="workspace-main guided-editor' + ([0, 1, 2].includes(step) ? ' is-writing' : '') + '">' +
     renderGuidedEditorHeader("Dialogue", displayTitle, returnState, helpVisible) +
-    renderDialogueMap(node?.id ?? "") +
     '<section class="guided-step-screen" aria-labelledby="workflow-screen-title">' +
     '<div class="guided-step-heading"><span>Moment ' + String(nodeIndex + 1) + ' of ' + record.sequence.nodes.length + (isStartNode ? ' · Start node' : '') + '</span><h1 id="workflow-screen-title">' + steps[step] + '</h1></div>' +
     screen +
@@ -853,6 +852,11 @@ function renderGuidedDialogueEditor(
       !!node?.actions.length || !!node?.continueLabel?.trim(),
       false
     ]) +
+    '<section class="guided-map-context" aria-label="Dialogue map overview">' +
+    renderDialogueMap(node?.id ?? "") +
+    '<p class="guided-map-context-note">' +
+    actionButton("open-full-editor", "Rearrange moments in Advanced editor", "text-button") +
+    '</p></section>' +
     '</main>';
 }
 
