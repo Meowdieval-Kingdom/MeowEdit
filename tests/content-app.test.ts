@@ -315,4 +315,11 @@ describe("set manager and single editor", () => {
     expect(container.textContent).toContain("Hide help");
     expect(container.querySelector('[data-open="published-set"]')).not.toBeNull();
   });
+
+  it("disables discard all when the set has no local changes", async () => {
+    container.querySelector<HTMLElement>('[data-open="published-set"]')!.click();
+    await vi.waitFor(() => expect(container.querySelector("[data-discard-all]")).not.toBeNull());
+    expect(container.querySelector<HTMLButtonElement>("[data-discard-all]")!.disabled).toBe(true);
+    expect(container.querySelector<HTMLButtonElement>("[data-refresh-cloud]")!.disabled).toBe(false);
+  });
 });

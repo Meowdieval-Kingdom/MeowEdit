@@ -85,6 +85,25 @@ describe("editor", () => {
     await vi.waitFor(() => expect(onSave).toHaveBeenCalled());
   });
 
+  it("keeps a folded context group folded across renders and marks its active branch", async () => {
+    const fullSet = JSON.parse(readFileSync(path.resolve(process.cwd(), "contract/content/fixtures/valid-set.fixture.json"), "utf8")) as ContentSetDocument;
+    const { mountEditor } = await import("../src/editor/main");
+    mountEditor({
+      setId: "editor-set", draft: fullSet, capabilities, selected: { section: "dialogues", index: 0 },
+      onSave: vi.fn(), onDraftChange: vi.fn(), onBack: vi.fn(),
+      tabs: [{ section: "dialogues", key: "elder-intro", label: "Elder intro" }],
+      activeTabKey: "elder-intro"
+    });
+    await vi.waitFor(() => expect(document.querySelector('.context-toggle[data-group="missions"]')).not.toBeNull());
+    const toggle = document.querySelector<HTMLElement>('.context-toggle[data-group="missions"]')!;
+    expect(toggle.classList.contains("has-active")).toBe(true);
+    toggle.click();
+    expect(document.querySelector<HTMLElement>('[data-context-group="other"]')!.hidden).toBe(true);
+    document.querySelector<HTMLElement>('[data-action="editor-next"]')?.click();
+    expect(document.querySelector<HTMLElement>('[data-context-group="other"]')!.hidden).toBe(true);
+    expect(document.querySelector('.context-toggle[data-group="missions"]')!.classList.contains("has-active")).toBe(true);
+  });
+
   it("advances multi-line moments one line at a time in the preview", async () => {
     const draft = draftWithArmy();
     draft.dialogues[0].nodes[0].segments = [

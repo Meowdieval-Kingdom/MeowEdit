@@ -215,17 +215,33 @@ const CONTEXT_ICONS: Record<string, string> = {
   set: "◆", missions: "▣", quests: "?", dialogues: "◍", armies: "⚔"
 };
 
+const foldedContextGroups = new Set<string>();
+
+export function setContextGroupFolded(id: string, folded: boolean): void {
+  if (folded) foldedContextGroups.add(id);
+  else foldedContextGroups.delete(id);
+}
+
 function renderContextSidebar(workspace: Workspace, openKeys: string[] = [], activeKey = ""): string {
   const open = new Set(openKeys);
+  const groupMembers = new Map<string, Set<string>>();
   const leaf = (section: string, key: string, label: string, depth: number) =>
     '<button type="button" class="context-item context-depth-' + depth + (key === activeKey ? " is-active" : "") +
     '" data-action="editor-switch-tab" data-section="' + escapeHtml(section) + '" data-key="' + escapeHtml(key) + '"' +
     (key === activeKey ? ' aria-current="true"' : "") + '>' +
     '<span class="context-icon">' + CONTEXT_ICONS[section] + "</span>" + escapeHtml(label) + "</button>";
   const group = (id: string, label: string, icon: string, children: string, childKeys: string[], depth: number, key = "") => {
-    const expanded = !!(children && childKeys.some(item => open.has(item)));
+    const members = new Set<string>();
+    for (const child of childKeys) {
+      if (groupMembers.has(child)) for (const member of groupMembers.get(child)!) members.add(member);
+      else members.add(child);
+    }
+    groupMembers.set(id, members);
+    const hasActive = !!activeKey && members.has(activeKey);
+    const expanded = !!(children && !foldedContextGroups.has(id) && childKeys.some(item => open.has(item)));
     return '<div class="context-group context-depth-' + depth + '">' +
-      '<button type="button" class="context-toggle' + (expanded ? " is-open" : "") + (key && key === activeKey ? " is-active" : "") +
+      '<button type="button" class="context-toggle' + (expanded ? " is-open" : "") +
+      (key && key === activeKey ? " is-active" : "") + (hasActive ? " has-active" : "") +
       '" data-action="context-toggle" data-group="' + escapeHtml(id) + '" aria-expanded="' + expanded + '">' +
       '<span class="context-caret">' + (expanded ? "▾" : "▸") + '</span><span class="context-icon">' + icon + "</span>" +
       escapeHtml(label) + "</button>" +
@@ -279,10 +295,13 @@ function renderContextSidebar(workspace: Workspace, openKeys: string[] = [], act
     const armyLinks = workspace.armies
       .filter(army => missionArmyIds.some(id => army.id === id || army.key === id))
       .map(army => leaf("armies", army.key, army.name || army.id, 2));
-    const childKeys = mission.questIds.flatMap(id => {
-      const quest = workspace.quests.find(item => item.definition.id === id);
-      return quest ? [quest.key] : [];
-    });
+    const childKeys = [
+      ...mission.questIds.flatMap(id => {
+        const quest = workspace.quests.find(item => item.definition.id === id);
+        return quest ? ["quest:" + quest.key, quest.key] : [];
+      }),
+      ...workspace.armies.filter(army => missionArmyIds.some(id => army.id === id || army.key === id)).map(army => army.key)
+    ];
     return group("mission:" + mission.key, mission.name || mission.id, CONTEXT_ICONS.missions,
       questGroups.join("") + armyLinks.join(""), childKeys, 1, mission.key);
   }).join("");
@@ -294,7 +313,7 @@ function renderContextSidebar(workspace: Workspace, openKeys: string[] = [], act
     looseDialogues.map(dialogue => leaf("dialogues", dialogue.key, dialogue.sequence.sequenceId || dialogue.key, 1)).join("") +
     looseArmies.map(army => leaf("armies", army.key, army.name || army.id, 1)).join("");
   const otherKeys = [
-    ...standaloneQuests.map(quest => quest.key),
+    ...standaloneQuests.flatMap(quest => ["quest:" + quest.key, quest.key]),
     ...looseDialogues.map(dialogue => dialogue.key),
     ...looseArmies.map(army => army.key)
   ];
@@ -302,7 +321,7 @@ function renderContextSidebar(workspace: Workspace, openKeys: string[] = [], act
     '<button type="button" class="icon-button" data-action="toggle-context" aria-label="Collapse context">×</button></div>' +
     '<div class="context-list">' +
     group("missions", "Missions", CONTEXT_ICONS.missions, missionItems,
-      workspace.missions.map(mission => mission.key), 0) +
+      workspace.missions.flatMap(mission => ["mission:" + mission.key, mission.key]), 0) +
     group("other", "Other content", CONTEXT_ICONS.set, others, otherKeys, 0) +
     "</div></aside>";
 }

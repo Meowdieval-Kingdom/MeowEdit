@@ -41,7 +41,7 @@ import {
 } from "./export";
 import { readStoredZip } from "./zip";
 import { normalizeArmy, normalizeMission, normalizeQuest } from "./import-normalizers";
-import { escapeHtml, guidedStepForAdvancedSection, missionGuidedSteps, renderApp, renderLivePreview, renderValidationSummary, renderArmyEntityPreview, renderArmyAbilityPreview, setScratchMode, setGuidedContextUnmuted, toggleGuidedStepList, type ArmyAbilityFilters, type ArmyAbilityKind, type ArmyAbilitySelections, type EditorMode, type QuestLibraryEntry } from "./view";
+import { escapeHtml, guidedStepForAdvancedSection, missionGuidedSteps, renderApp, renderLivePreview, renderValidationSummary, renderArmyEntityPreview, renderArmyAbilityPreview, setContextGroupFolded, setScratchMode, setGuidedContextUnmuted, toggleGuidedStepList, type ArmyAbilityFilters, type ArmyAbilityKind, type ArmyAbilitySelections, type EditorMode, type QuestLibraryEntry } from "./view";
 import { SCRATCH_WORKSPACE } from "./workspace-store";
 
 const initialEditorSession = (() => {
@@ -78,6 +78,8 @@ export interface EditorMountOptions {
   onRecordChange?(section: string, key: string, label: string): void;
   onRecordEdited?(section: string, key: string): void;
   onDiscardRecord?(section: string, key: string): void;
+  /** Reset the whole set to the API-published state and leave the editor. */
+  onExitDiscard?(): void;
   tabs?: Array<{ section: string; key: string; label: string; step?: number; mode?: "guided" | "full" }>;
   activeTabKey?: string;
   onSwitchTab?(section: string, key: string, step?: number, mode?: "guided" | "full"): void;
@@ -2523,6 +2525,7 @@ function onAction(button: HTMLButtonElement): void {
       const children = root!.querySelector<HTMLElement>('[data-context-group="' + id + '"]');
       if (!children) return;
       children.hidden = !children.hidden;
+      setContextGroupFolded(id, children.hidden);
       const toggle = button;
       toggle.classList.toggle("is-open", !children.hidden);
       toggle.setAttribute("aria-expanded", String(!children.hidden));
@@ -2546,6 +2549,10 @@ function onAction(button: HTMLButtonElement): void {
       mountOptions?.onCloseTab?.(button.dataset.key ?? "");
       return;
     case "exit-discard": {
+      if (mountOptions?.onExitDiscard) {
+        mountOptions.onExitDiscard();
+        return;
+      }
       const section = workspace.selectedType;
       const key = workspace.selectedKey;
       if (section && key) mountOptions?.onDiscardRecord?.(section, key);

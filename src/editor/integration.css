@@ -33,6 +33,7 @@
 .context-toggle { display: flex; align-items: center; gap: 6px; width: 100%; padding: 5px 6px; color: #4f564b; text-align: left; background: transparent; border: 0; border-radius: 4px; font-size: 11px; font-weight: 650; cursor: pointer; }
 .context-toggle:hover { background: #ecefe7; }
 .context-toggle.is-active { color: #2f3d28; background: #e6ece0; font-weight: 700; box-shadow: inset 2px 0 0 #6f8a56; }
+.context-toggle.has-active:not(.is-open)::after { content: ""; flex: 0 0 6px; width: 6px; height: 6px; margin-left: auto; background: #6f8a56; border-radius: 50%; }
 .context-caret { flex: 0 0 9px; color: #8a9185; font-size: 9px; }
 .context-icon { flex: 0 0 15px; display: inline-grid; place-items: center; width: 15px; height: 15px; color: #5d6b51; background: #e9ede4; border-radius: 4px; font-size: 9px; font-weight: 700; }
 .context-children { display: grid; gap: 1px; }

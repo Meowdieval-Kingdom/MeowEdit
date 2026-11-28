@@ -3,6 +3,7 @@
 ## Commands
 
 - `npm test` runs the Vitest suite in jsdom.
+- `npm run test:e2e` runs Playwright against the Vite dev server using the harness pages in `tests/e2e/`. It covers real click-target/layout regressions (guided step position, context folding, tab order, discard-dialog toggle) that jsdom cannot catch.
 - `npm run test:coverage` runs the same suite and writes an HTML report to `coverage/index.html`.
 - `npm run build` type-checks application and test TypeScript, then creates the production bundle.
 - `npm run contract:check` verifies the authority hash, strict JSON Schemas, the shared packer hash vector, hand-authored fixtures and JSON Schema/zod agreement. It also cross-checks the hash with the sibling Kingdom contract doc; CI sets `MEOWEDIT_SKIP_AUTHORITY_DOC=1` because that checkout is not available there, while still enforcing `contract/content/schema.sha256`.

@@ -9,6 +9,7 @@
     "build": "npm run verify-demo-assets && tsc --noEmit && vite build",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
     "contract:check": "node tools/contract-check.mjs && vitest run tests/content-contract.test.ts tests/content-schema-agreement.test.ts",
     "preview": "vite preview --host 127.0.0.1",
     "watermark-demo-assets": "node tools/watermark-demo-assets.mjs",
@@ -19,6 +20,7 @@
     "snapshot-game-capabilities": "node tools/snapshot-game-capabilities.mjs"
   },
   "devDependencies": {
+    "@playwright/test": "^1.65.1",
     "@types/drawflow": "^0.0.12",
     "@types/node": "^24.0.0",
     "@vitest/coverage-v8": "^5.1.0",

@@ -15,7 +15,7 @@ import { gameCapabilitiesSchema } from "./zod";
 import type { ContentSetDocument, GameCapabilities } from "./types";
 import { validateContentSet, type ValidationResult } from "./validation";
 import {
-  hasUnsyncedWorkspace, loadScratchWorkspace, loadWorkspace, markWorkspaceSynced,
+  clearWorkspace, hasUnsyncedWorkspace, loadScratchWorkspace, loadWorkspace, markWorkspaceSynced,
   saveScratchWorkspace, SCRATCH_WORKSPACE
 } from "../editor/workspace-store";
 import { draftToWorkspace, workspaceToDraft } from "../editor/convert";
@@ -465,6 +465,53 @@ function markSetPublished(state: AppState, setId: string): void {
   state.pending = state.pending.filter(item => item.setId !== setId);
   state.unpublished = state.unpublished.filter(id => id !== setId);
   syncSession(state);
+}
+
+/** Rebuilds an authoring draft from the live published package (no browser-local snapshot). */
+async function fetchPublishedAsDraft(state: AppState, setId: string): Promise<ContentSetDocument | null> {
+  const packageId = state.sets.find(item => item.setId === setId)?.publishedPackageId
+    ?? storage()[setId]?.publishedPackageId;
+  if (!packageId) return null;
+  const pkg = await requestJson<{ files: Array<{ path: string; content: string }> }>(
+    "/v1/content/missions/" + encodeURIComponent(packageId));
+  const files = new Map(pkg.files.map(file => [file.path, JSON.parse(file.content) as Record<string, unknown>]));
+  const { schemaVersion: _schemaVersion, ...setDocument } = files.get("set.json") ?? {};
+  const extension = files.get("extensions/meowedit-v1.json") as { quests?: unknown[] } | undefined;
+  const quests = ((files.get("quests/Definitions.json") as { quests?: unknown[] } | undefined)?.quests ?? [])
+    .map((quest, index) => ({ ...(quest as object), meowEdit: extension?.quests?.[index] ?? {} }));
+  const draft = {
+    schemaVersion: 2,
+    set: setDocument,
+    quests,
+    armies: (files.get("armies/ArmyConfigurations.json") as { armies?: unknown[] } | undefined)?.armies ?? [],
+    missions: (files.get("missions/Missions.json") as { missions?: unknown[] } | undefined)?.missions ?? [],
+    dialogues: [...files.entries()]
+      .filter(([path]) => path.startsWith("dialogues/") && path.endsWith(".json"))
+      .map(([, value]) => structuredClone(value))
+  } as unknown as ContentSetDocument;
+  return validateContentSet(draft, state.capabilities).valid ? draft : null;
+}
+
+/** Replaces the set's local authoring state with a fresh cloud copy. */
+async function resetSetFromCloud(container: HTMLElement, state: AppState, setId: string, published: boolean): Promise<boolean> {
+  let draft: ContentSetDocument | null;
+  if (published) draft = await fetchPublishedAsDraft(state, setId);
+  else {
+    const loaded = await requestJson<{ draft: ContentSetDocument }>(
+      "/v1/editor/mission-sets/" + encodeURIComponent(setId));
+    draft = loaded.draft;
+  }
+  if (!draft) return false;
+  clearWorkspace(setId);
+  state.pending = state.pending.filter(item => item.setId !== setId);
+  state.tabs = { ...state.tabs, [setId]: [] };
+  state.draft = structuredClone(draft);
+  state.dirty = false;
+  state.baseline = structuredClone(draft);
+  state.validation = validateContentSet(state.draft, state.capabilities);
+  syncSession(state);
+  renderSetView(container, state);
+  return true;
 }
 
 function recordExists(entry: LastEdited): boolean {
@@ -979,6 +1026,14 @@ async function openEditor(container: HTMLElement, state: AppState, target: Edito
       },
       onRecordEdited: (section, key) => markRecordEdited(state, target.workspace, section, key),
       onDiscardRecord: (section, key) => discardRecord(state, target.workspace, section, key),
+      onExitDiscard: () => {
+        void resetSetFromCloud(container, state, target.workspace, true).then(ok => {
+          if (!ok) {
+            state.status = "The published version could not be reloaded.";
+            renderSetView(container, state);
+          }
+        });
+      },
       tabs: state.tabs[target.workspace] ?? [],
       activeTabKey: target.key,
       onSwitchTab: (section, key, step, mode) => {
@@ -1341,6 +1396,11 @@ function changedCount(state: AppState): number {
   return count;
 }
 
+function actionButtonRefreshCloud(): string {
+  return '<button type="button" class="text-button" data-refresh-cloud' +
+    ' title="Discard local edits and reload this set from the backend">Refresh from cloud</button>';
+}
+
 function renderSetView(container: HTMLElement, state: AppState): void {
   pushRoute({ kind: "set", setId: state.setId });
   activeEditorRoute = null;
@@ -1394,7 +1454,10 @@ function renderSetView(container: HTMLElement, state: AppState): void {
     ' title="Uploads your changes as a private draft for this set">Save draft · ' + changedCount(state) + " changed</button>" +
     '<button type="button" class="button button-outline" data-publish title="Publishes this set to players"' +
     (canPublish() && state.validation.valid ? "" : " disabled") + ">Publish</button>" +
-    '<button type="button" class="text-button danger-text" data-discard-all>Discard all</button></div>' +
+    actionButtonRefreshCloud() +
+    '<button type="button" class="text-button danger-text" data-discard-all' +
+    (state.dirty || state.pending.some(item => item.setId === state.setId) || hasUnsyncedWorkspace(state.setId) ? "" : " disabled") +
+    '>Discard all</button></div>' +
     (showError ? '<div class="status-banner" role="alert">' + escapeHtml(state.status) + "</div>" : "") +
     '<div class="guided-status" data-status hidden></div>' +
     '<dialog class="confirm-dialog" id="discard-dialog"><form method="dialog"><h2>Discard changes in this set?</h2>' +
@@ -1406,6 +1469,16 @@ function renderSetView(container: HTMLElement, state: AppState): void {
     '</div></main>';
   writeSession(state);
 
+  container.querySelector<HTMLElement>("[data-refresh-cloud]")?.addEventListener("click", () => {
+    if (!window.confirm("Discard local edits and reload this set from the backend?")) return;
+    const setId = state.setId;
+    void resetSetFromCloud(container, state, setId, false).then(ok => {
+      if (!ok) {
+        state.status = "The saved draft could not be reloaded.";
+        renderSetView(container, state);
+      }
+    });
+  });
   container.querySelector<HTMLElement>("[data-discard-all]")?.addEventListener("click", () => {
     const dialog = document.querySelector<HTMLDialogElement>("#discard-dialog");
     if (!dialog) return;
@@ -1422,9 +1495,9 @@ function renderSetView(container: HTMLElement, state: AppState): void {
       saveWorkspaceForSet(setId, workspace);
       const revertPublished = document.querySelector<HTMLInputElement>("[data-discard-unpublished]")?.checked;
       if (revertPublished) {
-        const published = loadPublishedSnapshot(setId);
+        const published = await fetchPublishedAsDraft(state, setId);
         if (published) {
-          state.draft = structuredClone(published);
+          state.draft = published;
           state.dirty = true;
           await saveDraft(state);
           markSetPublished(state, setId);
@@ -1533,6 +1606,14 @@ async function openClassicEditor(container: HTMLElement, state: AppState, select
       },
       onRecordEdited: (section, key) => markRecordEdited(state, state.setId, section, key),
       onDiscardRecord: (section, key) => discardRecord(state, state.setId, section, key),
+      onExitDiscard: () => {
+        void resetSetFromCloud(container, state, state.setId, true).then(ok => {
+          if (!ok) {
+            state.status = "The published version could not be reloaded.";
+            renderSetView(container, state);
+          }
+        });
+      },
       tabs: state.tabs[state.setId] ?? [],
       activeTabKey: selected ? (state.draft[selected.section as DetailSection] as unknown as Array<{ id?: string; sequenceId?: string }>)[selected.index]?.id ?? "" : "",
       onSwitchTab: (section, key, step, mode) => {

@@ -59,6 +59,16 @@ export function saveWorkspace(setId: string, workspace: Workspace, syncedDraftVe
   }
 }
 
+/** Drops both the cached workspace and its sync metadata for a set. */
+export function clearWorkspace(setId: string): void {
+  try {
+    localStorage.removeItem(workspaceKey(setId));
+    localStorage.removeItem(metaKey(setId));
+  } catch {
+    // Storage failures are not critical; the cloud draft remains authoritative.
+  }
+}
+
 export function markWorkspaceDirty(setId: string): void {
   try {
     const raw = localStorage.getItem(metaKey(setId));
