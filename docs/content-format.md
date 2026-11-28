@@ -22,6 +22,7 @@ Dialogue sequences use the game's version 1 shape:
 - ordered nodes with `id`, optional `headline`, and `textSpeed`
 - up to two speakers, each assigned to the left or right avatar slot
 - attributed segments; multiple speaker IDs in one segment represent unison
+- optional dialogue performance: per-segment `speed` (`preset`/`charactersPerSecond`/reserved `cadence`), `face`, `anim`, `idleAnim`; per-speaker `defaultSpeed`, `defaultFace`, `defaultIdleAnim`; per-quest `speakerSpeed`, `speakerFace`, `speakerIdleAnim` for generated quest dialogue. Names are validated against the snapshot in `src/editor/dialogue-animation-catalog.json` (from Kingdom's `Resources/Dialogue/dialogue-animation-catalog.json`). Inline tags `[anim=NAME]`, `[idleanim=NAME]`, `[face=NAME]`, `[speed=N|PRESET]` are stripped by the game and can fire mid-sentence.
 - actions with a label and target node; an empty target ends playback
 
 Quest definitions retain the game's existing fields such as source kind, objective kind, floor availability, objective-specific IDs, fallback text, and reward values. A normal quest document remains shaped like:

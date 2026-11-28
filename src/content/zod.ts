@@ -110,6 +110,13 @@ const meowEditQuestExtensionSchema = z.object({
   }).strict())
 }).strict();
 
+/** Optional reveal-speed setting; numeric cps wins over a named preset. */
+export const dialogueSpeedSettingSchema = z.object({
+  preset: z.string().optional(),
+  charactersPerSecond: z.number().positive().optional(),
+  cadence: z.array(z.unknown()).optional()
+}).strict();
+
 export const questDocumentSchema = z.object({
   schemaVersion: z.literal(2),
   id: z.string().min(1),
@@ -135,6 +142,9 @@ export const questDocumentSchema = z.object({
   rewardKind: z.enum(rewardKinds).optional(),
   rewardAmount: z.number().int().optional(),
   rewardContentId: namedRefSchema.optional(),
+  speakerSpeed: dialogueSpeedSettingSchema.optional(),
+  speakerFace: z.string().optional(),
+  speakerIdleAnim: z.string().optional(),
   meowEdit: meowEditQuestExtensionSchema
 }).strict();
 
@@ -243,9 +253,18 @@ export const dialogueDocumentSchema = z.object({
     headline: localizedTextSchema,
     textSpeed: z.number(),
     speakers: z.array(z.object({
-      id: z.string(), unitId: namedRefSchema, displayName: localizedTextSchema, side: z.string(), mood: z.string()
+      id: z.string(), unitId: namedRefSchema, displayName: localizedTextSchema, side: z.string(), mood: z.string(),
+      defaultSpeed: dialogueSpeedSettingSchema.optional(),
+      defaultFace: z.string().optional(),
+      defaultIdleAnim: z.string().optional()
     }).strict()),
-    segments: z.array(z.object({ speakerIds: z.array(z.string()), text: localizedTextSchema }).strict()),
+    segments: z.array(z.object({
+      speakerIds: z.array(z.string()), text: localizedTextSchema,
+      speed: dialogueSpeedSettingSchema.optional(),
+      face: z.string().optional(),
+      anim: z.string().optional(),
+      idleAnim: z.string().optional()
+    }).strict()),
     actions: z.array(z.object({
       label: localizedTextSchema,
       targetNodeId: z.string(),

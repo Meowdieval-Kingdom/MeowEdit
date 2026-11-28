@@ -3,6 +3,7 @@ import type {
   MissionEvent,
   ContentSetDocument,
   DialogueDecision,
+  DialogueSpeedSetting,
   GameCapabilities
 } from "../content/types";
 import {
@@ -46,6 +47,25 @@ function toContentSpeed(value: string, base: number): number {
   return value === "fast" ? base * 1.5 : value === "slow" ? base * 0.5 : base;
 }
 
+function speedFromDoc(value: DialogueSpeedSetting | undefined): DialogueSpeedSetting | undefined {
+  if (!value) return undefined;
+  return {
+    ...(typeof value.preset === "string" ? { preset: value.preset } : {}),
+    ...(typeof value.charactersPerSecond === "number" ? { charactersPerSecond: value.charactersPerSecond } : {}),
+    ...(Array.isArray(value.cadence) ? { cadence: structuredClone(value.cadence) } : {})
+  };
+}
+
+function speedToDoc(value: DialogueSpeedSetting | undefined): DialogueSpeedSetting | undefined {
+  if (!value) return undefined;
+  return {
+    ...(typeof value.preset === "string" && value.preset ? { preset: value.preset } : {}),
+    ...(typeof value.charactersPerSecond === "number" && value.charactersPerSecond > 0
+      ? { charactersPerSecond: value.charactersPerSecond } : {}),
+    ...(Array.isArray(value.cadence) ? { cadence: structuredClone(value.cadence) } : {})
+  };
+}
+
 /** Converts the authoritative structured draft into the shape the editor screens render. */
 export function draftToWorkspace(
   draft: ContentSetDocument,
@@ -72,10 +92,17 @@ export function draftToWorkspace(
             originalTextSpeed: node.textSpeed,
             speakers: node.speakers.map(speaker => ({
               id: speaker.id, unitId: ref(speaker.unitId), displayName: text(speaker.displayName),
-              side: speaker.side === "right" ? "right" as const : "left" as const, mood: speaker.mood
+              side: speaker.side === "right" ? "right" as const : "left" as const, mood: speaker.mood,
+              ...(speedFromDoc(speaker.defaultSpeed) ? { defaultSpeed: speedFromDoc(speaker.defaultSpeed) } : {}),
+              ...(speaker.defaultFace ? { defaultFace: speaker.defaultFace } : {}),
+              ...(speaker.defaultIdleAnim ? { defaultIdleAnim: speaker.defaultIdleAnim } : {})
             })),
             segments: node.segments.map(segment => ({
-              speakerIds: [...segment.speakerIds], text: text(segment.text)
+              speakerIds: [...segment.speakerIds], text: text(segment.text),
+              ...(speedFromDoc(segment.speed) ? { speed: speedFromDoc(segment.speed) } : {}),
+              ...(segment.face ? { face: segment.face } : {}),
+              ...(segment.anim ? { anim: segment.anim } : {}),
+              ...(segment.idleAnim ? { idleAnim: segment.idleAnim } : {})
             })),
             actions: implicit ? [] : node.actions.map(action => {
               const decision = decisionOf(action.meowEdit?.decision);
@@ -104,7 +131,10 @@ export function draftToWorkspace(
       acceptLabel: text(doc.acceptLabel), declineLabel: text(doc.declineLabel),
       autoAccept: doc.autoAccept === true,
       rewardKind: doc.rewardKind ?? capabilities.enums.rewardKind[0] ?? "Sardines",
-      rewardAmount: doc.rewardAmount ?? 0, rewardContentId: ref(doc.rewardContentId)
+      rewardAmount: doc.rewardAmount ?? 0, rewardContentId: ref(doc.rewardContentId),
+      ...(speedFromDoc(doc.speakerSpeed) ? { speakerSpeed: speedFromDoc(doc.speakerSpeed) } : {}),
+      ...(doc.speakerFace ? { speakerFace: doc.speakerFace } : {}),
+      ...(doc.speakerIdleAnim ? { speakerIdleAnim: doc.speakerIdleAnim } : {})
     };
     return {
       key: doc.id, idAuto: true, definition,
@@ -280,10 +310,17 @@ export function workspaceToDraft(
         textSpeed: node.originalTextSpeed ?? toContentSpeed(String(node.textSpeed), sequence.defaultCharactersPerSecond),
         speakers: node.speakers.map(speaker => ({
           id: speaker.id, unitId: refTo(speaker.unitId, firstUnit), displayName: localized(speaker.displayName),
-          side: speaker.side === "right" ? "right" : "left", mood: speaker.mood
+          side: speaker.side === "right" ? "right" : "left", mood: speaker.mood,
+          ...(speedToDoc(speaker.defaultSpeed) ? { defaultSpeed: speedToDoc(speaker.defaultSpeed) } : {}),
+          ...(speaker.defaultFace ? { defaultFace: speaker.defaultFace } : {}),
+          ...(speaker.defaultIdleAnim ? { defaultIdleAnim: speaker.defaultIdleAnim } : {})
         })),
         segments: node.segments.map(segment => ({
-          speakerIds: [...segment.speakerIds], text: localized(segment.text)
+          speakerIds: [...segment.speakerIds], text: localized(segment.text),
+          ...(speedToDoc(segment.speed) ? { speed: speedToDoc(segment.speed) } : {}),
+          ...(segment.face ? { face: segment.face } : {}),
+          ...(segment.anim ? { anim: segment.anim } : {}),
+          ...(segment.idleAnim ? { idleAnim: segment.idleAnim } : {})
         })),
         actions
       };
@@ -318,6 +355,9 @@ export function workspaceToDraft(
       rewardKind: definition.rewardKind,
       rewardAmount: definition.rewardAmount,
       ...(optional(definition.rewardContentId) ? { rewardContentId: optional(definition.rewardContentId) } : {}),
+      ...(speedToDoc(definition.speakerSpeed) ? { speakerSpeed: speedToDoc(definition.speakerSpeed) } : {}),
+      ...(definition.speakerFace ? { speakerFace: definition.speakerFace } : {}),
+      ...(definition.speakerIdleAnim ? { speakerIdleAnim: definition.speakerIdleAnim } : {}),
       meowEdit: {
         schemaVersion: 2,
         dialogueLinks: {

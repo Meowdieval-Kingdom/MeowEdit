@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "1",
+  "oneShotAnimations": [
+    "Attack",
+    "Ability",
+    "Win"
+  ],
+  "idleAnimations": [
+    "Idle",
+    "IdleVariant1",
+    "IdleVariant2",
+    "Walk",
+    "AttackLoop"
+  ],
+  "speedPresets": [
+    { "name": "default", "multiplier": 1.0 },
+    { "name": "fast", "multiplier": 1.75 },
+    { "name": "slow", "multiplier": 0.65 }
+  ]
+}

@@ -116,6 +116,10 @@ export interface QuestDocument {
   rewardKind?: string;
   rewardAmount?: number;
   rewardContentId?: NamedRef;
+  /** Defaults for generated quest dialogue nodes. */
+  speakerSpeed?: DialogueSpeedSetting;
+  speakerFace?: string;
+  speakerIdleAnim?: string;
   meowEdit: MeowEditQuestExtension;
 }
 
@@ -245,17 +249,31 @@ export interface DialogueDecision {
   outcomeLabel: LocalizedText;
 }
 
+/** Optional reveal-speed setting. Numeric cps wins over a named preset. */
+export interface DialogueSpeedSetting {
+  preset?: string;
+  charactersPerSecond?: number;
+  cadence?: unknown[];
+}
+
 export interface DialogueSpeaker {
   id: string;
   unitId: NamedRef;
   displayName: LocalizedText;
   side: string;
   mood: string;
+  defaultSpeed?: DialogueSpeedSetting;
+  defaultFace?: string;
+  defaultIdleAnim?: string;
 }
 
 export interface DialogueSegment {
   speakerIds: string[];
   text: LocalizedText;
+  speed?: DialogueSpeedSetting;
+  face?: string;
+  anim?: string;
+  idleAnim?: string;
 }
 
 export interface DialogueAction {

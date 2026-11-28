@@ -10,6 +10,7 @@ import type {
 } from "./model";
 import { armyFootprintsOverlap, armyGridSize, canPlaceArmyLevel, resolveArmyLevel } from "./army-catalog";
 import { findAction, isKnownTrigger } from "../content/registries";
+import { validateDialogueTags, validatePerformanceFields } from "./performance";
 
 export interface ValidationIssue {
   level: "error" | "warning";
@@ -73,12 +74,21 @@ export function validateDialogue(record: DialogueRecord): ValidationIssue[] {
         target: node.id
       });
     }
+    for (const speaker of node.speakers) {
+      for (const message of validatePerformanceFields({
+        face: speaker.defaultFace, anim: undefined,
+        idleAnim: speaker.defaultIdleAnim, speed: speaker.defaultSpeed
+      })) issues.push({ level: "error", message: `Speaker "${speaker.id}": ${message}`, target: node.id });
+    }
     for (const segment of node.segments) {
       for (const speakerId of segment.speakerIds) {
         if (!speakerIds.includes(speakerId)) {
           issues.push({ level: "error", message: "A text segment refers to a speaker that is not in this node.", target: node.id });
         }
       }
+      for (const message of [
+        ...validatePerformanceFields(segment), ...validateDialogueTags(segment.text)
+      ]) issues.push({ level: "error", message, target: node.id });
     }
     for (const action of node.actions) {
       if (action.targetNodeId && !nodeMap.has(action.targetNodeId)) {
@@ -102,6 +112,11 @@ export function validateQuest(
 ): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
   const quest = record.definition;
+
+  for (const message of validatePerformanceFields({
+    face: quest.speakerFace, anim: undefined,
+    idleAnim: quest.speakerIdleAnim, speed: quest.speakerSpeed
+  })) issues.push({ level: "error", message: `Quest speaker: ${message}` });
 
   if (!nonEmpty(quest.id)) issues.push({ level: "error", message: "Quest ID is required." });
   if (!nonEmpty(quest.title)) issues.push({ level: "error", message: "Quest title is required." });

@@ -215,6 +215,9 @@
         "rewardKind": { "$ref": "#/$defs/enums/rewardKind" },
         "rewardAmount": { "type": "integer" },
         "rewardContentId": { "$ref": "#/$defs/namedRef" },
+        "speakerSpeed": { "$ref": "#/$defs/dialogueSpeedSetting" },
+        "speakerFace": { "type": "string" },
+        "speakerIdleAnim": { "type": "string" },
         "meowEdit": { "$ref": "#/$defs/meowEditQuestExtension" }
       }
     },
@@ -402,7 +405,19 @@
         "unitId": { "$ref": "#/$defs/namedRef" },
         "displayName": { "$ref": "#/$defs/localizedText" },
         "side": { "type": "string" },
-        "mood": { "type": "string" }
+        "mood": { "type": "string" },
+        "defaultSpeed": { "$ref": "#/$defs/dialogueSpeedSetting" },
+        "defaultFace": { "type": "string" },
+        "defaultIdleAnim": { "type": "string" }
+      }
+    },
+    "dialogueSpeedSetting": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "preset": { "type": "string" },
+        "charactersPerSecond": { "type": "number", "exclusiveMinimum": 0 },
+        "cadence": { "type": "array", "items": {} }
       }
     },
     "dialogueSegment": {
@@ -411,7 +426,11 @@
       "required": ["speakerIds", "text"],
       "properties": {
         "speakerIds": { "type": "array", "items": { "type": "string" } },
-        "text": { "$ref": "#/$defs/localizedText" }
+        "text": { "$ref": "#/$defs/localizedText" },
+        "speed": { "$ref": "#/$defs/dialogueSpeedSetting" },
+        "face": { "type": "string" },
+        "anim": { "type": "string" },
+        "idleAnim": { "type": "string" }
       }
     },
     "dialogueDecision": {

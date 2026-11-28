@@ -3,6 +3,7 @@ import type {
   DialogueAction,
   DialogueNode,
   DialogueRecord,
+  DialogueSpeaker,
   ArmyCatalog,
   ArmyCatalogAbility,
   ArmyCatalogLevel,
@@ -25,6 +26,7 @@ import { armyFootprint, armyGridSize, resolveArmyLevel, type ArmyCatalogKind } f
 import { canPublish, getBridgeUserId } from "../bridge-context";
 import type { ValidationIssue } from "./validation";
 import { validateMission, validateDialogue, validateQuest } from "./validation";
+import { FACE_MOODS, IDLE_ANIMATIONS, ONE_SHOT_ANIMATIONS, SPEED_PRESETS, parseDialogueTags } from "./performance";
 
 export type EditorMode = "guided" | "full";
 export type ArmyAbilityFilters = Record<"spells" | "blessings" | "curses", "all" | "field">;
@@ -424,6 +426,38 @@ function renderActionCard(
     '</div>';
 }
 
+function speedControls(prefix: string, speed?: { preset?: string; charactersPerSecond?: number }): string {
+  return '<div class="form-grid two performance-speed">' +
+    selectField("Speed", prefix + ".preset", speed?.preset ?? "",
+      [["", "Inherit"], ...SPEED_PRESETS.map(preset => [preset.name, preset.name + " · " + Math.round(34 * preset.multiplier) + " cps"] as [string, string])],
+      "", true) +
+    inputField("Characters / second", prefix + ".charactersPerSecond", speed?.charactersPerSecond ?? "",
+      { type: "number", min: 1, max: 200, placeholder: "Override" }) +
+    '</div>';
+}
+
+function performanceControls(
+  prefix: string,
+  value: { speed?: { preset?: string; charactersPerSecond?: number }; face?: string; anim?: string; idleAnim?: string },
+  options: { speed?: boolean; face?: boolean; anim?: boolean; idle?: boolean }
+): string {
+  return (options.speed ? speedControls(prefix + ".speed", value.speed) : "") +
+    (options.face ? selectField("Face", prefix + ".face", value.face ?? "",
+      [["", "Inherit"], ...FACE_MOODS.map(mood => [mood, mood] as [string, string])], "", true) : "") +
+    (options.anim ? selectField("One-shot animation", prefix + ".anim", value.anim ?? "",
+      [["", "None"], ...ONE_SHOT_ANIMATIONS.map(name => [name, name] as [string, string])], "", true) : "") +
+    (options.idle ? selectField("Idle animation", prefix + ".idleAnim", value.idleAnim ?? "",
+      [["", "Inherit"], ...IDLE_ANIMATIONS.map(name => [name, name] as [string, string])], "", true) : "");
+}
+
+function narratorDefaultsControls(prefix: string, speaker: DialogueSpeaker): string {
+  return speedControls(prefix + ".defaultSpeed", speaker.defaultSpeed) +
+    selectField("Face", prefix + ".defaultFace", speaker.defaultFace ?? "",
+      [["", "Inherit"], ...FACE_MOODS.map(mood => [mood, mood] as [string, string])], "", true) +
+    selectField("Idle animation", prefix + ".defaultIdleAnim", speaker.defaultIdleAnim ?? "",
+      [["", "Inherit"], ...IDLE_ANIMATIONS.map(name => [name, name] as [string, string])], "", true);
+}
+
 function renderSegment(
   node: DialogueNode,
   segmentIndex: number,
@@ -448,7 +482,14 @@ function renderSegment(
     '<div class="form-grid two segment-fields">' +
     selectField("Who speaks?", "nodes." + nodeIndex + ".segments." + segmentIndex + ".speakerIds", segment.speakerIds.join(","), options, "Select both speakers for a shared or interrupted line.", true) +
     textAreaField("Line", "nodes." + nodeIndex + ".segments." + segmentIndex + ".text", segment.text, "", 3) +
-    '</div></div>';
+    '</div>' +
+    '<details class="performance-details"><summary>Performance · speed, face, animation</summary>' +
+    performanceControls("nodes." + nodeIndex + ".segments." + segmentIndex, segment,
+      { speed: true, face: true, anim: true, idle: true }) +
+    '<p class="field-hint help-copy">Tags work mid-line too: <code>[face=Cute]</code>, ' +
+    '<code>[anim=Win]</code>, <code>[idleanim=IdleVariant1]</code>, <code>[speed=fast]</code> or ' +
+    '<code>[speed=45]</code>. They are removed from the spoken text by the game.</p>' +
+    '</details></div>';
 }
 
 function renderDialogueNodeEditor(
@@ -473,11 +514,13 @@ function renderDialogueNodeEditor(
       unitPicker("Character", prefix + ".unitId", speaker.unitId, roster, "Choose by character name; the UnitCatalog ID is stored for the game.") +
       speakerNameField("Display name", prefix + ".displayName", speaker.displayName, speaker.unitId, roster) +
       selectField("Portrait side", prefix + ".side", speaker.side, [["left", "Left"], ["right", "Right"]], "", true) +
-      selectField("Mood", prefix + ".mood", speaker.mood, [
-        ["Normal", "Normal"], ["Cute", "Cute"], ["Sleeping", "Sleeping"],
-        ["Hurt", "Hurt"], ["Confused", "Confused"], ["Mad", "Mad"]
-      ], "", true) +
-      '</div></div>';
+      selectField("Mood", prefix + ".mood", speaker.mood, FACE_MOODS.map(mood => [mood, mood] as [string, string]), "", true) +
+      '</div>' +
+      '<details class="performance-details"><summary>Narrator defaults · speed, face, idle</summary>' +
+      narratorDefaultsControls(prefix, speaker) +
+      '<p class="field-hint help-copy">These defaults persist when you switch narrators and return. ' +
+      'Individual lines and inline tags can override them.</p>' +
+      '</details></div>';
   }).join("");
 
   const actions = node.actions.length
@@ -705,7 +748,8 @@ export function renderDialoguePreview(
     .map(id => speakers.find(speaker => speaker.id === id)?.displayName || id)
     .filter(Boolean);
   const headline = current.headline || [...new Set(firstSpeakerNames)].join(" & ");
-  const body = (segment.text ?? "").trim();
+  const parsed = parseDialogueTags(segment.text ?? "");
+  const body = parsed.clean.trim();
   const hasNextLine = lineIndex < segments.length - 1;
   const actions = hasNextLine
     ? [{ label: "Continue", targetNodeId: "", nextLine: true }]
@@ -808,6 +852,7 @@ function renderGuidedDialogueEditor(
         speakerNameField("Display name", "nodes." + nodeIndex + ".speakers.0.displayName", speaker.displayName, speaker.unitId, roster) +
         '<details class="guided-speaker-options"><summary>Speaker options</summary>' +
         selectField("Portrait side", "nodes." + nodeIndex + ".speakers.0.side", speaker.side, [["left", "Left"], ["right", "Right"]], "") +
+        narratorDefaultsControls("nodes." + nodeIndex + ".speakers.0", speaker) +
         '</details>' +
         '</div>'
       : "";
@@ -829,7 +874,12 @@ function renderGuidedDialogueEditor(
       const speakerLabel = [...new Set(speakerNames)].join(" & ") || node.headline || "Narration";
       return '<div class="guided-line"><div class="guided-item-heading"><span>Line ' + (index + 1) + ' · ' + escapeHtml(speakerLabel) + '</span>' +
         (index > 0 ? actionButton("remove-segment", "Remove", "text-button danger-text", ' data-node-index="' + nodeIndex + '" data-index="' + index + '" aria-label="Remove line"') : "") +
-        '</div>' + textAreaField("What should the player read?", "nodes." + nodeIndex + ".segments." + index + ".text", segment.text, "", 3) + '</div>';
+        '</div>' + textAreaField("What should the player read?", "nodes." + nodeIndex + ".segments." + index + ".text", segment.text, "", 3) +
+        '<details class="performance-details"><summary>Performance for this line</summary>' +
+        performanceControls("nodes." + nodeIndex + ".segments." + index, segment,
+          { speed: true, face: true, anim: true, idle: true }) +
+        '<p class="field-hint help-copy">For mid-line timing use tags: [face=Cute], [anim=Win], [idleanim=Idle], [speed=fast].</p>' +
+        '</details></div>';
     }).join("");
     screen = '<div class="guided-intro help-copy"><p>Each line appears on its own with a Continue button between lines. Keep lines by the same narrator here; make a new moment when the speaker changes.</p></div>' +
       (lines || '<div class="guided-empty"><p class="help-copy">Add a line to start.</p></div>') +
@@ -1988,7 +2038,14 @@ function renderGuidedQuestEditor(
       '<div class="form-grid two guided-fields">' +
       unitPicker("Quest giver character", "definition.speakerUnitId", quest.speakerUnitId, roster, "May be blank for a letter or narration-only source.") +
       speakerNameField("Speaker name", "definition.speakerName", quest.speakerName, quest.speakerUnitId, roster) +
-      '</div>';
+      '</div><details class="performance-details"><summary>Generated dialogue performance</summary>' +
+      speedControls("definition.speakerSpeed", quest.speakerSpeed) +
+      selectField("Face", "definition.speakerFace", quest.speakerFace ?? "",
+        [["", "Inherit"], ...FACE_MOODS.map(mood => [mood, mood] as [string, string])], "", true) +
+      selectField("Idle animation", "definition.speakerIdleAnim", quest.speakerIdleAnim ?? "",
+        [["", "Inherit"], ...IDLE_ANIMATIONS.map(name => [name, name] as [string, string])], "", true) +
+      '<p class="field-hint help-copy">Applied to dialogue generated for this quest.</p>' +
+      '</details>';
   } else if (step === 3) {
     screen = '<div class="guided-intro help-copy"><p>Write what the player hears when the quest is offered.</p></div>' +
       '<div class="guided-fields guided-writing-field">' + textAreaField("Offer text", "definition.offerText", quest.offerText, "Shown when this quest is offered.", 5) + '</div>';

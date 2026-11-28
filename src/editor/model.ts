@@ -4,17 +4,31 @@ export type RewardKind = "Sardines" | "ExtraLife" | "Blessing";
 export type TextSpeed = "default" | "fast" | "slow";
 export type FaceMood = "Normal" | "Cute" | "Sleeping" | "Hurt" | "Confused" | "Mad";
 
+/** Editor speed setting: named preset plus optional exact characters-per-second override. */
+export interface DialogueSpeedSetting {
+  preset?: string;
+  charactersPerSecond?: number;
+  cadence?: unknown[];
+}
+
 export interface DialogueSpeaker {
   id: string;
   unitId: string;
   displayName: string;
   side: "left" | "right";
   mood: FaceMood | string;
+  defaultSpeed?: DialogueSpeedSetting;
+  defaultFace?: string;
+  defaultIdleAnim?: string;
 }
 
 export interface DialogueSegment {
   speakerIds: string[];
   text: string;
+  speed?: DialogueSpeedSetting;
+  face?: string;
+  anim?: string;
+  idleAnim?: string;
 }
 
 export interface DialogueDecision {
@@ -83,6 +97,10 @@ export interface AdventureQuestDefinition {
   rewardKind: RewardKind | string;
   rewardAmount: number;
   rewardContentId: string;
+  /** Defaults carried into generated quest dialogue nodes. */
+  speakerSpeed?: DialogueSpeedSetting;
+  speakerFace?: string;
+  speakerIdleAnim?: string;
 }
 
 export type CompletionEffectKind = "play-event" | "unlock-path" | "unlock-shop-item";

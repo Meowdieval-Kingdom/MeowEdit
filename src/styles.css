@@ -1350,6 +1350,10 @@ body { color: var(--ink); background: var(--canvas); }
 .guided-step-item.is-active { color: #2f3d28; background: #e9efe2; border-color: #b9c9aa; font-weight: 650; }
 .guided-step-index { color: #8a9185; font-size: 10px; }
 .guided-step-name { flex: 1; }
+.performance-details { margin-top: 10px; color: #636a5e; font-size: 11px; }
+.performance-details > summary { cursor: pointer; font-weight: 650; }
+.performance-details .field, .performance-details .form-grid { margin-top: 10px; }
+.performance-details code { color: #4c6140; font-size: 10px; }
 .guided-step-done { color: #4f7a3f; font-weight: 700; }
 .validation-card {
   margin-top: 0; padding: 17px 0 0; background: transparent;
