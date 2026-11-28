@@ -131,17 +131,18 @@ function renderNodeHtml(record: DialogueRecord, node: DialogueNode, index: numbe
     '<span class="dialogue-graph-route-label" data-route-label-node="' + escapeHtml(node.id) + '" data-route-label-index="' + routeIndex + '">' +
     escapeHtml(route.label || "Continue") + '</span></div>'
   ).join("");
-  const routeCount = routes.length + " route" + (routes.length === 1 ? "" : "s");
   const speakerNames = node.speakers.map(speaker => speaker.displayName || speaker.unitId).filter(Boolean).join(" & ");
   const text = node.segments[0]?.text ?? "";
-  const preview = (speakerNames ? speakerNames + " · " : "") + (text.length > 52 ? text.slice(0, 52) + "…" : text);
+  const extraLines = node.segments.length - 1;
+  const preview = (speakerNames ? speakerNames + " · " : "") +
+    (text.length > 52 ? text.slice(0, 52) + "…" : text) +
+    (extraLines > 0 ? " (+" + extraLines + " line" + (extraLines === 1 ? "" : "s") + ")" : "");
   return '<div class="dialogue-graph-card' + (node.id === activeNodeId ? " is-active" : "") + (isStart ? " is-start" : "") + '">' +
     '<button type="button" class="dialogue-graph-card-head" data-action="select-node" data-node-id="' + escapeHtml(node.id) + '" aria-label="' +
     (isStart ? "Start dialogue moment: " : "Select moment: ") + escapeHtml(title) + '">' +
     '<span class="dialogue-graph-kicker">' + (isStart ? '<b aria-hidden="true">▶</b> START' : "MOMENT " + (index + 1)) + '</span>' +
     '<strong class="dialogue-graph-title" data-node-title="' + escapeHtml(node.id) + '">' + escapeHtml(title) + '</strong>' +
-    '<small class="dialogue-graph-preview">' + escapeHtml(preview || "No line yet") + '</small>' +
-    '<small>' + routeCount + '</small></button>' +
+    '<small class="dialogue-graph-preview">' + escapeHtml(preview || "No line yet") + '</small></button>' +
     '<div class="dialogue-graph-routes">' + routeMarkup + '</div></div>';
 }
 
