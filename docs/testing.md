@@ -3,7 +3,8 @@
 ## Commands
 
 - `npm test` runs the Vitest suite in jsdom.
-- `npm run test:e2e` runs Playwright against the Vite dev server using the harness pages in `tests/e2e/`. It covers real click-target/layout regressions (guided step position, context folding, tab order, discard-dialog toggle) that jsdom cannot catch.
+- `npm run test:e2e` runs Playwright against the Vite dev server using the harness pages in `tests/e2e/`. It covers real click-target/layout regressions (guided step position, context folding, tab order, discard-dialog toggle) that jsdom cannot catch. The suite runs on desktop and mobile projects.
+- `tests/e2e/action-inventory.json` is the generated list of every `data-action` rendered across the eight editor harness variants (four content types × guided/full). `inventory.spec.ts` fails when the rendered set changes without updating the baseline, and `action-smoke.spec.ts` clicks every inventoried action and asserts no runtime error. Regenerate the baseline with `INVENTORY_GENERATE=1 npx playwright test inventory --project=desktop`.
 - `npm run test:coverage` runs the same suite and writes an HTML report to `coverage/index.html`.
 - `npm run build` type-checks application and test TypeScript, then creates the production bundle.
 - `npm run contract:check` verifies the authority hash, strict JSON Schemas, the shared packer hash vector, hand-authored fixtures and JSON Schema/zod agreement. It also cross-checks the hash with the sibling Kingdom contract doc; CI sets `MEOWEDIT_SKIP_AUTHORITY_DOC=1` because that checkout is not available there, while still enforcing `contract/content/schema.sha256`.

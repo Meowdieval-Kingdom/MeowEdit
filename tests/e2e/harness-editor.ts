@@ -10,25 +10,32 @@ const capabilities = await (await fetch("/game-capabilities.json")).json();
 const draft = await (await fetch("/contract/content/fixtures/valid-set.fixture.json")).json();
 const { mountEditor } = await import("../../src/editor/main");
 
-const tabs = [
-  { section: "missions", key: "first-mission", label: "First Mission" },
-  { section: "quests", key: "find-key", label: "Find the Key" }
-];
-let activeKey = "first-mission";
+const params = new URLSearchParams(location.search);
+const section = (["dialogues", "quests", "armies", "missions"].includes(params.get("type") ?? "") ? params.get("type") : "missions")!;
+const mode = params.get("mode") === "full" ? "full" : "guided";
+const selection: Record<string, { index: number; key: string }> = {
+  dialogues: { index: 0, key: "elder-intro" },
+  quests: { index: 0, key: "find-key" },
+  armies: { index: 0, key: "guards" },
+  missions: { index: 0, key: "first-mission" }
+};
+const tabs = Object.entries(selection).map(([type, value]) => ({
+  section: type.replace(/s$/, ""), key: value.key, label: value.key
+}));
 
-function mount(): void {
+function mount(activeKey = selection[section].key): void {
   mountEditor({
     setId: "e2e-set",
     draft,
     capabilities,
-    selected: activeKey === "first-mission" ? { section: "missions", index: 0 } : { section: "quests", index: 0 },
-    forceMode: "guided",
+    selected: { section, index: selection[section].index },
+    forceMode: mode,
     onSave: async () => "saved",
     onDraftChange: () => undefined,
     onBack: () => undefined,
     tabs,
     activeTabKey: activeKey,
-    onSwitchTab: (_section, key) => { activeKey = key; mount(); }
+    onSwitchTab: (_tabSection, key) => mount(key)
   });
 }
 mount();
